@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type="text/xsl" href="//dev.tictac-comunicacion.es/bravo/main-sitemap.xsl"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+	<sitemap>
+		<loc>https://dev.tictac-comunicacion.es/bravo/post-sitemap.xml</loc>
+		<lastmod>2025-06-30T10:42:19+00:00</lastmod>
+	</sitemap>
+	<sitemap>
+		<loc>https://dev.tictac-comunicacion.es/bravo/page-sitemap.xml</loc>
+		<lastmod>2025-07-04T08:21:10+00:00</lastmod>
+	</sitemap>
+	<sitemap>
+		<loc>https://dev.tictac-comunicacion.es/bravo/category-sitemap.xml</loc>
+		<lastmod>2025-06-30T10:42:19+00:00</lastmod>
+	</sitemap>
+</sitemapindex>
