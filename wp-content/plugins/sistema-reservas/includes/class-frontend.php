@@ -365,7 +365,11 @@ class ReservasFrontend
     {
         ob_start();
     ?>
-        <div id="reservas-detalles" class="reservas-details-container">
+        <div id="reservas-detalles" class="container reservas-details-container">
+            <br><br>
+            <button type="button" class="back-btn" onclick="goBackToBooking()">
+                    <img src="https://autobusmedinaazahara.com/wp-content/uploads/2025/07/Vector-15.svg" alt="">VOLVER A MODIFICAR RESERVA
+                </button>
             <!-- Detalles de la reserva -->
             <div class="details-summary">
                 <h2>DETALLES DE LA RESERVA</h2>
@@ -436,10 +440,10 @@ class ReservasFrontend
                     </div>
                 </div>
             </div>
-
+            <br>
             <!-- Formulario de datos personales directamente debajo -->
             <div class="personal-data-section">
-                <div class="form-card-single">
+                <div class="form-card-single ">
                     <h3>DATOS PERSONALES</h3>
                     <form id="personal-data-form">
                         <div class="form-row">
@@ -464,9 +468,7 @@ class ReservasFrontend
 
             <!-- Botones finales -->
             <div class="final-buttons">
-                <button type="button" class="back-btn" onclick="goBackToBooking()">
-                    ← VOLVER A MODIFICAR RESERVA
-                </button>
+
                 <button type="button" class="process-btn" onclick="processReservation()">
                     PROCESAR RESERVA
                 </button>

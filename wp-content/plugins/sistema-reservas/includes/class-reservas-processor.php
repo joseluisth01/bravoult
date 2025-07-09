@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Clase para procesar reservas - VERSIÓN CON DEBUG MEJORADO
+ * Clase para procesar reservas - VERSIÓN CON TPV Y EMAILS
  * Archivo: wp-content/plugins/sistema-reservas/includes/class-reservas-processor.php
  */
 
@@ -13,10 +13,14 @@ class ReservasProcessor
         // Hooks AJAX para procesar reservas
         add_action('wp_ajax_process_reservation', array($this, 'process_reservation'));
         add_action('wp_ajax_nopriv_process_reservation', array($this, 'process_reservation'));
+        
+        // ✅ NUEVO HOOK PARA PROCESAR PAGO
+        add_action('wp_ajax_process_payment', array($this, 'process_payment'));
+        add_action('wp_ajax_nopriv_process_payment', array($this, 'process_payment'));
     }
 
     /**
-     * Procesar una nueva reserva - CON DEBUG MEJORADO
+     * Procesar una nueva reserva - ACTUALIZADO PARA REDIRIGIR A TPV
      */
     public function process_reservation()
     {
@@ -30,125 +34,242 @@ class ReservasProcessor
 
         try {
             error_log('=== INICIANDO PROCESS_RESERVATION ===');
-            error_log('REQUEST_METHOD: ' . $_SERVER['REQUEST_METHOD']);
-            error_log('POST data: ' . print_r($_POST, true));
-
-            // Verificar que es una petición POST
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                error_log('ERROR: No es petición POST');
-                wp_send_json_error('Método no permitido');
-                return;
-            }
-
-            // Verificar que tenemos datos POST
-            if (empty($_POST)) {
-                error_log('ERROR: POST está vacío');
-                wp_send_json_error('No hay datos POST');
-                return;
-            }
 
             // Verificar nonce
-            if (!isset($_POST['nonce'])) {
-                error_log('ERROR: No hay nonce en la petición');
-                wp_send_json_error('Falta nonce de seguridad');
-                return;
-            }
-
-            if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-                error_log('ERROR: Nonce inválido - Recibido: ' . $_POST['nonce']);
-                error_log('ERROR: Nonce esperado: ' . wp_create_nonce('reservas_nonce'));
-                wp_send_json_error('Error de seguridad - nonce inválido');
-                return;
-            }
-
-            error_log('SUCCESS: Nonce verificado correctamente');
-
-            // Verificar que tenemos la acción correcta
-            if (!isset($_POST['action']) || $_POST['action'] !== 'process_reservation') {
-                error_log('ERROR: Acción incorrecta - Recibida: ' . ($_POST['action'] ?? 'ninguna'));
-                wp_send_json_error('Acción incorrecta');
+            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+                wp_send_json_error('Error de seguridad');
                 return;
             }
 
             // Validar y sanitizar datos del formulario
             $datos_personales = $this->validar_datos_personales();
             if (!$datos_personales['valido']) {
-                error_log('ERROR: Datos personales inválidos - ' . $datos_personales['error']);
                 wp_send_json_error($datos_personales['error']);
                 return;
             }
-            error_log('SUCCESS: Datos personales validados');
 
             // Validar y sanitizar datos de la reserva
             $datos_reserva = $this->validar_datos_reserva();
             if (!$datos_reserva['valido']) {
-                error_log('ERROR: Datos de reserva inválidos - ' . $datos_reserva['error']);
                 wp_send_json_error($datos_reserva['error']);
                 return;
             }
-            error_log('SUCCESS: Datos de reserva validados');
 
             // Verificar disponibilidad del servicio
             $servicio = $this->verificar_disponibilidad($datos_reserva['datos']['service_id'], $datos_reserva['datos']['total_personas']);
             if (!$servicio['disponible']) {
-                error_log('ERROR: Servicio no disponible - ' . $servicio['error']);
                 wp_send_json_error($servicio['error']);
                 return;
             }
-            error_log('SUCCESS: Servicio disponible');
 
             // Recalcular precios
             $calculo_precio = $this->recalcular_precio($datos_reserva['datos']);
             if (!$calculo_precio['valido']) {
-                error_log('ERROR: Error en cálculo de precio - ' . $calculo_precio['error']);
                 wp_send_json_error($calculo_precio['error']);
                 return;
             }
-            error_log('SUCCESS: Precio calculado');
+
+            // ✅ GUARDAR DATOS EN SESIÓN PARA EL TPV
+            if (!session_id()) {
+                session_start();
+            }
+
+            $_SESSION['reservation_pending'] = array(
+                'datos_personales' => $datos_personales['datos'],
+                'datos_reserva' => $datos_reserva['datos'],
+                'calculo_precio' => $calculo_precio['precio'],
+                'timestamp' => time()
+            );
+
+            // ✅ RESPUESTA PARA REDIRIGIR AL TPV
+            $response_data = array(
+                'action' => 'redirect_to_tpv',
+                'amount' => $calculo_precio['precio']['precio_final'],
+                'concept' => 'Reserva de transporte para ' . $datos_reserva['datos']['fecha'],
+                'redirect_url' => $this->get_tpv_url($calculo_precio['precio']['precio_final'], $datos_personales['datos'])
+            );
+
+            error_log('SUCCESS: Redirigiendo a TPV');
+            wp_send_json_success($response_data);
+
+        } catch (Exception $e) {
+            error_log('EXCEPTION: ' . $e->getMessage());
+            wp_send_json_error('Error interno del servidor: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * ✅ NUEVA FUNCIÓN PARA PROCESAR PAGO DESPUÉS DEL TPV
+     */
+    public function process_payment()
+    {
+        if (ob_get_level()) {
+            ob_clean();
+        }
+        header('Content-Type: application/json');
+
+        try {
+            error_log('=== PROCESANDO PAGO DESPUÉS DEL TPV ===');
+
+            // Verificar nonce
+            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+                wp_send_json_error('Error de seguridad');
+                return;
+            }
+
+            // Verificar sesión
+            if (!session_id()) {
+                session_start();
+            }
+
+            if (!isset($_SESSION['reservation_pending'])) {
+                wp_send_json_error('No hay reserva pendiente de procesar');
+                return;
+            }
+
+            $pending_data = $_SESSION['reservation_pending'];
+
+            // Verificar que no haya expirado (30 minutos)
+            if (time() - $pending_data['timestamp'] > 1800) {
+                unset($_SESSION['reservation_pending']);
+                wp_send_json_error('La sesión de reserva ha expirado');
+                return;
+            }
+
+            // ✅ SIMULAR VERIFICACIÓN DE PAGO (aquí irían las verificaciones reales del TPV)
+            $payment_status = $this->verify_payment_status();
+            
+            if (!$payment_status['success']) {
+                wp_send_json_error('Error en el pago: ' . $payment_status['message']);
+                return;
+            }
 
             // Crear la reserva en la base de datos
-            $resultado_reserva = $this->crear_reserva($datos_personales['datos'], $datos_reserva['datos'], $calculo_precio['precio']);
+            $resultado_reserva = $this->crear_reserva(
+                $pending_data['datos_personales'], 
+                $pending_data['datos_reserva'], 
+                $pending_data['calculo_precio']
+            );
+
             if (!$resultado_reserva['exito']) {
-                error_log('ERROR: Error creando reserva - ' . $resultado_reserva['error']);
                 wp_send_json_error($resultado_reserva['error']);
                 return;
             }
-            error_log('SUCCESS: Reserva creada con ID: ' . $resultado_reserva['reserva_id']);
 
             // Actualizar plazas disponibles
-            $actualizacion = $this->actualizar_plazas_disponibles($datos_reserva['datos']['service_id'], $datos_reserva['datos']['total_personas']);
+            $actualizacion = $this->actualizar_plazas_disponibles(
+                $pending_data['datos_reserva']['service_id'], 
+                $pending_data['datos_reserva']['total_personas']
+            );
+
             if (!$actualizacion['exito']) {
-                error_log('ERROR: Error actualizando plazas - ' . $actualizacion['error']);
-                // Si falla la actualización, eliminar la reserva creada
                 $this->eliminar_reserva($resultado_reserva['reserva_id']);
                 wp_send_json_error('Error actualizando disponibilidad. Reserva cancelada.');
                 return;
             }
-            error_log('SUCCESS: Plazas actualizadas');
 
-            // Respuesta exitosa
+            // ✅ ENVIAR EMAILS DE CONFIRMACIÓN
+            $this->send_confirmation_emails($resultado_reserva['reserva_id']);
+
+            // Limpiar sesión
+            unset($_SESSION['reservation_pending']);
+
+            // ✅ RESPUESTA EXITOSA CON REDIRECCIÓN A PÁGINA DE CONFIRMACIÓN
             $response_data = array(
                 'mensaje' => 'Reserva procesada correctamente',
                 'localizador' => $resultado_reserva['localizador'],
                 'reserva_id' => $resultado_reserva['reserva_id'],
+                'redirect_to' => 'confirmacion-reserva',
                 'detalles' => array(
-                    'fecha' => $datos_reserva['datos']['fecha'],
-                    'hora' => $datos_reserva['datos']['hora_ida'],
-                    'personas' => $datos_reserva['datos']['total_personas'],
-                    'precio_final' => $calculo_precio['precio']['precio_final']
+                    'fecha' => $pending_data['datos_reserva']['fecha'],
+                    'hora' => $pending_data['datos_reserva']['hora_ida'],
+                    'personas' => $pending_data['datos_reserva']['total_personas'],
+                    'precio_final' => $pending_data['calculo_precio']['precio_final']
                 )
             );
 
-            error_log('SUCCESS: Respuesta preparada - ' . print_r($response_data, true));
+            error_log('SUCCESS: Reserva completada con emails enviados');
             wp_send_json_success($response_data);
+
         } catch (Exception $e) {
-            error_log('EXCEPTION: ' . $e->getMessage());
-            error_log('STACK TRACE: ' . $e->getTraceAsString());
-            wp_send_json_error('Error interno del servidor: ' . $e->getMessage());
-        } catch (Error $e) {
-            error_log('FATAL ERROR: ' . $e->getMessage());
-            error_log('STACK TRACE: ' . $e->getTraceAsString());
-            wp_send_json_error('Error fatal del servidor: ' . $e->getMessage());
+            error_log('EXCEPTION EN PAYMENT: ' . $e->getMessage());
+            wp_send_json_error('Error procesando el pago: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * ✅ FUNCIÓN PARA OBTENER URL DEL TPV (SIMULADA)
+     */
+    private function get_tpv_url($amount, $customer_data) {
+        // En un caso real, aquí se generaría la URL del TPV real
+        // Por ahora devolvemos una URL simulada
+        $tpv_params = array(
+            'amount' => $amount,
+            'customer_name' => $customer_data['nombre'] . ' ' . $customer_data['apellidos'],
+            'customer_email' => $customer_data['email'],
+            'return_url' => home_url('/confirmacion-reserva/'),
+            'cancel_url' => home_url('/detalles-reserva/'),
+        );
+
+        // URL de TPV simulado
+        return home_url('/tpv-simulado/?' . http_build_query($tpv_params));
+    }
+
+    /**
+     * ✅ FUNCIÓN PARA VERIFICAR ESTADO DEL PAGO (SIMULADA)
+     */
+    private function verify_payment_status() {
+        // En un caso real, aquí se verificaría el estado del pago con el TPV
+        // Por ahora simulamos que siempre es exitoso
+        return array(
+            'success' => true,
+            'transaction_id' => 'TXN_' . time(),
+            'message' => 'Pago procesado correctamente'
+        );
+    }
+
+    /**
+     * ✅ FUNCIÓN PARA ENVIAR EMAILS DE CONFIRMACIÓN
+     */
+    private function send_confirmation_emails($reserva_id) {
+        error_log('=== ENVIANDO EMAILS DE CONFIRMACIÓN ===');
+
+        // Cargar clase de emails
+        if (!class_exists('ReservasEmailService')) {
+            require_once RESERVAS_PLUGIN_PATH . 'includes/class-email-service.php';
+        }
+
+        // Obtener datos de la reserva
+        global $wpdb;
+        $table_reservas = $wpdb->prefix . 'reservas_reservas';
+        
+        $reserva = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_reservas WHERE id = %d",
+            $reserva_id
+        ));
+
+        if (!$reserva) {
+            error_log('ERROR: No se encontró la reserva para enviar emails');
+            return;
+        }
+
+        // Convertir a array
+        $reserva_array = (array) $reserva;
+
+        // Enviar email al cliente
+        $customer_result = ReservasEmailService::send_customer_confirmation($reserva_array);
+        if ($customer_result['success']) {
+            error_log('✅ Email enviado al cliente correctamente');
+        } else {
+            error_log('❌ Error enviando email al cliente: ' . $customer_result['message']);
+        }
+
+        // Enviar email al administrador
+        $admin_result = ReservasEmailService::send_admin_notification($reserva_array);
+        if ($admin_result['success']) {
+            error_log('✅ Email enviado al administrador correctamente');
+        } else {
+            error_log('❌ Error enviando email al administrador: ' . $admin_result['message']);
         }
     }
 
@@ -293,7 +414,7 @@ class ReservasProcessor
     }
 
     /**
-     * Recalcular precio para verificar - VERSIÓN ARREGLADA
+     * Recalcular precio para verificar
      */
     private function recalcular_precio($datos_reserva)
     {
@@ -317,23 +438,21 @@ class ReservasProcessor
         $ninos_5_12 = intval($datos_reserva['ninos_5_12']);
         $ninos_menores = intval($datos_reserva['ninos_menores']);
 
-        // ✅ CALCULAR TOTAL DE PERSONAS QUE OCUPAN PLAZA
+        // Calcular total de personas que ocupan plaza
         $total_personas_con_plaza = $adultos + $residentes + $ninos_5_12;
-        // Los niños menores de 5 años NO ocupan plaza
 
         error_log("Personas calculadas - Adultos: $adultos, Residentes: $residentes, Niños 5-12: $ninos_5_12, Menores: $ninos_menores");
         error_log("Total personas con plaza: $total_personas_con_plaza");
 
-        // ✅ CALCULAR PRECIO BASE (todos empiezan pagando precio de adulto)
+        // Calcular precio base (todos empiezan pagando precio de adulto)
         $precio_base = 0;
         $precio_base += $adultos * $servicio->precio_adulto;
         $precio_base += $residentes * $servicio->precio_adulto;
         $precio_base += $ninos_5_12 * $servicio->precio_adulto;
-        // Los niños menores NO se suman al precio base
 
         error_log("Precio base calculado: $precio_base");
 
-        // ✅ CALCULAR DESCUENTOS INDIVIDUALES
+        // Calcular descuentos individuales
         $descuento_total = 0;
 
         // Descuento residentes (diferencia entre precio adulto y residente)
@@ -346,7 +465,7 @@ class ReservasProcessor
         $descuento_total += $descuento_ninos;
         error_log("Descuento niños: $descuento_ninos");
 
-        // ✅ CALCULAR DESCUENTO POR GRUPO (solo si hay suficientes personas)
+        // Calcular descuento por grupo (solo si hay suficientes personas)
         $descuento_grupo = 0;
         $regla_aplicada = null;
 
@@ -373,7 +492,7 @@ class ReservasProcessor
             }
         }
 
-        // ✅ DESCUENTO ESPECÍFICO DEL SERVICIO
+        // Descuento específico del servicio
         $descuento_servicio = 0;
         if ($servicio->tiene_descuento && floatval($servicio->porcentaje_descuento) > 0) {
             $subtotal_actual = $precio_base - $descuento_total;
@@ -382,7 +501,7 @@ class ReservasProcessor
             error_log("Descuento del servicio: $descuento_servicio");
         }
 
-        // ✅ PRECIO FINAL
+        // Precio final
         $precio_final = $precio_base - $descuento_total;
         if ($precio_final < 0) $precio_final = 0;
 
@@ -443,7 +562,7 @@ class ReservasProcessor
             'precio_final' => $calculo_precio['precio_final'],
             'regla_descuento_aplicada' => $calculo_precio['regla_descuento_aplicada'] ? json_encode($calculo_precio['regla_descuento_aplicada']) : null,
             'estado' => 'confirmada',
-            'metodo_pago' => 'simulado'
+            'metodo_pago' => 'tpv'
         );
 
         error_log('Datos de reserva a insertar: ' . print_r($reserva_data, true));

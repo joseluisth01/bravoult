@@ -1069,6 +1069,7 @@ function loadConfigurationData() {
 }
 
 // ✅ FUNCIÓN ACTUALIZADA SIN PERSONALIZACIÓN E IDIOMA
+// ✅ FUNCIÓN ACTUALIZADA SIN CHECKBOX DE CONFIRMACIÓN Y CON EMAIL ADMIN
 function renderConfigurationForm(configs) {
     let html = `
         <form id="configurationForm" class="configuration-form">
@@ -1117,17 +1118,17 @@ function renderConfigurationForm(configs) {
                 </div>
             </div>
 
-            <!-- Sección: Notificaciones -->
+            <!-- Sección: Notificaciones - SIN CHECKBOX DE CONFIRMACIÓN -->
             <div class="config-section">
                 <h3>📧 Notificaciones por Email</h3>
                 <div class="config-grid">
-                    <div class="config-item config-checkbox">
-                        <label>
-                            <input type="checkbox" id="email_confirmacion_activo" name="email_confirmacion_activo" 
-                                   ${configs.notificaciones?.email_confirmacion_activo?.value == '1' ? 'checked' : ''}>
-                            Email de Confirmación Automático
-                        </label>
-                        <small>${configs.notificaciones?.email_confirmacion_activo?.description || ''}</small>
+                    <div class="config-item full-width" style="background: #e8f5e8; padding: 15px; border-radius: 6px; border-left: 4px solid #38a169;">
+                        <p style="margin: 0; color: #2f855a; font-weight: bold;">
+                            ✅ Los emails de confirmación están SIEMPRE ACTIVOS
+                        </p>
+                        <small style="color: #2f855a;">
+                            Se envían automáticamente al cliente y al administrador cuando se completa una reserva
+                        </small>
                     </div>
                     <div class="config-item config-checkbox">
                         <label>
@@ -1154,6 +1155,12 @@ function renderConfigurationForm(configs) {
                         <input type="text" id="nombre_remitente" name="nombre_remitente" 
                                value="${configs.notificaciones?.nombre_remitente?.value || ''}">
                         <small>${configs.notificaciones?.nombre_remitente?.description || ''}</small>
+                    </div>
+                    <div class="config-item">
+                        <label for="email_admin_reservas">Email Administrador (Recibir Reservas)</label>
+                        <input type="email" id="email_admin_reservas" name="email_admin_reservas" 
+                               value="${configs.notificaciones?.email_admin_reservas?.value || ''}">
+                        <small>${configs.notificaciones?.email_admin_reservas?.description || ''}</small>
                     </div>
                 </div>
             </div>

@@ -189,7 +189,6 @@
     padding: 20px;
     border-radius: 8px;
     width: 90%;
-    max-width: 700px;
     position: relative;
 }
 
@@ -2163,9 +2162,10 @@ body {
 /* ========== ESTILOS PARA ESTADÍSTICAS RÁPIDAS ========== */
 
 .quick-stats-container {
-    max-width: 800px;
     margin: 0 auto;
 }
+
+
 
 .stats-summary-header {
     text-align: center;

@@ -1,6 +1,6 @@
 <?php
 /**
- * Clase para gestionar la configuración del sistema de reservas - ACTUALIZADA
+ * Clase para gestionar la configuración del sistema de reservas - ACTUALIZADA CON EMAIL ADMIN
  * Archivo: wp-content/plugins/sistema-reservas/includes/class-configuration-admin.php
  */
 class ReservasConfigurationAdmin {
@@ -60,7 +60,7 @@ class ReservasConfigurationAdmin {
     }
 
     /**
-     * Crear configuración por defecto - ACTUALIZADA
+     * Crear configuración por defecto - ACTUALIZADA CON EMAIL ADMIN
      */
     private function create_default_configuration() {
         global $wpdb;
@@ -88,7 +88,7 @@ class ReservasConfigurationAdmin {
                 'description' => 'Precio por defecto para residentes al crear nuevos servicios'
             ),
             
-            // Configuración de servicios (SIN hora de vuelta)
+            // Configuración de servicios
             array(
                 'config_key' => 'plazas_defecto',
                 'config_value' => '50',
@@ -102,13 +102,7 @@ class ReservasConfigurationAdmin {
                 'description' => 'Días de anticipación mínima para poder reservar (bloquea fechas en calendario)'
             ),
             
-            // Notificaciones
-            array(
-                'config_key' => 'email_confirmacion_activo',
-                'config_value' => '1',
-                'config_group' => 'notificaciones',
-                'description' => 'Activar email de confirmación automático al cliente y administrador'
-            ),
+            // Notificaciones - QUITADO CHECKBOX DE CONFIRMACIÓN
             array(
                 'config_key' => 'email_recordatorio_activo',
                 'config_value' => '0',
@@ -133,8 +127,15 @@ class ReservasConfigurationAdmin {
                 'config_group' => 'notificaciones',
                 'description' => 'Nombre del remitente para notificaciones'
             ),
+            // ✅ NUEVO CAMPO PARA EMAIL DEL ADMINISTRADOR
+            array(
+                'config_key' => 'email_admin_reservas',
+                'config_value' => get_option('admin_email'),
+                'config_group' => 'notificaciones',
+                'description' => 'Email del administrador donde se enviarán las notificaciones de nuevas reservas'
+            ),
             
-            // General (SIN idioma)
+            // General
             array(
                 'config_key' => 'zona_horaria',
                 'config_value' => 'Europe/Madrid',
@@ -207,7 +208,7 @@ class ReservasConfigurationAdmin {
     }
 
     /**
-     * Guardar configuración - ACTUALIZADA
+     * Guardar configuración - ACTUALIZADA SIN CHECKBOX DE CONFIRMACIÓN
      */
     public function save_configuration() {
         if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
@@ -267,8 +268,7 @@ class ReservasConfigurationAdmin {
             $configs_to_save['dias_anticipacion_minima'] = $dias_anticipacion;
         }
         
-        // Notificaciones
-        $configs_to_save['email_confirmacion_activo'] = isset($_POST['email_confirmacion_activo']) ? 1 : 0;
+        // Notificaciones - SIN CHECKBOX DE CONFIRMACIÓN, SIEMPRE ACTIVO
         $configs_to_save['email_recordatorio_activo'] = isset($_POST['email_recordatorio_activo']) ? 1 : 0;
         
         if (isset($_POST['horas_recordatorio'])) {
@@ -291,6 +291,14 @@ class ReservasConfigurationAdmin {
                 wp_send_json_error('El nombre del remitente no puede estar vacío');
             }
             $configs_to_save['nombre_remitente'] = $nombre;
+        }
+        // ✅ NUEVO CAMPO EMAIL ADMIN
+        if (isset($_POST['email_admin_reservas'])) {
+            $email_admin = sanitize_email($_POST['email_admin_reservas']);
+            if (empty($email_admin) || !is_email($email_admin)) {
+                wp_send_json_error('El email del administrador no es válido');
+            }
+            $configs_to_save['email_admin_reservas'] = $email_admin;
         }
         
         // General

@@ -1,6 +1,6 @@
 <?php
 /**
- * Clase para gestionar los informes y reservas del sistema
+ * Clase para gestionar los informes y reservas del sistema - ACTUALIZADA CON EMAILS
  * Archivo: wp-content/plugins/sistema-reservas/includes/class-reports-admin.php
  */
 class ReservasReportsAdmin {
@@ -256,7 +256,7 @@ class ReservasReportsAdmin {
     }
 
     /**
-     * Reenviar email de confirmación (placeholder para futura implementación)
+     * ✅ REENVIAR EMAIL DE CONFIRMACIÓN - FUNCIÓN IMPLEMENTADA
      */
     public function resend_confirmation_email() {
         if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
@@ -273,10 +273,19 @@ class ReservasReportsAdmin {
 
         $reserva_id = intval($_POST['reserva_id']);
         
-        // TODO: Implementar lógica de envío de email
-        // Por ahora solo devolvemos éxito como placeholder
+        // ✅ CARGAR CLASE DE EMAILS
+        if (!class_exists('ReservasEmailService')) {
+            require_once RESERVAS_PLUGIN_PATH . 'includes/class-email-service.php';
+        }
         
-        wp_send_json_success('Email de confirmación reenviado correctamente (funcionalidad pendiente de implementar)');
+        // ✅ REENVIAR EMAIL USANDO LA CLASE DE EMAILS
+        $result = ReservasEmailService::resend_confirmation($reserva_id);
+        
+        if ($result['success']) {
+            wp_send_json_success($result['message']);
+        } else {
+            wp_send_json_error($result['message']);
+        }
     }
 
     /**
@@ -403,20 +412,20 @@ public function get_quick_stats() {
     $last_month_start = date('Y-m-01', strtotime('first day of last month'));
     $last_month_end = date('Y-m-t', strtotime('last day of last month'));
     
-    // ✅ 1. RESERVAS DE HOY
+    // 1. RESERVAS DE HOY
     $reservas_hoy = $wpdb->get_var($wpdb->prepare(
         "SELECT COUNT(*) FROM $table_reservas WHERE fecha = %s AND estado = 'confirmada'",
         $today
     ));
     
-    // ✅ 2. INGRESOS DEL MES ACTUAL
+    // 2. INGRESOS DEL MES ACTUAL
     $ingresos_mes_actual = $wpdb->get_var($wpdb->prepare(
         "SELECT SUM(precio_final) FROM $table_reservas 
          WHERE fecha >= %s AND estado = 'confirmada'",
         $this_month_start
     )) ?: 0;
     
-    // ✅ 3. INGRESOS DEL MES PASADO (para comparar)
+    // 3. INGRESOS DEL MES PASADO (para comparar)
     $ingresos_mes_pasado = $wpdb->get_var($wpdb->prepare(
         "SELECT SUM(precio_final) FROM $table_reservas 
          WHERE fecha BETWEEN %s AND %s AND estado = 'confirmada'",
@@ -424,7 +433,7 @@ public function get_quick_stats() {
         $last_month_end
     )) ?: 0;
     
-    // ✅ 4. CRECIMIENTO PORCENTUAL
+    // 4. CRECIMIENTO PORCENTUAL
     $crecimiento = 0;
     if ($ingresos_mes_pasado > 0) {
         $crecimiento = (($ingresos_mes_actual - $ingresos_mes_pasado) / $ingresos_mes_pasado) * 100;
@@ -432,7 +441,7 @@ public function get_quick_stats() {
         $crecimiento = 100; // Si mes pasado = 0 y este mes > 0, es 100% crecimiento
     }
     
-    // ✅ 5. TOP 3 DÍAS CON MÁS RESERVAS ESTE MES
+    // 5. TOP 3 DÍAS CON MÁS RESERVAS ESTE MES
     $top_dias = $wpdb->get_results($wpdb->prepare(
         "SELECT fecha, COUNT(*) as total_reservas, SUM(total_personas) as total_personas 
          FROM $table_reservas 
@@ -443,7 +452,7 @@ public function get_quick_stats() {
         $this_month_start
     ));
     
-    // ✅ 6. OCUPACIÓN PROMEDIO (este mes)
+    // 6. OCUPACIÓN PROMEDIO (este mes)
     $ocupacion_data = $wpdb->get_row($wpdb->prepare(
         "SELECT 
             SUM(s.plazas_totales) as plazas_totales,
@@ -458,7 +467,7 @@ public function get_quick_stats() {
         $ocupacion_porcentaje = ($ocupacion_data->plazas_ocupadas / $ocupacion_data->plazas_totales) * 100;
     }
     
-    // ✅ 7. CLIENTE MÁS FRECUENTE (último mes)
+    // 7. CLIENTE MÁS FRECUENTE (último mes)
     $cliente_frecuente = $wpdb->get_row($wpdb->prepare(
         "SELECT email, CONCAT(nombre, ' ', apellidos) as nombre_completo, COUNT(*) as total_reservas
          FROM $table_reservas 
@@ -469,7 +478,7 @@ public function get_quick_stats() {
         date('Y-m-d', strtotime('-30 days'))
     ));
     
-    // ✅ 8. PRÓXIMOS SERVICIOS CON ALTA OCUPACIÓN (>80%)
+    // 8. PRÓXIMOS SERVICIOS CON ALTA OCUPACIÓN (>80%)
     $servicios_alta_ocupacion = $wpdb->get_results($wpdb->prepare(
         "SELECT fecha, hora, plazas_totales, plazas_disponibles,
                 ((plazas_totales - plazas_disponibles) / plazas_totales * 100) as ocupacion
@@ -481,7 +490,7 @@ public function get_quick_stats() {
         $today
     ));
     
-    // ✅ 9. ESTADÍSTICAS DE TIPOS DE CLIENTE (este mes)
+    // 9. ESTADÍSTICAS DE TIPOS DE CLIENTE (este mes)
     $tipos_cliente = $wpdb->get_row($wpdb->prepare(
         "SELECT 
             SUM(adultos) as total_adultos,
@@ -493,7 +502,7 @@ public function get_quick_stats() {
         $this_month_start
     ));
 
-    // ✅ PREPARAR RESPUESTA
+    // PREPARAR RESPUESTA
     $stats = array(
         'hoy' => array(
             'reservas' => intval($reservas_hoy),
