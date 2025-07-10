@@ -643,6 +643,7 @@ class ReservasReportsAdmin
             $reserva_array = (array) $reserva;
             $reserva_array['motivo_cancelacion'] = $motivo_cancelacion;
 
+            // ✅ LLAMAR CORRECTAMENTE A LA CLASE DE EMAILS
             $email_result = ReservasEmailService::send_cancellation_email($reserva_array);
 
             // Confirmar transacción
@@ -661,95 +662,5 @@ class ReservasReportsAdmin
             $wpdb->query('ROLLBACK');
             wp_send_json_error('Error cancelando reserva: ' . $e->getMessage());
         }
-    }
-
-
-
-    /**
-     * ✅ NUEVO: Enviar email de cancelación al cliente
-     */
-    public static function send_cancellation_email($reserva_data)
-    {
-        $config = self::get_email_config();
-
-        $to = $reserva_data['email'];
-        $subject = "Reserva Cancelada - Localizador: " . $reserva_data['localizador'];
-
-        $message = self::build_cancellation_email_template($reserva_data);
-
-        $headers = array(
-            'Content-Type: text/html; charset=UTF-8',
-            'From: ' . $config['nombre_remitente'] . ' <' . $config['email_remitente'] . '>'
-        );
-
-        $sent = wp_mail($to, $subject, $message, $headers);
-
-        if ($sent) {
-            error_log("✅ Email de cancelación enviado al cliente: " . $to);
-            return array('success' => true, 'message' => 'Email de cancelación enviado correctamente');
-        } else {
-            error_log("❌ Error enviando email de cancelación al cliente: " . $to);
-            return array('success' => false, 'message' => 'Error enviando email de cancelación');
-        }
-    }
-
-    /**
-     * ✅ NUEVO: Template de email de cancelación (breve)
-     */
-    private static function build_cancellation_email_template($reserva)
-    {
-        $fecha_formateada = date('d/m/Y', strtotime($reserva['fecha']));
-        $motivo = $reserva['motivo_cancelacion'] ?? 'Cancelación administrativa';
-
-        return "
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset='UTF-8'>
-        <title>Reserva Cancelada</title>
-    </head>
-    <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 500px; margin: 0 auto; padding: 20px;'>
-        
-        <div style='background: #dc3545; color: white; text-align: center; padding: 20px; margin-bottom: 20px; border-radius: 8px;'>
-            <h1 style='margin: 0; font-size: 24px;'>❌ RESERVA CANCELADA</h1>
-        </div>
-
-        <div style='background: #f8f9fa; padding: 20px; margin-bottom: 20px; border-radius: 8px; border-left: 4px solid #dc3545;'>
-            <h2 style='color: #dc3545; margin-top: 0; font-size: 18px;'>Información de la Reserva Cancelada</h2>
-            <table style='width: 100%; border-collapse: collapse;'>
-                <tr>
-                    <td style='padding: 8px 0; font-weight: bold;'>Localizador:</td>
-                    <td style='padding: 8px 0; text-align: right; color: #dc3545; font-weight: bold;'>" . $reserva['localizador'] . "</td>
-                </tr>
-                <tr>
-                    <td style='padding: 8px 0; font-weight: bold;'>Fecha del viaje:</td>
-                    <td style='padding: 8px 0; text-align: right;'>" . $fecha_formateada . "</td>
-                </tr>
-                <tr>
-                    <td style='padding: 8px 0; font-weight: bold;'>Hora:</td>
-                    <td style='padding: 8px 0; text-align: right;'>" . substr($reserva['hora'], 0, 5) . "</td>
-                </tr>
-                <tr>
-                    <td style='padding: 8px 0; font-weight: bold;'>Cliente:</td>
-                    <td style='padding: 8px 0; text-align: right;'>" . $reserva['nombre'] . " " . $reserva['apellidos'] . "</td>
-                </tr>
-            </table>
-        </div>
-
-        <div style='background: #fff3cd; padding: 15px; margin-bottom: 20px; border-radius: 8px; border-left: 4px solid #ffc107;'>
-            <h3 style='color: #856404; margin-top: 0; font-size: 16px;'>Motivo de la Cancelación</h3>
-            <p style='margin: 0; color: #856404; font-weight: 600;'>" . $motivo . "</p>
-        </div>
-
-        <div style='background: #e2e3e5; padding: 15px; border-radius: 8px; text-align: center;'>
-            <p style='margin: 0; color: #495057; font-size: 14px;'>
-                <strong>¿Necesitas hacer una nueva reserva?</strong><br>
-                Puedes realizar una nueva reserva cuando lo desees.<br>
-                Lamentamos las molestias ocasionadas.
-            </p>
-        </div>
-
-    </body>
-    </html>";
     }
 }
