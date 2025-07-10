@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Clase para procesar reservas - VERSIÓN CON TPV Y EMAILS
+ * Clase para procesar reservas - VERSIÓN SIMPLIFICADA SIN TPV NI EMAILS
  * Archivo: wp-content/plugins/sistema-reservas/includes/class-reservas-processor.php
  */
 
@@ -13,14 +13,10 @@ class ReservasProcessor
         // Hooks AJAX para procesar reservas
         add_action('wp_ajax_process_reservation', array($this, 'process_reservation'));
         add_action('wp_ajax_nopriv_process_reservation', array($this, 'process_reservation'));
-        
-        // ✅ NUEVO HOOK PARA PROCESAR PAGO
-        add_action('wp_ajax_process_payment', array($this, 'process_payment'));
-        add_action('wp_ajax_nopriv_process_payment', array($this, 'process_payment'));
     }
 
     /**
-     * Procesar una nueva reserva - ACTUALIZADO PARA REDIRIGIR A TPV
+     * Procesar una nueva reserva - VERSIÓN SIMPLIFICADA
      */
     public function process_reservation()
     {
@@ -69,86 +65,11 @@ class ReservasProcessor
                 return;
             }
 
-            // ✅ GUARDAR DATOS EN SESIÓN PARA EL TPV
-            if (!session_id()) {
-                session_start();
-            }
-
-            $_SESSION['reservation_pending'] = array(
-                'datos_personales' => $datos_personales['datos'],
-                'datos_reserva' => $datos_reserva['datos'],
-                'calculo_precio' => $calculo_precio['precio'],
-                'timestamp' => time()
-            );
-
-            // ✅ RESPUESTA PARA REDIRIGIR AL TPV
-            $response_data = array(
-                'action' => 'redirect_to_tpv',
-                'amount' => $calculo_precio['precio']['precio_final'],
-                'concept' => 'Reserva de transporte para ' . $datos_reserva['datos']['fecha'],
-                'redirect_url' => $this->get_tpv_url($calculo_precio['precio']['precio_final'], $datos_personales['datos'])
-            );
-
-            error_log('SUCCESS: Redirigiendo a TPV');
-            wp_send_json_success($response_data);
-
-        } catch (Exception $e) {
-            error_log('EXCEPTION: ' . $e->getMessage());
-            wp_send_json_error('Error interno del servidor: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * ✅ NUEVA FUNCIÓN PARA PROCESAR PAGO DESPUÉS DEL TPV
-     */
-    public function process_payment()
-    {
-        if (ob_get_level()) {
-            ob_clean();
-        }
-        header('Content-Type: application/json');
-
-        try {
-            error_log('=== PROCESANDO PAGO DESPUÉS DEL TPV ===');
-
-            // Verificar nonce
-            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-                wp_send_json_error('Error de seguridad');
-                return;
-            }
-
-            // Verificar sesión
-            if (!session_id()) {
-                session_start();
-            }
-
-            if (!isset($_SESSION['reservation_pending'])) {
-                wp_send_json_error('No hay reserva pendiente de procesar');
-                return;
-            }
-
-            $pending_data = $_SESSION['reservation_pending'];
-
-            // Verificar que no haya expirado (30 minutos)
-            if (time() - $pending_data['timestamp'] > 1800) {
-                unset($_SESSION['reservation_pending']);
-                wp_send_json_error('La sesión de reserva ha expirado');
-                return;
-            }
-
-            // ✅ SIMULAR VERIFICACIÓN DE PAGO (aquí irían las verificaciones reales del TPV)
-            $payment_status = $this->verify_payment_status();
-            
-            if (!$payment_status['success']) {
-                wp_send_json_error('Error en el pago: ' . $payment_status['message']);
-                return;
-            }
-
-            // Crear la reserva en la base de datos
+            // ✅ CREAR LA RESERVA DIRECTAMENTE
             $resultado_reserva = $this->crear_reserva(
-                $pending_data['datos_personales'], 
-                $pending_data['datos_reserva'], 
-                $pending_data['calculo_precio']
+                $datos_personales['datos'], 
+                $datos_reserva['datos'], 
+                $calculo_precio['precio']
             );
 
             if (!$resultado_reserva['exito']) {
@@ -158,8 +79,8 @@ class ReservasProcessor
 
             // Actualizar plazas disponibles
             $actualizacion = $this->actualizar_plazas_disponibles(
-                $pending_data['datos_reserva']['service_id'], 
-                $pending_data['datos_reserva']['total_personas']
+                $datos_reserva['datos']['service_id'], 
+                $datos_reserva['datos']['total_personas']
             );
 
             if (!$actualizacion['exito']) {
@@ -168,108 +89,25 @@ class ReservasProcessor
                 return;
             }
 
-            // ✅ ENVIAR EMAILS DE CONFIRMACIÓN
-            $this->send_confirmation_emails($resultado_reserva['reserva_id']);
-
-            // Limpiar sesión
-            unset($_SESSION['reservation_pending']);
-
-            // ✅ RESPUESTA EXITOSA CON REDIRECCIÓN A PÁGINA DE CONFIRMACIÓN
+            // ✅ RESPUESTA EXITOSA PARA MOSTRAR ALERT Y REDIRIGIR
             $response_data = array(
                 'mensaje' => 'Reserva procesada correctamente',
                 'localizador' => $resultado_reserva['localizador'],
                 'reserva_id' => $resultado_reserva['reserva_id'],
-                'redirect_to' => 'confirmacion-reserva',
                 'detalles' => array(
-                    'fecha' => $pending_data['datos_reserva']['fecha'],
-                    'hora' => $pending_data['datos_reserva']['hora_ida'],
-                    'personas' => $pending_data['datos_reserva']['total_personas'],
-                    'precio_final' => $pending_data['calculo_precio']['precio_final']
+                    'fecha' => $datos_reserva['datos']['fecha'],
+                    'hora' => $datos_reserva['datos']['hora_ida'],
+                    'personas' => $datos_reserva['datos']['total_personas'],
+                    'precio_final' => $calculo_precio['precio']['precio_final']
                 )
             );
 
-            error_log('SUCCESS: Reserva completada con emails enviados');
+            error_log('SUCCESS: Reserva completada sin TPV ni emails');
             wp_send_json_success($response_data);
 
         } catch (Exception $e) {
-            error_log('EXCEPTION EN PAYMENT: ' . $e->getMessage());
-            wp_send_json_error('Error procesando el pago: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * ✅ FUNCIÓN PARA OBTENER URL DEL TPV (SIMULADA)
-     */
-    private function get_tpv_url($amount, $customer_data) {
-        // En un caso real, aquí se generaría la URL del TPV real
-        // Por ahora devolvemos una URL simulada
-        $tpv_params = array(
-            'amount' => $amount,
-            'customer_name' => $customer_data['nombre'] . ' ' . $customer_data['apellidos'],
-            'customer_email' => $customer_data['email'],
-            'return_url' => home_url('/confirmacion-reserva/'),
-            'cancel_url' => home_url('/detalles-reserva/'),
-        );
-
-        // URL de TPV simulado
-        return home_url('/tpv-simulado/?' . http_build_query($tpv_params));
-    }
-
-    /**
-     * ✅ FUNCIÓN PARA VERIFICAR ESTADO DEL PAGO (SIMULADA)
-     */
-    private function verify_payment_status() {
-        // En un caso real, aquí se verificaría el estado del pago con el TPV
-        // Por ahora simulamos que siempre es exitoso
-        return array(
-            'success' => true,
-            'transaction_id' => 'TXN_' . time(),
-            'message' => 'Pago procesado correctamente'
-        );
-    }
-
-    /**
-     * ✅ FUNCIÓN PARA ENVIAR EMAILS DE CONFIRMACIÓN
-     */
-    private function send_confirmation_emails($reserva_id) {
-        error_log('=== ENVIANDO EMAILS DE CONFIRMACIÓN ===');
-
-        // Cargar clase de emails
-        if (!class_exists('ReservasEmailService')) {
-            require_once RESERVAS_PLUGIN_PATH . 'includes/class-email-service.php';
-        }
-
-        // Obtener datos de la reserva
-        global $wpdb;
-        $table_reservas = $wpdb->prefix . 'reservas_reservas';
-        
-        $reserva = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $table_reservas WHERE id = %d",
-            $reserva_id
-        ));
-
-        if (!$reserva) {
-            error_log('ERROR: No se encontró la reserva para enviar emails');
-            return;
-        }
-
-        // Convertir a array
-        $reserva_array = (array) $reserva;
-
-        // Enviar email al cliente
-        $customer_result = ReservasEmailService::send_customer_confirmation($reserva_array);
-        if ($customer_result['success']) {
-            error_log('✅ Email enviado al cliente correctamente');
-        } else {
-            error_log('❌ Error enviando email al cliente: ' . $customer_result['message']);
-        }
-
-        // Enviar email al administrador
-        $admin_result = ReservasEmailService::send_admin_notification($reserva_array);
-        if ($admin_result['success']) {
-            error_log('✅ Email enviado al administrador correctamente');
-        } else {
-            error_log('❌ Error enviando email al administrador: ' . $admin_result['message']);
+            error_log('EXCEPTION: ' . $e->getMessage());
+            wp_send_json_error('Error interno del servidor: ' . $e->getMessage());
         }
     }
 
@@ -562,7 +400,7 @@ class ReservasProcessor
             'precio_final' => $calculo_precio['precio_final'],
             'regla_descuento_aplicada' => $calculo_precio['regla_descuento_aplicada'] ? json_encode($calculo_precio['regla_descuento_aplicada']) : null,
             'estado' => 'confirmada',
-            'metodo_pago' => 'tpv'
+            'metodo_pago' => 'directo'
         );
 
         error_log('Datos de reserva a insertar: ' . print_r($reserva_data, true));

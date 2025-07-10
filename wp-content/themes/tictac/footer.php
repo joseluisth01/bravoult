@@ -45,6 +45,10 @@ if (!is_front_page()) {
 
         <div class="columna2divinformacion">
             <img src="<?php echo $upload_dir['baseurl']; ?>/2025/07/A.-Bravo.svg" alt="">
+            <div style="width:50%; display:flex; align-items:center; gap:6px; justify-content: center;">
+                <img src="https://autobusmedinaazahara.com/wp-content/uploads/2025/07/Vector-16.svg" alt="">
+                <a style="font-family: 'Duran-Medium' !important;" href="tel:957429034">957429034</a>
+            </div>
         </div>
     </div>
     <div class="container">

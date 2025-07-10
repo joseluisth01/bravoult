@@ -592,7 +592,7 @@ jQuery(document).ready(function ($) {
 
 // ✅ FUNCIÓN MEJORADA PARA PROCESAR RESERVA
 function processReservation() {
-    console.log("=== PROCESANDO RESERVA REAL ===");
+    console.log("=== PROCESANDO RESERVA SIMPLIFICADA ===");
 
     // Verificar que reservasAjax está definido
     if (typeof reservasAjax === "undefined") {
@@ -672,23 +672,57 @@ function processReservation() {
             if (response && response.success) {
                 console.log("Reserva procesada exitosamente:", response.data);
 
-                // Mostrar información de éxito
+                // ✅ MOSTRAR ALERT DE CONFIRMACIÓN
                 const detalles = response.data.detalles;
-                const mensaje = "🎉 ¡RESERVA CONFIRMADA! 🎉\n\n📋 LOCALIZADOR: " + response.data.localizador + "\n\n📅 DETALLES:\n• Fecha: " + detalles.fecha + "\n• Hora: " + detalles.hora + "\n• Personas: " + detalles.personas + "\n• Precio: " + detalles.precio_final + "€\n\n✅ Tu reserva ha sido procesada correctamente.\n\n¡Guarda tu localizador para futuras consultas!";
+                const mensaje = "🎉 ¡RESERVA CONFIRMADA! 🎉\n\n" +
+                               "📋 LOCALIZADOR: " + response.data.localizador + "\n\n" +
+                               "📅 DETALLES:\n" +
+                               "• Fecha: " + detalles.fecha + "\n" +
+                               "• Hora: " + detalles.hora + "\n" +
+                               "• Personas: " + detalles.personas + "\n" +
+                               "• Precio: " + detalles.precio_final + "€\n\n" +
+                               "✅ Tu reserva ha sido procesada correctamente.\n\n" +
+                               "¡Guarda tu localizador para futuras consultas!";
 
                 alert(mensaje);
 
-                // Limpiar sessionStorage
+                // ✅ GUARDAR DATOS EN SESSIONSTORAGE PARA LA PÁGINA DE CONFIRMACIÓN
+                try {
+                    sessionStorage.setItem('confirmedReservation', JSON.stringify(response.data));
+                    console.log("Datos de confirmación guardados en sessionStorage");
+                } catch (error) {
+                    console.error("Error guardando datos de confirmación:", error);
+                }
+
+                // Limpiar datos de reserva pendiente
                 try {
                     sessionStorage.removeItem("reservationData");
-                    console.log("SessionStorage limpiado después de procesar");
+                    console.log("SessionStorage de reserva limpiado");
                 } catch (error) {
                     console.error("Error limpiando sessionStorage:", error);
                 }
 
-                // Redirigir a página de inicio
+                // ✅ REDIRIGIR A PÁGINA DE CONFIRMACIÓN
                 setTimeout(function () {
-                    window.location.href = "/";
+                    // Calcular URL de confirmación
+                    let confirmUrl;
+                    const currentPath = window.location.pathname;
+                    
+                    if (currentPath.includes('/bravo/')) {
+                        confirmUrl = window.location.origin + '/bravo/confirmacion-reserva/';
+                    } else if (currentPath.includes('/')) {
+                        const pathParts = currentPath.split('/').filter(part => part !== '');
+                        if (pathParts.length > 0 && pathParts[0] !== 'confirmacion-reserva') {
+                            confirmUrl = window.location.origin + '/' + pathParts[0] + '/confirmacion-reserva/';
+                        } else {
+                            confirmUrl = window.location.origin + '/confirmacion-reserva/';
+                        }
+                    } else {
+                        confirmUrl = window.location.origin + '/confirmacion-reserva/';
+                    }
+                    
+                    console.log('Redirigiendo a confirmación:', confirmUrl);
+                    window.location.href = confirmUrl;
                 }, 2000);
 
             } else {
@@ -722,7 +756,6 @@ function processReservation() {
     });
 }
 
-// ✅ FUNCIONES AUXILIARES PARA DETALLES
 function goBackToBooking() {
     sessionStorage.removeItem("reservationData");
     window.history.back();

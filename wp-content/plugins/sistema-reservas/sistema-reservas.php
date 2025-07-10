@@ -46,77 +46,76 @@ class SistemaReservas
         add_action('template_redirect', array($this, 'template_redirect'));
     }
 
-private function load_dependencies()
-{
-    $files = array(
-        'includes/class-database.php',
-        'includes/class-auth.php',
-        'includes/class-admin.php',
-        'includes/class-dashboard.php',
-        'includes/class-calendar-admin.php',
-        'includes/class-discounts-admin.php',
-        'includes/class-configuration-admin.php',
-        'includes/class-reports-admin.php',         
-        'includes/class-reservas-processor.php',
-        'includes/class-email-service.php',  // ✅ NUEVA CLASE DE EMAILS
-        'includes/class-frontend.php',
-    );
+    private function load_dependencies()
+    {
+        $files = array(
+            'includes/class-database.php',
+            'includes/class-auth.php',
+            'includes/class-admin.php',
+            'includes/class-dashboard.php',
+            'includes/class-calendar-admin.php',
+            'includes/class-discounts-admin.php',
+            'includes/class-configuration-admin.php',
+            'includes/class-reports-admin.php',         
+            'includes/class-reservas-processor.php', // ✅ SIN EMAILS NI TPV
+            'includes/class-frontend.php',
+        );
 
-    foreach ($files as $file) {
-        $path = RESERVAS_PLUGIN_PATH . $file;
-        if (file_exists($path)) {
-            require_once $path;
-        } else {
-            error_log("RESERVAS ERROR: No se pudo cargar $file");
+        foreach ($files as $file) {
+            $path = RESERVAS_PLUGIN_PATH . $file;
+            if (file_exists($path)) {
+                require_once $path;
+            } else {
+                error_log("RESERVAS ERROR: No se pudo cargar $file");
+            }
         }
     }
-}
 
-private function initialize_classes()
-{
-    // Inicializar clases básicas
-    if (class_exists('ReservasAuth')) {
-        new ReservasAuth();
-    }
+    private function initialize_classes()
+    {
+        // Inicializar clases básicas
+        if (class_exists('ReservasAuth')) {
+            new ReservasAuth();
+        }
 
-    if (class_exists('ReservasDashboard')) {
-        $this->dashboard = new ReservasDashboard();
-    }
+        if (class_exists('ReservasDashboard')) {
+            $this->dashboard = new ReservasDashboard();
+        }
 
-    if (class_exists('ReservasCalendarAdmin')) {
-        $this->calendar_admin = new ReservasCalendarAdmin();
-    }
+        if (class_exists('ReservasCalendarAdmin')) {
+            $this->calendar_admin = new ReservasCalendarAdmin();
+        }
 
-    // Inicializar clase de descuentos
-    if (class_exists('ReservasDiscountsAdmin')) {
-        $this->discounts_admin = new ReservasDiscountsAdmin();
-    }
+        // Inicializar clase de descuentos
+        if (class_exists('ReservasDiscountsAdmin')) {
+            $this->discounts_admin = new ReservasDiscountsAdmin();
+        }
 
-    // Inicializar clase de configuración
-    if (class_exists('ReservasConfigurationAdmin')) {
-        $this->configuration_admin = new ReservasConfigurationAdmin();
-    }
+        // Inicializar clase de configuración
+        if (class_exists('ReservasConfigurationAdmin')) {
+            $this->configuration_admin = new ReservasConfigurationAdmin();
+        }
 
-    // Inicializar clase de informes
-    if (class_exists('ReservasReportsAdmin')) {
-        $this->reports_admin = new ReservasReportsAdmin();
-    }
+        // Inicializar clase de informes
+        if (class_exists('ReservasReportsAdmin')) {
+            $this->reports_admin = new ReservasReportsAdmin();
+        }
 
-    // Inicializar procesador de reservas
-    if (class_exists('ReservasProcessor')) {
-        new ReservasProcessor();
-    }
+        // Inicializar procesador de reservas SIMPLIFICADO
+        if (class_exists('ReservasProcessor')) {
+            new ReservasProcessor();
+        }
 
-    if (class_exists('ReservasFrontend')) {
-        new ReservasFrontend();
+        if (class_exists('ReservasFrontend')) {
+            new ReservasFrontend();
+        }
     }
-}
 
     public function add_rewrite_rules()
     {
         add_rewrite_rule('^reservas-login/?$', 'index.php?reservas_page=login', 'top');
-        add_rewrite_rule('^reservas-admin/?, 'index.php?reservas_page=dashboard', 'top');
-        add_rewrite_rule('^reservas-admin/([^/]+)/?, 'index.php?reservas_page=dashboard&reservas_section=$matches[1]', 'top');
+        add_rewrite_rule('^reservas-admin/?$', 'index.php?reservas_page=dashboard', 'top');
+        add_rewrite_rule('^reservas-admin/([^/]+)/?$', 'index.php?reservas_page=dashboard&reservas_section=$matches[1]', 'top');
     }
 
     public function add_query_vars($vars)
@@ -216,7 +215,7 @@ private function initialize_classes()
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql_servicios);
 
-        // Tabla de reservas
+        // Tabla de reservas ✅ SIN CAMPOS DE TPV
         $table_reservas = $wpdb->prefix . 'reservas_reservas';
         $sql_reservas = "CREATE TABLE $table_reservas (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
@@ -238,7 +237,7 @@ private function initialize_classes()
             precio_final decimal(10,2) NOT NULL,
             regla_descuento_aplicada TEXT NULL,
             estado enum('pendiente', 'confirmada', 'cancelada') DEFAULT 'confirmada',
-            metodo_pago varchar(50) DEFAULT 'tpv',
+            metodo_pago varchar(50) DEFAULT 'directo',
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -271,7 +270,7 @@ private function initialize_classes()
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql_discounts);
 
-        // ✅ TABLA DE CONFIGURACIÓN - ACTUALIZADA
+        // ✅ TABLA DE CONFIGURACIÓN SIMPLIFICADA (SIN EMAILS)
         $table_configuration = $wpdb->prefix . 'reservas_configuration';
         $sql_configuration = "CREATE TABLE $table_configuration (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
@@ -295,7 +294,7 @@ private function initialize_classes()
         // Crear regla de descuento por defecto
         $this->create_default_discount_rule();
 
-        // ✅ CREAR CONFIGURACIÓN POR DEFECTO ACTUALIZADA
+        // ✅ CREAR CONFIGURACIÓN SIMPLIFICADA SIN EMAILS
         $this->create_default_configuration();
     }
 
@@ -350,7 +349,7 @@ private function initialize_classes()
         }
     }
 
-    // ✅ FUNCIÓN ACTUALIZADA PARA CREAR CONFIGURACIÓN CON EMAIL ADMIN
+    // ✅ FUNCIÓN SIMPLIFICADA SIN CONFIGURACIÓN DE EMAILS
     private function create_default_configuration()
     {
         global $wpdb;
@@ -392,39 +391,6 @@ private function initialize_classes()
                 'description' => 'Días de anticipación mínima para poder reservar (bloquea fechas en calendario)'
             ),
             
-            // Notificaciones - SIN CHECKBOX DE CONFIRMACIÓN
-            array(
-                'config_key' => 'email_recordatorio_activo',
-                'config_value' => '0',
-                'config_group' => 'notificaciones',
-                'description' => 'Activar recordatorios antes del viaje'
-            ),
-            array(
-                'config_key' => 'horas_recordatorio',
-                'config_value' => '24',
-                'config_group' => 'notificaciones',
-                'description' => 'Horas antes del viaje para enviar recordatorio'
-            ),
-            array(
-                'config_key' => 'email_remitente',
-                'config_value' => get_option('admin_email'),
-                'config_group' => 'notificaciones',
-                'description' => 'Email remitente para notificaciones del sistema'
-            ),
-            array(
-                'config_key' => 'nombre_remitente',
-                'config_value' => get_bloginfo('name'),
-                'config_group' => 'notificaciones',
-                'description' => 'Nombre del remitente para notificaciones'
-            ),
-            // ✅ NUEVO CAMPO PARA EMAIL DEL ADMINISTRADOR
-            array(
-                'config_key' => 'email_admin_reservas',
-                'config_value' => get_option('admin_email'),
-                'config_group' => 'notificaciones',
-                'description' => 'Email del administrador donde se enviarán las notificaciones de nuevas reservas'
-            ),
-            
             // General
             array(
                 'config_key' => 'zona_horaria',
@@ -463,7 +429,7 @@ private function initialize_classes()
     }
 }
 
-// ✅ SHORTCODES ACTUALIZADOS
+// ✅ SHORTCODES SIMPLIFICADOS (SIN TPV)
 
 // Shortcode para uso en páginas de WordPress (alternativa)
 add_shortcode('reservas_login', 'reservas_login_shortcode');
@@ -533,321 +499,10 @@ function reservas_login_shortcode()
     return ob_get_clean();
 }
 
-// ✅ SHORTCODE PARA TPV SIMULADO
-add_shortcode('tpv_simulado', 'tpv_simulado_shortcode');
-
-function tpv_simulado_shortcode() {
-    // Obtener parámetros de la URL
-    $amount = isset($_GET['amount']) ? sanitize_text_field($_GET['amount']) : '0.00';
-    $customer_name = isset($_GET['customer_name']) ? sanitize_text_field($_GET['customer_name']) : '';
-    $customer_email = isset($_GET['customer_email']) ? sanitize_email($_GET['customer_email']) : '';
-    $return_url = isset($_GET['return_url']) ? esc_url($_GET['return_url']) : home_url('/');
-    $cancel_url = isset($_GET['cancel_url']) ? esc_url($_GET['cancel_url']) : home_url('/');
-
-    ob_start();
-    ?>
-    <style>
-        .tpv-container {
-            max-width: 600px;
-            margin: 50px auto;
-            padding: 30px;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-        .tpv-header {
-            background: #2c5282;
-            color: white;
-            padding: 20px;
-            margin: -30px -30px 30px -30px;
-            border-radius: 15px 15px 0 0;
-            text-align: center;
-        }
-        .tpv-header h2 {
-            margin: 0;
-            font-size: 24px;
-        }
-        .tpv-amount {
-            background: #f7fafc;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            margin: 20px 0;
-            border-left: 4px solid #38a169;
-        }
-        .tpv-amount .amount {
-            font-size: 32px;
-            font-weight: bold;
-            color: #38a169;
-        }
-        .tpv-form {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: #4a5568;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-        .form-group input:focus {
-            outline: none;
-            border-color: #3182ce;
-            box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
-        }
-        .tpv-buttons {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-        }
-        .btn {
-            flex: 1;
-            padding: 15px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .btn-primary {
-            background: #38a169;
-            color: white;
-        }
-        .btn-primary:hover {
-            background: #2f855a;
-        }
-        .btn-secondary {
-            background: #e2e8f0;
-            color: #4a5568;
-        }
-        .btn-secondary:hover {
-            background: #cbd5e0;
-        }
-        .customer-info {
-            background: #edf2f7;
-            padding: 15px;
-            border-radius: 6px;
-            margin: 20px 0;
-        }
-        .customer-info h4 {
-            margin: 0 0 10px 0;
-            color: #2d3748;
-        }
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3182ce;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
-
-    <div class="tpv-container">
-        <div class="tpv-header">
-            <h2>💳 Terminal de Pago Virtual (TPV)</h2>
-            <p style="margin: 10px 0 0 0; opacity: 0.9;">Pasarela de Pago Segura</p>
-        </div>
-
-        <div class="customer-info">
-            <h4>📋 Datos del Cliente</h4>
-            <p><strong>Nombre:</strong> <?php echo esc_html($customer_name); ?></p>
-            <p><strong>Email:</strong> <?php echo esc_html($customer_email); ?></p>
-        </div>
-
-        <div class="tpv-amount">
-            <p style="margin: 0 0 10px 0; color: #4a5568; font-weight: 600;">Importe a Pagar:</p>
-            <div class="amount"><?php echo esc_html($amount); ?>€</div>
-        </div>
-
-        <div class="tpv-form">
-            <h4 style="margin-top: 0; color: #2d3748;">💳 Datos de la Tarjeta</h4>
-            <form id="tpv-form">
-                <div class="form-group">
-                    <label for="card_number">Número de Tarjeta:</label>
-                    <input type="text" id="card_number" name="card_number" placeholder="1234 5678 9012 3456" maxlength="19" required>
-                </div>
-                <div style="display: flex; gap: 15px;">
-                    <div class="form-group" style="flex: 1;">
-                        <label for="expiry">Fecha Caducidad:</label>
-                        <input type="text" id="expiry" name="expiry" placeholder="MM/AA" maxlength="5" required>
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label for="cvv">CVV:</label>
-                        <input type="text" id="cvv" name="cvv" placeholder="123" maxlength="4" required>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="cardholder">Titular de la Tarjeta:</label>
-                    <input type="text" id="cardholder" name="cardholder" placeholder="Nombre del titular" required>
-                </div>
-            </form>
-        </div>
-
-        <div class="tpv-buttons">
-            <button type="button" class="btn btn-secondary" onclick="cancelPayment()">
-                ❌ Cancelar Pago
-            </button>
-            <button type="button" class="btn btn-primary" onclick="processPayment()">
-                ✅ Pagar <?php echo esc_html($amount); ?>€
-            </button>
-        </div>
-
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Procesando pago seguro...</p>
-        </div>
-
-        <div style="text-align: center; margin-top: 30px; padding: 15px; background: #f0fff4; border-radius: 6px; border-left: 4px solid #38a169;">
-            <p style="margin: 0; color: #2f855a; font-size: 14px;">
-                🔒 <strong>TPV SIMULADO</strong> - Este es un entorno de pruebas.<br>
-                Puedes usar cualquier número de tarjeta para simular el pago.
-            </p>
-        </div>
-    </div>
-
-    <script>
-        // Variables globales
-        const returnUrl = '<?php echo $return_url; ?>';
-        const cancelUrl = '<?php echo $cancel_url; ?>';
-
-        // Formatear número de tarjeta
-        document.getElementById('card_number').addEventListener('input', function(e) {
-            let value = e.target.value.replace(/\s/g, '').replace(/[^0-9]/gi, '');
-            let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
-            if (formattedValue.length > 19) formattedValue = formattedValue.substr(0, 19);
-            e.target.value = formattedValue;
-        });
-
-        // Formatear fecha de caducidad
-        document.getElementById('expiry').addEventListener('input', function(e) {
-            let value = e.target.value.replace(/\D/g, '');
-            if (value.length >= 2) {
-                value = value.substring(0,2) + '/' + value.substring(2,4);
-            }
-            e.target.value = value;
-        });
-
-        // Solo números en CVV
-        document.getElementById('cvv').addEventListener('input', function(e) {
-            e.target.value = e.target.value.replace(/[^0-9]/g, '');
-        });
-
-        function cancelPayment() {
-            if (confirm('¿Estás seguro de que quieres cancelar el pago?')) {
-                window.location.href = cancelUrl;
-            }
-        }
-
-        function processPayment() {
-            // Validar formulario
-            const cardNumber = document.getElementById('card_number').value.replace(/\s/g, '');
-            const expiry = document.getElementById('expiry').value;
-            const cvv = document.getElementById('cvv').value;
-            const cardholder = document.getElementById('cardholder').value;
-
-            if (!cardNumber || cardNumber.length < 13) {
-                alert('Por favor, introduce un número de tarjeta válido');
-                return;
-            }
-
-            if (!expiry || expiry.length !== 5) {
-                alert('Por favor, introduce una fecha de caducidad válida (MM/AA)');
-                return;
-            }
-
-            if (!cvv || cvv.length < 3) {
-                alert('Por favor, introduce un CVV válido');
-                return;
-            }
-
-            if (!cardholder.trim()) {
-                alert('Por favor, introduce el nombre del titular');
-                return;
-            }
-
-            // Mostrar loading
-            document.querySelector('.tpv-form').style.display = 'none';
-            document.querySelector('.tpv-buttons').style.display = 'none';
-            document.getElementById('loading').style.display = 'block';
-
-            // Simular procesamiento (3 segundos)
-            setTimeout(function() {
-                // Simular éxito del pago (95% de probabilidad)
-                const success = Math.random() > 0.05;
-                
-                if (success) {
-                    alert('✅ ¡Pago procesado correctamente!\\n\\nRedirigiendo a la confirmación de tu reserva...');
-                    
-                    // Redirigir a procesar pago después del TPV
-                    window.location.href = returnUrl + (returnUrl.includes('?') ? '&' : '?') + 'payment_success=1';
-                    
-                } else {
-                    alert('❌ Error en el procesamiento del pago.\\n\\nPor favor, verifica los datos de tu tarjeta e inténtalo de nuevo.');
-                    
-                    // Mostrar formulario de nuevo
-                    document.querySelector('.tpv-form').style.display = 'block';
-                    document.querySelector('.tpv-buttons').style.display = 'flex';
-                    document.getElementById('loading').style.display = 'none';
-                }
-            }, 3000);
-        }
-
-        // Auto-focus en el primer campo
-        document.getElementById('card_number').focus();
-    </script>
-    <?php
-    return ob_get_clean();
-}
-
-// ✅ SHORTCODE PARA PÁGINA DE CONFIRMACIÓN
+// ✅ SHORTCODE PARA PÁGINA DE CONFIRMACIÓN SIMPLIFICADO
 add_shortcode('confirmacion_reserva', 'confirmacion_reserva_shortcode');
 
 function confirmacion_reserva_shortcode() {
-    // ✅ VERIFICAR SI VIENE DEL TPV Y PROCESAR PAGO
-    if (isset($_GET['payment_success']) && $_GET['payment_success'] == '1') {
-        // Llamar a la función de procesamiento de pago
-        add_action('wp_footer', 'process_payment_after_tpv_redirect');
-        
-        function process_payment_after_tpv_redirect() {
-            ?>
-            <script>
-                // Llamar a la función JavaScript para procesar el pago
-                if (typeof processPaymentAfterTPV === 'function') {
-                    processPaymentAfterTPV();
-                } else {
-                    console.error('Función processPaymentAfterTPV no encontrada');
-                }
-            </script>
-            <?php
-        }
-    }
-
     ob_start();
     ?>
     <style>
@@ -1029,12 +684,12 @@ function confirmacion_reserva_shortcode() {
             <div class="detail-card">
                 <h3>💰 Información del Pago</h3>
                 <div class="detail-row">
-                    <span class="detail-label">Total Pagado:</span>
+                    <span class="detail-label">Total:</span>
                     <span class="detail-value" id="reservation-total" style="color: #38a169;">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Método:</span>
-                    <span class="detail-value">Tarjeta de Crédito</span>
+                    <span class="detail-value">Procesamiento Directo</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Estado:</span>
