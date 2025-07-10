@@ -163,32 +163,36 @@ public function start_session() {
         return $user_level >= $required_level;
     }
     
-    public static function require_login() {
-        if (!self::is_logged_in()) {
-            // ✅ MANEJAR PETICIONES AJAX DE FORMA DIFERENTE
-            if (wp_doing_ajax()) {
-                wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
-                return;
-            }
-            
-            wp_redirect(home_url('/reservas-login/'));
-            exit;
+public static function require_login() {
+    if (!self::is_logged_in()) {
+        // ✅ MANEJAR PETICIONES AJAX DE FORMA DIFERENTE
+        if (wp_doing_ajax()) {
+            // ✅ NO ENVIAR wp_send_json_error aquí, solo return false
+            return false;
         }
+        
+        wp_redirect(home_url('/reservas-login/'));
+        exit;
+    }
+    return true;
+}
+    
+public static function require_permission($required_role) {
+    if (!self::require_login()) {
+        if (wp_doing_ajax()) {
+            return false;
+        }
+        wp_die('Sesión expirada');
     }
     
-    public static function require_permission($required_role) {
-        self::require_login();
-        
-        if (!self::has_permission($required_role)) {
-            // ✅ MANEJAR PETICIONES AJAX DE FORMA DIFERENTE
-            if (wp_doing_ajax()) {
-                wp_send_json_error('No tienes permisos para realizar esta acción.');
-                return;
-            }
-            
-            wp_die('No tienes permisos para acceder a esta página');
+    if (!self::has_permission($required_role)) {
+        if (wp_doing_ajax()) {
+            return false;
         }
+        wp_die('No tienes permisos para acceder a esta página');
     }
+    return true;
+}
     
     // ✅ NUEVA FUNCIÓN PARA OBTENER IP DEL CLIENTE
     private function get_client_ip() {

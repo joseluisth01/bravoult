@@ -27,36 +27,25 @@ class ReservasCalendarAdmin {
         header('Content-Type: application/json');
 
         try {
-            // ✅ VERIFICACIÓN BÁSICA DE NONCE
-            if (!isset($_POST['nonce'])) {
-                error_log('❌ No nonce provided');
-                die(json_encode(['success' => false, 'data' => 'No nonce provided']));
-            }
+            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+        wp_send_json_error('Error de seguridad');
+        return;
+    }
 
-            $nonce = sanitize_text_field($_POST['nonce']);
-            if (!wp_verify_nonce($nonce, 'reservas_nonce')) {
-                error_log('❌ Invalid nonce: ' . $nonce);
-                die(json_encode(['success' => false, 'data' => 'Invalid nonce']));
-            }
+    if (!session_id()) {
+        session_start();
+    }
 
-            // ✅ VERIFICACIÓN DE SESIÓN MÁS FLEXIBLE
-            if (!session_id()) {
-                session_start();
-            }
+    if (!isset($_SESSION['reservas_user'])) {
+        wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
+        return;
+    }
 
-            // ✅ PERMITIR SUPER_ADMIN Y ADMIN SIN VERIFICACIÓN ESTRICTA DE IP
-            if (!isset($_SESSION['reservas_user'])) {
-                error_log('❌ No user session found');
-                die(json_encode(['success' => false, 'data' => 'No user session - please login again']));
-            }
-
-            $user = $_SESSION['reservas_user'];
-            error_log('✅ User found: ' . $user['username'] . ' (' . $user['role'] . ')');
-
-            if (!in_array($user['role'], ['super_admin', 'admin'])) {
-                error_log('❌ Insufficient permissions for role: ' . $user['role']);
-                die(json_encode(['success' => false, 'data' => 'Insufficient permissions']));
-            }
+    $user = $_SESSION['reservas_user'];
+    if (!in_array($user['role'], ['super_admin', 'admin'])) {
+        wp_send_json_error('Sin permisos');
+        return;
+    }
 
             // ✅ OBTENER DATOS DEL CALENDARIO
             global $wpdb;
@@ -118,143 +107,172 @@ class ReservasCalendarAdmin {
         }
     }
 
-    public function save_service() {
-        if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-            wp_die('Error de seguridad');
-        }
-
-        if (!session_id()) {
-            session_start();
-        }
-
-        if (!isset($_SESSION['reservas_user']) || $_SESSION['reservas_user']['role'] !== 'super_admin') {
-            wp_send_json_error('Sin permisos');
-        }
-
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'reservas_servicios';
-
-        $fecha = sanitize_text_field($_POST['fecha']);
-        $hora = sanitize_text_field($_POST['hora']);
-        $plazas_totales = intval($_POST['plazas_totales']);
-        $precio_adulto = floatval($_POST['precio_adulto']);
-        $precio_nino = floatval($_POST['precio_nino']);
-        $precio_residente = floatval($_POST['precio_residente']);
-        $service_id = isset($_POST['service_id']) ? intval($_POST['service_id']) : 0;
-        
-        // Campos de descuento
-        $tiene_descuento = isset($_POST['tiene_descuento']) ? 1 : 0;
-        $porcentaje_descuento = floatval($_POST['porcentaje_descuento']) ?: 0;
-
-        // ✅ VALIDAR DÍAS DE ANTICIPACIÓN MÍNIMA
-        if (!class_exists('ReservasConfigurationAdmin')) {
-            require_once RESERVAS_PLUGIN_PATH . 'includes/class-configuration-admin.php';
-        }
-        
-        $dias_anticipacion = ReservasConfigurationAdmin::get_dias_anticipacion_minima();
-        $fecha_minima = date('Y-m-d', strtotime("+$dias_anticipacion days"));
-        
-        if ($fecha < $fecha_minima) {
-            wp_send_json_error("No se puede crear servicios para fechas anteriores a $fecha_minima (mínimo $dias_anticipacion días de anticipación)");
-        }
-
-        // Validar que no exista ya un servicio en esa fecha y hora
-        if ($service_id == 0) {
-            $existing = $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM $table_name WHERE fecha = %s AND hora = %s",
-                $fecha,
-                $hora
-            ));
-
-            if ($existing > 0) {
-                wp_send_json_error('Ya existe un servicio en esa fecha y hora');
-            }
-        }
-
-        $data = array(
-            'fecha' => $fecha,
-            'hora' => $hora,
-            'plazas_totales' => $plazas_totales,
-            'plazas_disponibles' => $plazas_totales,
-            'precio_adulto' => $precio_adulto,
-            'precio_nino' => $precio_nino,
-            'precio_residente' => $precio_residente,
-            'tiene_descuento' => $tiene_descuento,
-            'porcentaje_descuento' => $porcentaje_descuento,
-            'status' => 'active'
-        );
-
-        if ($service_id > 0) {
-            // Actualizar
-            $result = $wpdb->update($table_name, $data, array('id' => $service_id));
-        } else {
-            // Insertar
-            $result = $wpdb->insert($table_name, $data);
-        }
-
-        if ($result !== false) {
-            wp_send_json_success('Servicio guardado correctamente');
-        } else {
-            wp_send_json_error('Error al guardar el servicio: ' . $wpdb->last_error);
-        }
+public function save_service() {
+    // ✅ VERIFICACIÓN SIMPLIFICADA
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+        wp_send_json_error('Error de seguridad');
+        return;
     }
 
-    public function delete_service() {
-        if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-            wp_die('Error de seguridad');
-        }
-
-        if (!session_id()) {
-            session_start();
-        }
-
-        if (!isset($_SESSION['reservas_user']) || $_SESSION['reservas_user']['role'] !== 'super_admin') {
-            wp_send_json_error('Sin permisos');
-        }
-
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'reservas_servicios';
-
-        $service_id = intval($_POST['service_id']);
-
-        $result = $wpdb->delete($table_name, array('id' => $service_id));
-
-        if ($result !== false) {
-            wp_send_json_success('Servicio eliminado correctamente');
-        } else {
-            wp_send_json_error('Error al eliminar el servicio');
-        }
+    if (!session_id()) {
+        session_start();
     }
 
-    public function get_service_details() {
-        if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-            wp_die('Error de seguridad');
-        }
+    if (!isset($_SESSION['reservas_user'])) {
+        wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
+        return;
+    }
 
-        if (!session_id()) {
-            session_start();
-        }
+    $user = $_SESSION['reservas_user'];
+    if (!in_array($user['role'], ['super_admin', 'admin'])) {
+        wp_send_json_error('Sin permisos');
+        return;
+    }
 
-        if (!isset($_SESSION['reservas_user']) || $_SESSION['reservas_user']['role'] !== 'super_admin') {
-            wp_send_json_error('Sin permisos');
-        }
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'reservas_servicios';
 
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'reservas_servicios';
+    $fecha = sanitize_text_field($_POST['fecha']);
+    $hora = sanitize_text_field($_POST['hora']);
+    $plazas_totales = intval($_POST['plazas_totales']);
+    $precio_adulto = floatval($_POST['precio_adulto']);
+    $precio_nino = floatval($_POST['precio_nino']);
+    $precio_residente = floatval($_POST['precio_residente']);
+    $service_id = isset($_POST['service_id']) ? intval($_POST['service_id']) : 0;
+    
+    // Campos de descuento
+    $tiene_descuento = isset($_POST['tiene_descuento']) ? 1 : 0;
+    $porcentaje_descuento = floatval($_POST['porcentaje_descuento']) ?: 0;
 
-        $service_id = intval($_POST['service_id']);
+    // ✅ VALIDAR DÍAS DE ANTICIPACIÓN MÍNIMA
+    if (!class_exists('ReservasConfigurationAdmin')) {
+        require_once RESERVAS_PLUGIN_PATH . 'includes/class-configuration-admin.php';
+    }
+    
+    $dias_anticipacion = ReservasConfigurationAdmin::get_dias_anticipacion_minima();
+    $fecha_minima = date('Y-m-d', strtotime("+$dias_anticipacion days"));
+    
+    if ($fecha < $fecha_minima) {
+        wp_send_json_error("No se puede crear servicios para fechas anteriores a $fecha_minima (mínimo $dias_anticipacion días de anticipación)");
+        return;
+    }
 
-        $servicio = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $table_name WHERE id = %d",
-            $service_id
+    // Validar que no exista ya un servicio en esa fecha y hora
+    if ($service_id == 0) {
+        $existing = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_name WHERE fecha = %s AND hora = %s",
+            $fecha,
+            $hora
         ));
 
-        if ($servicio) {
-            wp_send_json_success($servicio);
-        } else {
-            wp_send_json_error('Servicio no encontrado');
+        if ($existing > 0) {
+            wp_send_json_error('Ya existe un servicio en esa fecha y hora');
+            return;
         }
     }
+
+    $data = array(
+        'fecha' => $fecha,
+        'hora' => $hora,
+        'plazas_totales' => $plazas_totales,
+        'plazas_disponibles' => $plazas_totales,
+        'precio_adulto' => $precio_adulto,
+        'precio_nino' => $precio_nino,
+        'precio_residente' => $precio_residente,
+        'tiene_descuento' => $tiene_descuento,
+        'porcentaje_descuento' => $porcentaje_descuento,
+        'status' => 'active'
+    );
+
+    if ($service_id > 0) {
+        // Actualizar
+        $result = $wpdb->update($table_name, $data, array('id' => $service_id));
+    } else {
+        // Insertar
+        $result = $wpdb->insert($table_name, $data);
+    }
+
+    if ($result !== false) {
+        wp_send_json_success('Servicio guardado correctamente');
+    } else {
+        wp_send_json_error('Error al guardar el servicio: ' . $wpdb->last_error);
+    }
+}
+
+ public function delete_service() {
+    // ✅ VERIFICACIÓN SIMPLIFICADA
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+        wp_send_json_error('Error de seguridad');
+        return;
+    }
+
+    if (!session_id()) {
+        session_start();
+    }
+
+    if (!isset($_SESSION['reservas_user'])) {
+        wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
+        return;
+    }
+
+    $user = $_SESSION['reservas_user'];
+    if (!in_array($user['role'], ['super_admin', 'admin'])) {
+        wp_send_json_error('Sin permisos');
+        return;
+    }
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'reservas_servicios';
+
+    $service_id = intval($_POST['service_id']);
+
+    $result = $wpdb->delete($table_name, array('id' => $service_id));
+
+    if ($result !== false) {
+        wp_send_json_success('Servicio eliminado correctamente');
+    } else {
+        wp_send_json_error('Error al eliminar el servicio');
+    }
+}
+
+ public function get_service_details() {
+    // ✅ VERIFICACIÓN SIMPLIFICADA
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+        wp_send_json_error('Error de seguridad');
+        return;
+    }
+
+    if (!session_id()) {
+        session_start();
+    }
+
+    if (!isset($_SESSION['reservas_user'])) {
+        wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
+        return;
+    }
+
+    $user = $_SESSION['reservas_user'];
+    if (!in_array($user['role'], ['super_admin', 'admin'])) {
+        wp_send_json_error('Sin permisos');
+        return;
+    }
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'reservas_servicios';
+
+    $service_id = intval($_POST['service_id']);
+
+    $servicio = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM $table_name WHERE id = %d",
+        $service_id
+    ));
+
+    if ($servicio) {
+        wp_send_json_success($servicio);
+    } else {
+        wp_send_json_error('Servicio no encontrado');
+    }
+}
 
     public function bulk_add_services() {
         if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {

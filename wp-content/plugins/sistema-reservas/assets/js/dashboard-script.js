@@ -33,6 +33,25 @@ function loadCalendarSection() {
     });
 }
 
+// ✅ FUNCIÓN PARA MANEJAR ERRORES AJAX
+function handleAjaxError(xhr, status, error) {
+    console.error('AJAX Error:', {
+        status: xhr.status,
+        statusText: xhr.statusText,
+        responseText: xhr.responseText,
+        error: error
+    });
+    
+    if (xhr.status === 403 || xhr.status === 401) {
+        alert('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
+        window.location.reload();
+    } else if (xhr.status === 400) {
+        alert('Error de solicitud. Verifica los datos e inténtalo de nuevo.');
+    } else {
+        alert('Error de conexión. Inténtalo de nuevo.');
+    }
+}
+
 function loadDefaultConfiguration() {
     return new Promise((resolve, reject) => {
         console.log('=== CARGANDO CONFIGURACIÓN ===');
@@ -148,43 +167,30 @@ function loadCalendarData() {
     formData.append('nonce', reservasAjax.nonce);
 
     fetch(reservasAjax.ajax_url, {
-        method: 'POST',
-        body: formData,
-        credentials: 'same-origin'
-    })
-    .then(response => {
-        console.log('Response status:', response.status);
-        return response.text();
-    })
-    .then(text => {
-        console.log('Raw response:', text);
-
-        if (text.trim() === '0') {
-            throw new Error('WordPress AJAX error: Unauthorized or invalid request');
-        }
-
-        try {
-            const data = JSON.parse(text);
-            console.log('Parsed JSON:', data);
-
-            if (data.success) {
-                servicesData = data.data;
-                renderCalendar();
-                console.log('✅ Calendario renderizado correctamente');
-            } else {
-                console.error('❌ Error del servidor:', data.data);
-                alert('Error del servidor: ' + (data.data || 'Error desconocido'));
-            }
-        } catch (e) {
-            console.error('❌ Error parsing JSON:', e);
-            console.error('Raw text that failed to parse:', text);
-            alert('Error: respuesta no válida del servidor. Ver consola para detalles.');
-        }
-    })
-    .catch(error => {
-        console.error('❌ Fetch error:', error);
-        alert('Error de conexión: ' + error.message);
-    });
+    method: 'POST',
+    body: formData,
+    credentials: 'same-origin'
+})
+.then(response => {
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
+})
+.then(data => {
+    if (data.success) {
+        servicesData = data.data;
+        renderCalendar();
+        console.log('✅ Calendario renderizado correctamente');
+    } else {
+        console.error('❌ Error del servidor:', data.data);
+        alert('Error del servidor: ' + (data.data || 'Error desconocido'));
+    }
+})
+.catch(error => {
+    console.error('❌ Fetch error:', error);
+    handleAjaxError({status: 500, statusText: error.message}, 'error', error);
+});
 }
 
 function renderCalendar() {
@@ -540,50 +546,61 @@ function addService(fecha) {
 }
 
 function editService(serviceId) {
+    console.log('=== EDITANDO SERVICIO ===');
+    console.log('Service ID:', serviceId);
+
     const formData = new FormData();
     formData.append('action', 'get_service_details');
     formData.append('service_id', serviceId);
     formData.append('nonce', reservasAjax.nonce);
 
     fetch(reservasAjax.ajax_url, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const service = data.data;
-                document.getElementById('serviceModalTitle').textContent = 'Editar Servicio';
-                document.getElementById('serviceId').value = service.id;
-                document.getElementById('serviceFecha').value = service.fecha;
-                document.getElementById('serviceHora').value = service.hora;
-                document.getElementById('servicePlazas').value = service.plazas_totales;
-                document.getElementById('precioAdulto').value = service.precio_adulto;
-                document.getElementById('precioNino').value = service.precio_nino;
-                document.getElementById('precioResidente').value = service.precio_residente;
-                
-                // Cargar datos de descuento
-                const tieneDescuento = service.tiene_descuento == '1';
-                document.getElementById('tieneDescuento').checked = tieneDescuento;
-                
-                if (tieneDescuento) {
-                    document.getElementById('discountFields').style.display = 'block';
-                    document.getElementById('porcentajeDescuento').value = service.porcentaje_descuento || '';
-                } else {
-                    document.getElementById('discountFields').style.display = 'none';
-                    document.getElementById('porcentajeDescuento').value = '';
-                }
-
-                document.getElementById('deleteServiceBtn').style.display = 'block';
-                document.getElementById('serviceModal').style.display = 'block';
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Service details response:', data);
+        if (data.success) {
+            const service = data.data;
+            document.getElementById('serviceModalTitle').textContent = 'Editar Servicio';
+            document.getElementById('serviceId').value = service.id;
+            document.getElementById('serviceFecha').value = service.fecha;
+            document.getElementById('serviceHora').value = service.hora;
+            document.getElementById('servicePlazas').value = service.plazas_totales;
+            document.getElementById('precioAdulto').value = service.precio_adulto;
+            document.getElementById('precioNino').value = service.precio_nino;
+            document.getElementById('precioResidente').value = service.precio_residente;
+            
+            // Cargar datos de descuento
+            const tieneDescuento = service.tiene_descuento == '1';
+            document.getElementById('tieneDescuento').checked = tieneDescuento;
+            
+            if (tieneDescuento) {
+                document.getElementById('discountFields').style.display = 'block';
+                document.getElementById('porcentajeDescuento').value = service.porcentaje_descuento || '';
             } else {
-                alert('Error al cargar el servicio: ' + data.data);
+                document.getElementById('discountFields').style.display = 'none';
+                document.getElementById('porcentajeDescuento').value = '';
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error de conexión');
-        });
+
+            document.getElementById('deleteServiceBtn').style.display = 'block';
+            document.getElementById('serviceModal').style.display = 'block';
+        } else {
+            alert('Error al cargar el servicio: ' + data.data);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading service details:', error);
+        alert('Error de conexión: ' + error.message);
+    });
 }
 
 function saveService() {
@@ -591,24 +608,38 @@ function saveService() {
     formData.append('action', 'save_service');
     formData.append('nonce', reservasAjax.nonce);
 
+    // ✅ DEBUGGING MEJORADO
+    console.log('=== GUARDANDO SERVICIO ===');
+    for (let [key, value] of formData.entries()) {
+        console.log(key + ': ' + value);
+    }
+
     fetch(reservasAjax.ajax_url, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Servicio guardado correctamente');
-                closeServiceModal();
-                loadCalendarData();
-            } else {
-                alert('Error: ' + data.data);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error de conexión');
-        });
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        if (data.success) {
+            alert('Servicio guardado correctamente');
+            closeServiceModal();
+            loadCalendarData();
+        } else {
+            alert('Error: ' + data.data);
+        }
+    })
+    .catch(error => {
+        console.error('Error guardando servicio:', error);
+        alert('Error de conexión: ' + error.message);
+    });
 }
 
 function deleteService() {

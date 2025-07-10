@@ -283,31 +283,25 @@ public function get_configuration() {
     header('Content-Type: application/json');
 
     try {
-        if (!isset($_POST['nonce'])) {
-            error_log('❌ No nonce provided for configuration');
-            die(json_encode(['success' => false, 'data' => 'No nonce provided']));
-        }
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+        wp_send_json_error('Error de seguridad');
+        return;
+    }
 
-        $nonce = sanitize_text_field($_POST['nonce']);
-        if (!wp_verify_nonce($nonce, 'reservas_nonce')) {
-            error_log('❌ Invalid nonce for configuration: ' . $nonce);
-            die(json_encode(['success' => false, 'data' => 'Invalid nonce']));
-        }
+    if (!session_id()) {
+        session_start();
+    }
 
-        if (!session_id()) {
-            session_start();
-        }
+    if (!isset($_SESSION['reservas_user'])) {
+        wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
+        return;
+    }
 
-        if (!isset($_SESSION['reservas_user'])) {
-            error_log('❌ No user session found for configuration');
-            die(json_encode(['success' => false, 'data' => 'No user session - please login again']));
-        }
-
-        $user = $_SESSION['reservas_user'];
-        if ($user['role'] !== 'super_admin') {
-            error_log('❌ Insufficient permissions for configuration: ' . $user['role']);
-            die(json_encode(['success' => false, 'data' => 'Insufficient permissions']));
-        }
+    $user = $_SESSION['reservas_user'];
+    if ($user['role'] !== 'super_admin') {
+        wp_send_json_error('Sin permisos');
+        return;
+    }
 
         global $wpdb;
         $table_name = $wpdb->prefix . 'reservas_configuration';
