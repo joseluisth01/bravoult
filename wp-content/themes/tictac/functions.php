@@ -68,13 +68,15 @@ add_theme_support('custom-logo');
 add_image_size('foto', 650, 650, true);
 
 
-// Cargar traducciones en el momento correcto
+// ✅ CAMBIAR ESTA FUNCIÓN PARA EVITAR EL WARNING
 function load_textdomains_properly() {
-    load_plugin_textdomain('acf');
-    load_plugin_textdomain('complianz-terms-conditions');
-    load_plugin_textdomain('complianz-gdpr');
+    if (did_action('init')) {
+        load_plugin_textdomain('acf');
+        load_plugin_textdomain('complianz-terms-conditions');
+        load_plugin_textdomain('complianz-gdpr');
+    }
 }
-add_action('init', 'load_textdomains_properly');
+add_action('init', 'load_textdomains_properly', 20); // ✅ PRIORIDAD ALTA
 
 function load_scripts()
 {
@@ -363,13 +365,5 @@ if (!function_exists('slider_scripts')) {
 
 
 
-
-add_action('rest_api_init', function () {
-  register_rest_route('description/v1', '/save', array(
-    'methods' => 'POST',
-    'callback' => 'save_image_description',
-    'permission_callback' => '__return_true'
-  ));
-});
 
 

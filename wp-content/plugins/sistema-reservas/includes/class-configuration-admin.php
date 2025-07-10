@@ -5,14 +5,16 @@
  */
 class ReservasConfigurationAdmin {
     
-    public function __construct() {
-        // Hooks AJAX para configuración
-        add_action('wp_ajax_get_configuration', array($this, 'get_configuration'));
-        add_action('wp_ajax_save_configuration', array($this, 'save_configuration'));
-        
-        // Hook para activación del plugin (crear tabla)
-        add_action('init', array($this, 'maybe_create_table'));
-    }
+public function __construct() {
+    // Hooks AJAX para configuración
+    add_action('wp_ajax_get_configuration', array($this, 'get_configuration'));
+    add_action('wp_ajax_nopriv_get_configuration', array($this, 'get_configuration')); // ✅ AÑADIR
+    
+    add_action('wp_ajax_save_configuration', array($this, 'save_configuration'));
+    
+    // Hook para activación del plugin (crear tabla)
+    add_action('init', array($this, 'maybe_create_table'));
+}
 
     /**
      * Crear tabla de configuración si no existe
@@ -171,17 +173,36 @@ class ReservasConfigurationAdmin {
     /**
      * Obtener toda la configuración
      */
-    public function get_configuration() {
-        if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-            wp_send_json_error('Error de seguridad');
+public function get_configuration() {
+    // ✅ DEBUGGING MEJORADO
+    error_log('=== CONFIGURATION AJAX REQUEST START ===');
+    header('Content-Type: application/json');
+
+    try {
+        if (!isset($_POST['nonce'])) {
+            error_log('❌ No nonce provided for configuration');
+            die(json_encode(['success' => false, 'data' => 'No nonce provided']));
+        }
+
+        $nonce = sanitize_text_field($_POST['nonce']);
+        if (!wp_verify_nonce($nonce, 'reservas_nonce')) {
+            error_log('❌ Invalid nonce for configuration: ' . $nonce);
+            die(json_encode(['success' => false, 'data' => 'Invalid nonce']));
         }
 
         if (!session_id()) {
             session_start();
         }
 
-        if (!isset($_SESSION['reservas_user']) || $_SESSION['reservas_user']['role'] !== 'super_admin') {
-            wp_send_json_error('Sin permisos');
+        if (!isset($_SESSION['reservas_user'])) {
+            error_log('❌ No user session found for configuration');
+            die(json_encode(['success' => false, 'data' => 'No user session - please login again']));
+        }
+
+        $user = $_SESSION['reservas_user'];
+        if ($user['role'] !== 'super_admin') {
+            error_log('❌ Insufficient permissions for configuration: ' . $user['role']);
+            die(json_encode(['success' => false, 'data' => 'Insufficient permissions']));
         }
 
         global $wpdb;
@@ -190,6 +211,11 @@ class ReservasConfigurationAdmin {
         $configs = $wpdb->get_results(
             "SELECT * FROM $table_name ORDER BY config_group, config_key"
         );
+
+        if ($wpdb->last_error) {
+            error_log('❌ Database error in configuration: ' . $wpdb->last_error);
+            die(json_encode(['success' => false, 'data' => 'Database error: ' . $wpdb->last_error]));
+        }
 
         // Organizar por grupos
         $grouped_configs = array();
@@ -203,8 +229,14 @@ class ReservasConfigurationAdmin {
             );
         }
 
-        wp_send_json_success($grouped_configs);
+        error_log('✅ Configuration loaded successfully');
+        die(json_encode(['success' => true, 'data' => $grouped_configs]));
+
+    } catch (Exception $e) {
+        error_log('❌ CONFIGURATION EXCEPTION: ' . $e->getMessage());
+        die(json_encode(['success' => false, 'data' => 'Server error: ' . $e->getMessage()]));
     }
+}
 
     /**
      * Guardar configuración - CON EMAILS

@@ -130,7 +130,16 @@ function changeMonth(direction) {
 }
 
 function loadCalendarData() {
-    console.log('Iniciando carga de calendario');
+    console.log('=== INICIANDO CARGA DE CALENDARIO ===');
+    
+    if (typeof reservasAjax === 'undefined') {
+        console.error('❌ reservasAjax no está definido');
+        alert('Error: Variables AJAX no disponibles. Recarga la página.');
+        return;
+    }
+
+    console.log('AJAX URL:', reservasAjax.ajax_url);
+    console.log('Nonce:', reservasAjax.nonce);
 
     const formData = new FormData();
     formData.append('action', 'get_calendar_data');
@@ -139,36 +148,43 @@ function loadCalendarData() {
     formData.append('nonce', reservasAjax.nonce);
 
     fetch(reservasAjax.ajax_url, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            console.log('Response status:', response.status);
-            return response.text();
-        })
-        .then(text => {
-            console.log('Raw response:', text);
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.text();
+    })
+    .then(text => {
+        console.log('Raw response:', text);
 
-            try {
-                const data = JSON.parse(text);
-                console.log('Parsed JSON:', data);
+        if (text.trim() === '0') {
+            throw new Error('WordPress AJAX error: Unauthorized or invalid request');
+        }
 
-                if (data.success) {
-                    servicesData = data.data;
-                    renderCalendar();
-                } else {
-                    alert('Error del servidor: ' + data.data);
-                }
-            } catch (e) {
-                console.error('Error parsing JSON:', e);
-                console.error('Raw text that failed to parse:', text);
-                alert('Error: respuesta no es JSON válido. Ver consola para detalles.');
+        try {
+            const data = JSON.parse(text);
+            console.log('Parsed JSON:', data);
+
+            if (data.success) {
+                servicesData = data.data;
+                renderCalendar();
+                console.log('✅ Calendario renderizado correctamente');
+            } else {
+                console.error('❌ Error del servidor:', data.data);
+                alert('Error del servidor: ' + (data.data || 'Error desconocido'));
             }
-        })
-        .catch(error => {
-            console.error('Fetch error:', error);
-            alert('Error de conexión: ' + error.message);
-        });
+        } catch (e) {
+            console.error('❌ Error parsing JSON:', e);
+            console.error('Raw text that failed to parse:', text);
+            alert('Error: respuesta no válida del servidor. Ver consola para detalles.');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Fetch error:', error);
+        alert('Error de conexión: ' + error.message);
+    });
 }
 
 function renderCalendar() {

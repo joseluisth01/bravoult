@@ -5,16 +5,18 @@
  */
 class ReservasDiscountsAdmin {
     
-    public function __construct() {
-        // Hooks AJAX para descuentos
-        add_action('wp_ajax_get_discount_rules', array($this, 'get_discount_rules'));
-        add_action('wp_ajax_save_discount_rule', array($this, 'save_discount_rule'));
-        add_action('wp_ajax_delete_discount_rule', array($this, 'delete_discount_rule'));
-        add_action('wp_ajax_get_discount_rule_details', array($this, 'get_discount_rule_details'));
-        
-        // Hook para activación del plugin (crear tabla)
-        add_action('init', array($this, 'maybe_create_table'));
-    }
+public function __construct() {
+    // Hooks AJAX para descuentos
+    add_action('wp_ajax_get_discount_rules', array($this, 'get_discount_rules'));
+    add_action('wp_ajax_nopriv_get_discount_rules', array($this, 'get_discount_rules')); // ✅ AÑADIR
+    
+    add_action('wp_ajax_save_discount_rule', array($this, 'save_discount_rule'));
+    add_action('wp_ajax_delete_discount_rule', array($this, 'delete_discount_rule'));
+    add_action('wp_ajax_get_discount_rule_details', array($this, 'get_discount_rule_details'));
+    
+    // Hook para activación del plugin (crear tabla)
+    add_action('init', array($this, 'maybe_create_table'));
+}
 
     /**
      * Crear tabla de descuentos si no existe
@@ -92,17 +94,36 @@ class ReservasDiscountsAdmin {
     /**
      * Obtener todas las reglas de descuento
      */
-    public function get_discount_rules() {
-        if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-            wp_send_json_error('Error de seguridad');
+ public function get_discount_rules() {
+    // ✅ DEBUGGING MEJORADO
+    error_log('=== DISCOUNT RULES AJAX REQUEST START ===');
+    header('Content-Type: application/json');
+
+    try {
+        if (!isset($_POST['nonce'])) {
+            error_log('❌ No nonce provided for discount rules');
+            die(json_encode(['success' => false, 'data' => 'No nonce provided']));
+        }
+
+        $nonce = sanitize_text_field($_POST['nonce']);
+        if (!wp_verify_nonce($nonce, 'reservas_nonce')) {
+            error_log('❌ Invalid nonce for discount rules: ' . $nonce);
+            die(json_encode(['success' => false, 'data' => 'Invalid nonce']));
         }
 
         if (!session_id()) {
             session_start();
         }
 
-        if (!isset($_SESSION['reservas_user']) || $_SESSION['reservas_user']['role'] !== 'super_admin') {
-            wp_send_json_error('Sin permisos');
+        if (!isset($_SESSION['reservas_user'])) {
+            error_log('❌ No user session found for discount rules');
+            die(json_encode(['success' => false, 'data' => 'No user session - please login again']));
+        }
+
+        $user = $_SESSION['reservas_user'];
+        if ($user['role'] !== 'super_admin') {
+            error_log('❌ Insufficient permissions for discount rules: ' . $user['role']);
+            die(json_encode(['success' => false, 'data' => 'Insufficient permissions']));
         }
 
         global $wpdb;
@@ -112,9 +133,19 @@ class ReservasDiscountsAdmin {
             "SELECT * FROM $table_name ORDER BY minimum_persons ASC, discount_percentage DESC"
         );
 
-        wp_send_json_success($rules);
-    }
+        if ($wpdb->last_error) {
+            error_log('❌ Database error in discount rules: ' . $wpdb->last_error);
+            die(json_encode(['success' => false, 'data' => 'Database error: ' . $wpdb->last_error]));
+        }
 
+        error_log('✅ Found ' . count($rules) . ' discount rules');
+        die(json_encode(['success' => true, 'data' => $rules]));
+
+    } catch (Exception $e) {
+        error_log('❌ DISCOUNT RULES EXCEPTION: ' . $e->getMessage());
+        die(json_encode(['success' => false, 'data' => 'Server error: ' . $e->getMessage()]));
+    }
+}
     /**
      * Guardar regla de descuento (crear o actualizar)
      */

@@ -112,10 +112,41 @@ private function render_dashboard_page() {
             };
         </script>
         
-        <!-- ✅ INCLUIR ESTILOS ESPECÍFICOS PARA INFORMES -->
-        <style>
-            <?php include RESERVAS_PLUGIN_PATH . 'assets/css/reports-styles.css'; ?>
-        </style>
+        <!-- ✅ INCLUIR ESTILOS ESPECÍFICOS PARA INFORMES CON VERIFICACIÓN -->
+<style>
+    <?php 
+    $reports_css = RESERVAS_PLUGIN_PATH . 'assets/css/reports-styles.css';
+    if (file_exists($reports_css)) {
+        include_once $reports_css; 
+    } else {
+        // CSS básico si no existe el archivo
+        echo '.loading { text-align: center; padding: 40px; color: #666; }';
+    }
+    ?>
+</style>
+<!-- ✅ INCLUIR ESTILOS ESPECÍFICOS PARA INFORMES CON VERIFICACIÓN -->
+<style>
+    <?php 
+    $reports_css = RESERVAS_PLUGIN_PATH . 'assets/css/admin-style.css';
+    if (file_exists($reports_css)) {
+        include_once $reports_css; 
+    }
+    // CSS básico para informes
+    ?>
+    .loading { 
+        text-align: center; 
+        padding: 40px; 
+        color: #666; 
+    }
+    .error {
+        background: #fbeaea;
+        border-left: 4px solid #d63638;
+        padding: 12px;
+        margin: 15px 0;
+        border-radius: 4px;
+        color: #d63638;
+    }
+</style>
     </head>
     <body>
         <div class="dashboard-header">

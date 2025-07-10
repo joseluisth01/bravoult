@@ -5,31 +5,52 @@
  */
 class ReservasReportsAdmin {
     
-    public function __construct() {
-        // Hooks AJAX para informes
-        add_action('wp_ajax_get_reservations_report', array($this, 'get_reservations_report'));
-        add_action('wp_ajax_search_reservations', array($this, 'search_reservations'));
-        add_action('wp_ajax_get_reservation_details', array($this, 'get_reservation_details'));
-        add_action('wp_ajax_update_reservation_email', array($this, 'update_reservation_email'));
-        add_action('wp_ajax_resend_confirmation_email', array($this, 'resend_confirmation_email'));
-        add_action('wp_ajax_get_date_range_stats', array($this, 'get_date_range_stats'));
-        add_action('wp_ajax_get_quick_stats', array($this, 'get_quick_stats'));
-    }
+public function __construct() {
+    // Hooks AJAX para informes
+    add_action('wp_ajax_get_reservations_report', array($this, 'get_reservations_report'));
+    add_action('wp_ajax_nopriv_get_reservations_report', array($this, 'get_reservations_report')); // ✅ AÑADIR
+    
+    add_action('wp_ajax_search_reservations', array($this, 'search_reservations'));
+    add_action('wp_ajax_get_reservation_details', array($this, 'get_reservation_details'));
+    add_action('wp_ajax_update_reservation_email', array($this, 'update_reservation_email'));
+    add_action('wp_ajax_resend_confirmation_email', array($this, 'resend_confirmation_email'));
+    add_action('wp_ajax_get_date_range_stats', array($this, 'get_date_range_stats'));
+    add_action('wp_ajax_get_quick_stats', array($this, 'get_quick_stats'));
+}
 
     /**
      * Obtener informe de reservas por fechas
      */
-    public function get_reservations_report() {
-        if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-            wp_send_json_error('Error de seguridad');
+public function get_reservations_report() {
+    // ✅ DEBUGGING MEJORADO
+    error_log('=== REPORTS AJAX REQUEST START ===');
+    header('Content-Type: application/json');
+
+    try {
+        if (!isset($_POST['nonce'])) {
+            error_log('❌ No nonce provided for reports');
+            die(json_encode(['success' => false, 'data' => 'No nonce provided']));
+        }
+
+        $nonce = sanitize_text_field($_POST['nonce']);
+        if (!wp_verify_nonce($nonce, 'reservas_nonce')) {
+            error_log('❌ Invalid nonce for reports: ' . $nonce);
+            die(json_encode(['success' => false, 'data' => 'Invalid nonce']));
         }
 
         if (!session_id()) {
             session_start();
         }
 
-        if (!isset($_SESSION['reservas_user']) || !in_array($_SESSION['reservas_user']['role'], ['super_admin', 'admin'])) {
-            wp_send_json_error('Sin permisos');
+        if (!isset($_SESSION['reservas_user'])) {
+            error_log('❌ No user session found for reports');
+            die(json_encode(['success' => false, 'data' => 'No user session - please login again']));
+        }
+
+        $user = $_SESSION['reservas_user'];
+        if (!in_array($user['role'], ['super_admin', 'admin'])) {
+            error_log('❌ Insufficient permissions for reports: ' . $user['role']);
+            die(json_encode(['success' => false, 'data' => 'Insufficient permissions']));
         }
 
         global $wpdb;
@@ -54,6 +75,11 @@ class ReservasReportsAdmin {
             $per_page,
             $offset
         ));
+
+        if ($wpdb->last_error) {
+            error_log('❌ Database error in reports: ' . $wpdb->last_error);
+            die(json_encode(['success' => false, 'data' => 'Database error: ' . $wpdb->last_error]));
+        }
 
         // Contar total de reservas
         $total_reservas = $wpdb->get_var($wpdb->prepare(
@@ -94,8 +120,14 @@ class ReservasReportsAdmin {
             'fecha_fin' => $fecha_fin
         );
 
-        wp_send_json_success($response_data);
+        error_log('✅ Reports data loaded successfully');
+        die(json_encode(['success' => true, 'data' => $response_data]));
+
+    } catch (Exception $e) {
+        error_log('❌ REPORTS EXCEPTION: ' . $e->getMessage());
+        die(json_encode(['success' => false, 'data' => 'Server error: ' . $e->getMessage()]));
     }
+}
 
     /**
      * Buscar reservas por diferentes criterios
