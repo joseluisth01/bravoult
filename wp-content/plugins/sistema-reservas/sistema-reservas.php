@@ -28,23 +28,54 @@ class SistemaReservas
         add_action('init', array($this, 'init'));
     }
 
-    public function init()
-    {
-        // Cargar dependencias
-        $this->load_dependencies();
-
-        // Inicializar clases
-        $this->initialize_classes();
-
-        // Registrar reglas de reescritura
-        $this->add_rewrite_rules();
-
-        // Añadir query vars
-        add_filter('query_vars', array($this, 'add_query_vars'));
-
-        // Manejar template redirect
-        add_action('template_redirect', array($this, 'template_redirect'));
+public function init()
+{
+    // ✅ VERIFICAR QUE WORDPRESS ESTÁ COMPLETAMENTE CARGADO
+    if (!did_action('wp_loaded')) {
+        add_action('wp_loaded', array($this, 'init'));
+        return;
     }
+
+    // ✅ ASEGURAR QUE LAS SESIONES FUNCIONAN CORRECTAMENTE
+    if (!session_id() && !headers_sent()) {
+        session_start();
+    }
+
+    // Cargar dependencias
+    $this->load_dependencies();
+
+    // Inicializar clases
+    $this->initialize_classes();
+
+    // Registrar reglas de reescritura
+    $this->add_rewrite_rules();
+
+    // Añadir query vars
+    add_filter('query_vars', array($this, 'add_query_vars'));
+
+    // Manejar template redirect
+    add_action('template_redirect', array($this, 'template_redirect'));
+
+    // ✅ AÑADIR DEBUG PARA AJAX
+    add_action('wp_ajax_debug_session', array($this, 'debug_session_info'));
+}
+
+public function debug_session_info() {
+    if (!session_id()) {
+        session_start();
+    }
+    
+    $debug_info = array(
+        'session_id' => session_id(),
+        'session_data' => $_SESSION,
+        'user_ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce_check' => wp_verify_nonce($_POST['nonce'] ?? '', 'reservas_nonce')
+    );
+    
+    wp_send_json_success($debug_info);
+}
 
     private function load_dependencies()
     {

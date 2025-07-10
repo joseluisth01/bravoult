@@ -33,57 +33,79 @@ function loadCalendarSection() {
     });
 }
 
-// ✅ NUEVA FUNCIÓN PARA CARGAR CONFIGURACIÓN POR DEFECTO
 function loadDefaultConfiguration() {
     return new Promise((resolve, reject) => {
+        console.log('=== CARGANDO CONFIGURACIÓN ===');
+        
+        // ✅ VERIFICAR QUE TENEMOS LAS VARIABLES NECESARIAS
+        if (typeof reservasAjax === 'undefined') {
+            console.error('reservasAjax no está definido');
+            resolve(); // Continuar sin configuración
+            return;
+        }
+
         const formData = new FormData();
         formData.append('action', 'get_configuration');
         formData.append('nonce', reservasAjax.nonce);
 
+        // ✅ MEJORAR EL FETCH CON MÁS DEBUGGING
         fetch(reservasAjax.ajax_url, {
             method: 'POST',
-            body: formData
+            body: formData,
+            credentials: 'same-origin' // ✅ IMPORTANTE PARA SESIONES
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                defaultConfig = data.data;
-                console.log('Configuración por defecto cargada:', defaultConfig);
-                resolve();
-            } else {
-                console.error('Error cargando configuración:', data.data);
-                // Si no se puede cargar, usar valores por defecto
-                defaultConfig = {
-                    precios: {
-                        precio_adulto_defecto: { value: '10.00' },
-                        precio_nino_defecto: { value: '5.00' },
-                        precio_residente_defecto: { value: '5.00' }
-                    },
-                    servicios: {
-                        plazas_defecto: { value: '50' },
-                        dias_anticipacion_minima: { value: '1' }
-                    }
-                };
+        .then(response => {
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return response.text(); // ✅ OBTENER COMO TEXTO PRIMERO
+        })
+        .then(text => {
+            console.log('Response text:', text);
+            
+            try {
+                const data = JSON.parse(text);
+                if (data.success) {
+                    defaultConfig = data.data;
+                    console.log('✅ Configuración cargada:', defaultConfig);
+                    resolve();
+                } else {
+                    console.error('❌ Error del servidor:', data.data);
+                    // Usar valores por defecto
+                    defaultConfig = getDefaultConfigValues();
+                    resolve();
+                }
+            } catch (e) {
+                console.error('❌ Error parsing JSON:', e);
+                console.error('Raw response:', text);
+                defaultConfig = getDefaultConfigValues();
                 resolve();
             }
         })
         .catch(error => {
-            console.error('Error cargando configuración:', error);
-            // Valores por defecto en caso de error
-            defaultConfig = {
-                precios: {
-                    precio_adulto_defecto: { value: '10.00' },
-                    precio_nino_defecto: { value: '5.00' },
-                    precio_residente_defecto: { value: '5.00' }
-                },
-                servicios: {
-                    plazas_defecto: { value: '50' },
-                    dias_anticipacion_minima: { value: '1' }
-                }
-            };
+            console.error('❌ Fetch error:', error);
+            defaultConfig = getDefaultConfigValues();
             resolve();
         });
     });
+}
+
+function getDefaultConfigValues() {
+    return {
+        precios: {
+            precio_adulto_defecto: { value: '10.00' },
+            precio_nino_defecto: { value: '5.00' },
+            precio_residente_defecto: { value: '5.00' }
+        },
+        servicios: {
+            plazas_defecto: { value: '50' },
+            dias_anticipacion_minima: { value: '1' }
+        }
+    };
 }
 
 function initCalendar() {
