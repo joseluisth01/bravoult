@@ -36,6 +36,13 @@ function loadCalendarSection() {
 // ✅ NUEVA FUNCIÓN PARA CARGAR CONFIGURACIÓN POR DEFECTO
 function loadDefaultConfiguration() {
     return new Promise((resolve, reject) => {
+        // Verificar que tenemos las variables necesarias
+        if (typeof reservasAjax === 'undefined') {
+            console.error('reservasAjax no está definido');
+            resolve(); // Resolver con valores por defecto
+            return;
+        }
+
         const formData = new FormData();
         formData.append('action', 'get_configuration');
         formData.append('nonce', reservasAjax.nonce);
@@ -44,43 +51,42 @@ function loadDefaultConfiguration() {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                defaultConfig = data.data;
-                console.log('Configuración por defecto cargada:', defaultConfig);
-                resolve();
-            } else {
-                console.error('Error cargando configuración:', data.data);
-                // Si no se puede cargar, usar valores por defecto
-                defaultConfig = {
-                    precios: {
-                        precio_adulto_defecto: { value: '10.00' },
-                        precio_nino_defecto: { value: '5.00' },
-                        precio_residente_defecto: { value: '5.00' }
-                    },
-                    servicios: {
-                        plazas_defecto: { value: '50' },
-                        dias_anticipacion_minima: { value: '1' }
-                    }
-                };
+        .then(response => {
+            debugLog('Response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return response.text();
+        })
+        .then(text => {
+            debugLog('Raw response:', text);
+            
+            try {
+                const data = JSON.parse(text);
+                debugLog('Parsed JSON:', data);
+                
+                if (data.success) {
+                    defaultConfig = data.data;
+                    debugLog('Configuración por defecto cargada:', defaultConfig);
+                    resolve();
+                } else {
+                    console.error('Error cargando configuración:', data.data);
+                    // Si no se puede cargar, usar valores por defecto
+                    setDefaultConfigValues();
+                    resolve();
+                }
+            } catch (e) {
+                console.error('Error parsing JSON:', e);
+                console.error('Raw text:', text);
+                setDefaultConfigValues();
                 resolve();
             }
         })
         .catch(error => {
             console.error('Error cargando configuración:', error);
-            // Valores por defecto en caso de error
-            defaultConfig = {
-                precios: {
-                    precio_adulto_defecto: { value: '10.00' },
-                    precio_nino_defecto: { value: '5.00' },
-                    precio_residente_defecto: { value: '5.00' }
-                },
-                servicios: {
-                    plazas_defecto: { value: '50' },
-                    dias_anticipacion_minima: { value: '1' }
-                }
-            };
+            setDefaultConfigValues();
             resolve();
         });
     });
