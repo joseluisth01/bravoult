@@ -14,125 +14,84 @@ class ReservasCalendarAdmin {
         add_action('wp_ajax_bulk_add_services', array($this, 'bulk_add_services'));
     }
 
-public function get_calendar_data() {
-    // ✅ LIMPIAR OUTPUT BUFFER MÁS AGRESIVAMENTE
-    while (ob_get_level()) {
-        ob_end_clean();
-    }
-
-    // ✅ HEADERS MÁS ROBUSTOS
-    if (!headers_sent()) {
-        header('Content-Type: application/json; charset=utf-8');
-        header('Cache-Control: no-cache, no-store, must-revalidate');
-        header('Pragma: no-cache');
-        header('Expires: 0');
-        header('X-Robots-Tag: noindex, nofollow');
-    }
-
-    try {
-        // ✅ VERIFICACIÓN MEJORADA DE NONCE
-        if (!isset($_POST['nonce'])) {
-            wp_send_json_error('Nonce no proporcionado');
-            exit;
-        }
-        
-        if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-            wp_send_json_error('Error de seguridad: Nonce inválido');
-            exit;
+    public function get_calendar_data() {
+        // Limpiar cualquier output buffer
+        if (ob_get_level()) {
+            ob_clean();
         }
 
-        // ✅ VERIFICACIÓN ROBUSTA DE SESIÓN
-        if (!session_id()) {
-            session_start();
-        }
+        // Headers para JSON
+        header('Content-Type: application/json');
 
-        if (!isset($_SESSION['reservas_user'])) {
-            wp_send_json_error('Usuario no logueado');
-            exit;
-        }
-
-        // ✅ VERIFICAR PERMISOS
-        $user_role = $_SESSION['reservas_user']['role'];
-        if (!in_array($user_role, ['super_admin', 'admin'])) {
-            wp_send_json_error('Sin permisos suficientes');
-            exit;
-        }
-
-        // ✅ VALIDACIÓN MÁS ESTRICTA DE PARÁMETROS
-        $month = isset($_POST['month']) ? intval($_POST['month']) : date('n');
-        $year = isset($_POST['year']) ? intval($_POST['year']) : date('Y');
-        
-        if ($month < 1 || $month > 12) {
-            wp_send_json_error('Mes inválido');
-            exit;
-        }
-        
-        if ($year < 2020 || $year > 2030) {
-            wp_send_json_error('Año inválido');
-            exit;
-        }
-
-        // Resto del código igual...
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'reservas_servicios';
-
-        // Calcular primer y último día del mes
-        $first_day = sprintf('%04d-%02d-01', $year, $month);
-        $last_day = date('Y-m-t', strtotime($first_day));
-
-        $servicios = $wpdb->get_results($wpdb->prepare(
-            "SELECT id, fecha, hora, plazas_totales, plazas_disponibles, 
-                    precio_adulto, precio_nino, precio_residente,
-                    tiene_descuento, porcentaje_descuento
-            FROM $table_name 
-            WHERE fecha BETWEEN %s AND %s 
-            AND status = 'active'
-            ORDER BY fecha, hora",
-            $first_day,
-            $last_day
-        ));
-
-        // Verificar errores de base de datos
-        if ($wpdb->last_error) {
-            error_log('Error DB en get_calendar_data: ' . $wpdb->last_error);
-            wp_send_json_error('Error de base de datos: ' . $wpdb->last_error);
-            exit;
-        }
-
-        // Organizar por fecha
-        $calendar_data = array();
-        foreach ($servicios as $servicio) {
-            if (!isset($calendar_data[$servicio->fecha])) {
-                $calendar_data[$servicio->fecha] = array();
+        try {
+            // Verificar nonce
+            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+                wp_send_json_error('Error de seguridad');
+                exit;
             }
 
-            $calendar_data[$servicio->fecha][] = array(
-                'id' => intval($servicio->id),
-                'hora' => substr($servicio->hora, 0, 5),
-                'plazas_totales' => intval($servicio->plazas_totales),
-                'plazas_disponibles' => intval($servicio->plazas_disponibles),
-                'precio_adulto' => floatval($servicio->precio_adulto),
-                'precio_nino' => floatval($servicio->precio_nino),
-                'precio_residente' => floatval($servicio->precio_residente),
-                'tiene_descuento' => intval($servicio->tiene_descuento),
-                'porcentaje_descuento' => floatval($servicio->porcentaje_descuento)
-            );
-        }
+            // Verificar sesión
+            if (!session_id()) {
+                session_start();
+            }
 
-        wp_send_json_success($calendar_data);
-        exit;
-        
-    } catch (Exception $e) {
-        error_log('EXCEPTION en get_calendar_data: ' . $e->getMessage());
-        error_log('Stack trace: ' . $e->getTraceAsString());
-        wp_send_json_error('Error interno: ' . $e->getMessage());
-        exit;
-    } catch (Error $e) {
-        error_log('FATAL ERROR en get_calendar_data: ' . $e->getMessage());
-        wp_send_json_error('Error fatal del servidor');
-        exit;
+            if (!isset($_SESSION['reservas_user'])) {
+                wp_send_json_error('Usuario no logueado');
+                exit;
+            }
+
+            // Obtener datos reales de la base de datos
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'reservas_servicios';
+
+            $month = isset($_POST['month']) ? intval($_POST['month']) : date('n');
+            $year = isset($_POST['year']) ? intval($_POST['year']) : date('Y');
+
+            // Calcular primer y último día del mes
+            $first_day = sprintf('%04d-%02d-01', $year, $month);
+            $last_day = date('Y-m-t', strtotime($first_day));
+
+            // Incluir campos de descuento en la consulta
+            $servicios = $wpdb->get_results($wpdb->prepare(
+                "SELECT id, fecha, hora, plazas_totales, plazas_disponibles, 
+                        precio_adulto, precio_nino, precio_residente,
+                        tiene_descuento, porcentaje_descuento
+                FROM $table_name 
+                WHERE fecha BETWEEN %s AND %s 
+                AND status = 'active'
+                ORDER BY fecha, hora",
+                $first_day,
+                $last_day
+            ));
+
+            // Organizar por fecha
+            $calendar_data = array();
+            foreach ($servicios as $servicio) {
+                if (!isset($calendar_data[$servicio->fecha])) {
+                    $calendar_data[$servicio->fecha] = array();
+                }
+
+                $calendar_data[$servicio->fecha][] = array(
+                    'id' => $servicio->id,
+                    'hora' => substr($servicio->hora, 0, 5),
+                    'plazas_totales' => $servicio->plazas_totales,
+                    'plazas_disponibles' => $servicio->plazas_disponibles,
+                    'precio_adulto' => $servicio->precio_adulto,
+                    'precio_nino' => $servicio->precio_nino,
+                    'precio_residente' => $servicio->precio_residente,
+                    'tiene_descuento' => $servicio->tiene_descuento,
+                    'porcentaje_descuento' => $servicio->porcentaje_descuento
+                );
+            }
+
+            wp_send_json_success($calendar_data);
+            exit;
+        } catch (Exception $e) {
+            error_log('ERROR EXCEPTION: ' . $e->getMessage());
+            wp_send_json_error('Error: ' . $e->getMessage());
+            exit;
+        }
     }
-}
 
     public function save_service() {
         if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {

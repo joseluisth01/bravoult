@@ -373,22 +373,3 @@ add_action('rest_api_init', function () {
 });
 
 
-function debug_wp_ajax() {
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log('AJAX REQUEST: ' . $_SERVER['REQUEST_METHOD'] . ' ' . $_SERVER['REQUEST_URI']);
-        error_log('POST DATA: ' . print_r($_POST, true));
-        error_log('SESSION DATA: ' . print_r($_SESSION ?? 'No session', true));
-    }
-}
-add_action('wp_ajax_nopriv_*', 'debug_wp_ajax', 1);
-add_action('wp_ajax_*', 'debug_wp_ajax', 1);
-
-// ✅ PERMITIR CORS PARA AJAX (solo en desarrollo)
-function add_cors_headers() {
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        header('Access-Control-Allow-Origin: *');
-        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-        header('Access-Control-Allow-Headers: Content-Type, X-Requested-With');
-    }
-}
-add_action('init', 'add_cors_headers');
