@@ -1,97 +1,102 @@
 <?php
+
 /**
  * Clase para gestionar los informes y reservas del sistema - ACTUALIZADA CON EMAILS
  * Archivo: wp-content/plugins/sistema-reservas/includes/class-reports-admin.php
  */
-class ReservasReportsAdmin {
-    
-public function __construct() {
-    // Hooks AJAX para informes
-    add_action('wp_ajax_get_reservations_report', array($this, 'get_reservations_report'));
-    add_action('wp_ajax_nopriv_get_reservations_report', array($this, 'get_reservations_report')); // ✅ AÑADIR
-    
-    add_action('wp_ajax_search_reservations', array($this, 'search_reservations'));
-    add_action('wp_ajax_get_reservation_details', array($this, 'get_reservation_details'));
-    add_action('wp_ajax_update_reservation_email', array($this, 'update_reservation_email'));
-    add_action('wp_ajax_resend_confirmation_email', array($this, 'resend_confirmation_email'));
-    add_action('wp_ajax_get_date_range_stats', array($this, 'get_date_range_stats'));
-    add_action('wp_ajax_get_quick_stats', array($this, 'get_quick_stats'));
-}
+class ReservasReportsAdmin
+{
+
+    public function __construct()
+    {
+        // Hooks AJAX para informes
+        add_action('wp_ajax_get_reservations_report', array($this, 'get_reservations_report'));
+        add_action('wp_ajax_nopriv_get_reservations_report', array($this, 'get_reservations_report')); // ✅ AÑADIR
+
+        add_action('wp_ajax_search_reservations', array($this, 'search_reservations'));
+        add_action('wp_ajax_get_reservation_details', array($this, 'get_reservation_details'));
+        add_action('wp_ajax_update_reservation_email', array($this, 'update_reservation_email'));
+        add_action('wp_ajax_resend_confirmation_email', array($this, 'resend_confirmation_email'));
+        add_action('wp_ajax_get_date_range_stats', array($this, 'get_date_range_stats'));
+        add_action('wp_ajax_get_quick_stats', array($this, 'get_quick_stats'));
+        add_action('wp_ajax_cancel_reservation', array($this, 'cancel_reservation'));
+    }
 
     /**
      * Obtener informe de reservas por fechas
      */
-public function get_reservations_report() {
-    // ✅ DEBUGGING MEJORADO
-    error_log('=== REPORTS AJAX REQUEST START ===');
-    header('Content-Type: application/json');
+    public function get_reservations_report()
+    {
+        // ✅ DEBUGGING MEJORADO
+        error_log('=== REPORTS AJAX REQUEST START ===');
+        header('Content-Type: application/json');
 
-    try {
-        if (!isset($_POST['nonce'])) {
-            error_log('❌ No nonce provided for reports');
-            die(json_encode(['success' => false, 'data' => 'No nonce provided']));
-        }
+        try {
+            if (!isset($_POST['nonce'])) {
+                error_log('❌ No nonce provided for reports');
+                die(json_encode(['success' => false, 'data' => 'No nonce provided']));
+            }
 
-        $nonce = sanitize_text_field($_POST['nonce']);
-        if (!wp_verify_nonce($nonce, 'reservas_nonce')) {
-            error_log('❌ Invalid nonce for reports: ' . $nonce);
-            die(json_encode(['success' => false, 'data' => 'Invalid nonce']));
-        }
+            $nonce = sanitize_text_field($_POST['nonce']);
+            if (!wp_verify_nonce($nonce, 'reservas_nonce')) {
+                error_log('❌ Invalid nonce for reports: ' . $nonce);
+                die(json_encode(['success' => false, 'data' => 'Invalid nonce']));
+            }
 
-        if (!session_id()) {
-            session_start();
-        }
+            if (!session_id()) {
+                session_start();
+            }
 
-        if (!isset($_SESSION['reservas_user'])) {
-            error_log('❌ No user session found for reports');
-            die(json_encode(['success' => false, 'data' => 'No user session - please login again']));
-        }
+            if (!isset($_SESSION['reservas_user'])) {
+                error_log('❌ No user session found for reports');
+                die(json_encode(['success' => false, 'data' => 'No user session - please login again']));
+            }
 
-        $user = $_SESSION['reservas_user'];
-        if (!in_array($user['role'], ['super_admin', 'admin'])) {
-            error_log('❌ Insufficient permissions for reports: ' . $user['role']);
-            die(json_encode(['success' => false, 'data' => 'Insufficient permissions']));
-        }
+            $user = $_SESSION['reservas_user'];
+            if (!in_array($user['role'], ['super_admin', 'admin'])) {
+                error_log('❌ Insufficient permissions for reports: ' . $user['role']);
+                die(json_encode(['success' => false, 'data' => 'Insufficient permissions']));
+            }
 
-        global $wpdb;
-        $table_reservas = $wpdb->prefix . 'reservas_reservas';
-        
-        $fecha_inicio = sanitize_text_field($_POST['fecha_inicio'] ?? date('Y-m-d'));
-        $fecha_fin = sanitize_text_field($_POST['fecha_fin'] ?? date('Y-m-d'));
-        $page = intval($_POST['page'] ?? 1);
-        $per_page = 20;
-        $offset = ($page - 1) * $per_page;
+            global $wpdb;
+            $table_reservas = $wpdb->prefix . 'reservas_reservas';
 
-        // Obtener reservas del rango de fechas
-        $reservas = $wpdb->get_results($wpdb->prepare(
-            "SELECT r.*, s.hora as servicio_hora 
+            $fecha_inicio = sanitize_text_field($_POST['fecha_inicio'] ?? date('Y-m-d'));
+            $fecha_fin = sanitize_text_field($_POST['fecha_fin'] ?? date('Y-m-d'));
+            $page = intval($_POST['page'] ?? 1);
+            $per_page = 20;
+            $offset = ($page - 1) * $per_page;
+
+            // Obtener reservas del rango de fechas
+            $reservas = $wpdb->get_results($wpdb->prepare(
+                "SELECT r.*, s.hora as servicio_hora 
              FROM $table_reservas r
              LEFT JOIN {$wpdb->prefix}reservas_servicios s ON r.servicio_id = s.id
              WHERE r.fecha BETWEEN %s AND %s 
              ORDER BY r.fecha DESC, r.hora DESC
              LIMIT %d OFFSET %d",
-            $fecha_inicio,
-            $fecha_fin,
-            $per_page,
-            $offset
-        ));
+                $fecha_inicio,
+                $fecha_fin,
+                $per_page,
+                $offset
+            ));
 
-        if ($wpdb->last_error) {
-            error_log('❌ Database error in reports: ' . $wpdb->last_error);
-            die(json_encode(['success' => false, 'data' => 'Database error: ' . $wpdb->last_error]));
-        }
+            if ($wpdb->last_error) {
+                error_log('❌ Database error in reports: ' . $wpdb->last_error);
+                die(json_encode(['success' => false, 'data' => 'Database error: ' . $wpdb->last_error]));
+            }
 
-        // Contar total de reservas
-        $total_reservas = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $table_reservas 
+            // Contar total de reservas
+            $total_reservas = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM $table_reservas 
              WHERE fecha BETWEEN %s AND %s",
-            $fecha_inicio,
-            $fecha_fin
-        ));
+                $fecha_inicio,
+                $fecha_fin
+            ));
 
-        // Obtener estadísticas del período
-        $stats = $wpdb->get_row($wpdb->prepare(
-            "SELECT 
+            // Obtener estadísticas del período
+            $stats = $wpdb->get_row($wpdb->prepare(
+                "SELECT 
                 COUNT(*) as total_reservas,
                 SUM(adultos) as total_adultos,
                 SUM(residentes) as total_residentes,
@@ -103,36 +108,36 @@ public function get_reservations_report() {
              FROM $table_reservas 
              WHERE fecha BETWEEN %s AND %s 
              AND estado = 'confirmada'",
-            $fecha_inicio,
-            $fecha_fin
-        ));
+                $fecha_inicio,
+                $fecha_fin
+            ));
 
-        $response_data = array(
-            'reservas' => $reservas,
-            'stats' => $stats,
-            'pagination' => array(
-                'current_page' => $page,
-                'total_pages' => ceil($total_reservas / $per_page),
-                'total_items' => $total_reservas,
-                'per_page' => $per_page
-            ),
-            'fecha_inicio' => $fecha_inicio,
-            'fecha_fin' => $fecha_fin
-        );
+            $response_data = array(
+                'reservas' => $reservas,
+                'stats' => $stats,
+                'pagination' => array(
+                    'current_page' => $page,
+                    'total_pages' => ceil($total_reservas / $per_page),
+                    'total_items' => $total_reservas,
+                    'per_page' => $per_page
+                ),
+                'fecha_inicio' => $fecha_inicio,
+                'fecha_fin' => $fecha_fin
+            );
 
-        error_log('✅ Reports data loaded successfully');
-        die(json_encode(['success' => true, 'data' => $response_data]));
-
-    } catch (Exception $e) {
-        error_log('❌ REPORTS EXCEPTION: ' . $e->getMessage());
-        die(json_encode(['success' => false, 'data' => 'Server error: ' . $e->getMessage()]));
+            error_log('✅ Reports data loaded successfully');
+            die(json_encode(['success' => true, 'data' => $response_data]));
+        } catch (Exception $e) {
+            error_log('❌ REPORTS EXCEPTION: ' . $e->getMessage());
+            die(json_encode(['success' => false, 'data' => 'Server error: ' . $e->getMessage()]));
+        }
     }
-}
 
     /**
      * Buscar reservas por diferentes criterios
      */
-    public function search_reservations() {
+    public function search_reservations()
+    {
         if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
             wp_send_json_error('Error de seguridad');
         }
@@ -147,10 +152,10 @@ public function get_reservations_report() {
 
         global $wpdb;
         $table_reservas = $wpdb->prefix . 'reservas_reservas';
-        
+
         $search_type = sanitize_text_field($_POST['search_type']);
         $search_value = sanitize_text_field($_POST['search_value']);
-        
+
         $where_clause = '';
         $search_params = array();
 
@@ -159,33 +164,33 @@ public function get_reservations_report() {
                 $where_clause = "WHERE r.localizador LIKE %s";
                 $search_params[] = '%' . $search_value . '%';
                 break;
-                
+
             case 'email':
                 $where_clause = "WHERE r.email LIKE %s";
                 $search_params[] = '%' . $search_value . '%';
                 break;
-                
+
             case 'telefono':
                 $where_clause = "WHERE r.telefono LIKE %s";
                 $search_params[] = '%' . $search_value . '%';
                 break;
-                
+
             case 'fecha_emision':
                 $where_clause = "WHERE DATE(r.created_at) = %s";
                 $search_params[] = $search_value;
                 break;
-                
+
             case 'fecha_servicio':
                 $where_clause = "WHERE r.fecha = %s";
                 $search_params[] = $search_value;
                 break;
-                
+
             case 'nombre':
                 $where_clause = "WHERE (r.nombre LIKE %s OR r.apellidos LIKE %s)";
                 $search_params[] = '%' . $search_value . '%';
                 $search_params[] = '%' . $search_value . '%';
                 break;
-                
+
             default:
                 wp_send_json_error('Tipo de búsqueda no válido');
         }
@@ -210,7 +215,8 @@ public function get_reservations_report() {
     /**
      * Obtener detalles de una reserva específica
      */
-    public function get_reservation_details() {
+    public function get_reservation_details()
+    {
         if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
             wp_send_json_error('Error de seguridad');
         }
@@ -225,7 +231,7 @@ public function get_reservations_report() {
 
         global $wpdb;
         $table_reservas = $wpdb->prefix . 'reservas_reservas';
-        
+
         $reserva_id = intval($_POST['reserva_id']);
 
         $reserva = $wpdb->get_row($wpdb->prepare(
@@ -251,7 +257,8 @@ public function get_reservations_report() {
     /**
      * Actualizar email de una reserva
      */
-    public function update_reservation_email() {
+    public function update_reservation_email()
+    {
         if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
             wp_send_json_error('Error de seguridad');
         }
@@ -266,7 +273,7 @@ public function get_reservations_report() {
 
         global $wpdb;
         $table_reservas = $wpdb->prefix . 'reservas_reservas';
-        
+
         $reserva_id = intval($_POST['reserva_id']);
         $new_email = sanitize_email($_POST['new_email']);
 
@@ -290,7 +297,8 @@ public function get_reservations_report() {
     /**
      * ✅ REENVIAR EMAIL DE CONFIRMACIÓN - FUNCIÓN IMPLEMENTADA
      */
-    public function resend_confirmation_email() {
+    public function resend_confirmation_email()
+    {
         if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
             wp_send_json_error('Error de seguridad');
         }
@@ -304,15 +312,15 @@ public function get_reservations_report() {
         }
 
         $reserva_id = intval($_POST['reserva_id']);
-        
+
         // ✅ CARGAR CLASE DE EMAILS
         if (!class_exists('ReservasEmailService')) {
             require_once RESERVAS_PLUGIN_PATH . 'includes/class-email-service.php';
         }
-        
+
         // ✅ REENVIAR EMAIL USANDO LA CLASE DE EMAILS
         $result = ReservasEmailService::resend_confirmation($reserva_id);
-        
+
         if ($result['success']) {
             wp_send_json_success($result['message']);
         } else {
@@ -323,7 +331,8 @@ public function get_reservations_report() {
     /**
      * Obtener estadísticas por rango de fechas
      */
-    public function get_date_range_stats() {
+    public function get_date_range_stats()
+    {
         if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
             wp_send_json_error('Error de seguridad');
         }
@@ -338,12 +347,12 @@ public function get_reservations_report() {
 
         global $wpdb;
         $table_reservas = $wpdb->prefix . 'reservas_reservas';
-        
+
         $range_type = sanitize_text_field($_POST['range_type']);
-        
+
         $fecha_inicio = '';
         $fecha_fin = date('Y-m-d');
-        
+
         switch ($range_type) {
             case '7_days':
                 $fecha_inicio = date('Y-m-d', strtotime('-7 days'));
@@ -422,141 +431,325 @@ public function get_reservations_report() {
     /**
      * Método estático para obtener estadísticas rápidas
      */
-public function get_quick_stats() {
-    if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-        wp_send_json_error('Error de seguridad');
-    }
+    public function get_quick_stats()
+    {
+        if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+            wp_send_json_error('Error de seguridad');
+        }
 
-    if (!session_id()) {
-        session_start();
-    }
+        if (!session_id()) {
+            session_start();
+        }
 
-    if (!isset($_SESSION['reservas_user']) || !in_array($_SESSION['reservas_user']['role'], ['super_admin', 'admin'])) {
-        wp_send_json_error('Sin permisos');
-    }
+        if (!isset($_SESSION['reservas_user']) || !in_array($_SESSION['reservas_user']['role'], ['super_admin', 'admin'])) {
+            wp_send_json_error('Sin permisos');
+        }
 
-    global $wpdb;
-    $table_reservas = $wpdb->prefix . 'reservas_reservas';
-    $table_servicios = $wpdb->prefix . 'reservas_servicios';
-    
-    $today = date('Y-m-d');
-    $this_month_start = date('Y-m-01');
-    $last_month_start = date('Y-m-01', strtotime('first day of last month'));
-    $last_month_end = date('Y-m-t', strtotime('last day of last month'));
-    
-    // 1. RESERVAS DE HOY
-    $reservas_hoy = $wpdb->get_var($wpdb->prepare(
-        "SELECT COUNT(*) FROM $table_reservas WHERE fecha = %s AND estado = 'confirmada'",
-        $today
-    ));
-    
-    // 2. INGRESOS DEL MES ACTUAL
-    $ingresos_mes_actual = $wpdb->get_var($wpdb->prepare(
-        "SELECT SUM(precio_final) FROM $table_reservas 
+        global $wpdb;
+        $table_reservas = $wpdb->prefix . 'reservas_reservas';
+        $table_servicios = $wpdb->prefix . 'reservas_servicios';
+
+        $today = date('Y-m-d');
+        $this_month_start = date('Y-m-01');
+        $last_month_start = date('Y-m-01', strtotime('first day of last month'));
+        $last_month_end = date('Y-m-t', strtotime('last day of last month'));
+
+        // 1. RESERVAS DE HOY
+        $reservas_hoy = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_reservas WHERE fecha = %s AND estado = 'confirmada'",
+            $today
+        ));
+
+        // 2. INGRESOS DEL MES ACTUAL
+        $ingresos_mes_actual = $wpdb->get_var($wpdb->prepare(
+            "SELECT SUM(precio_final) FROM $table_reservas 
          WHERE fecha >= %s AND estado = 'confirmada'",
-        $this_month_start
-    )) ?: 0;
-    
-    // 3. INGRESOS DEL MES PASADO (para comparar)
-    $ingresos_mes_pasado = $wpdb->get_var($wpdb->prepare(
-        "SELECT SUM(precio_final) FROM $table_reservas 
+            $this_month_start
+        )) ?: 0;
+
+        // 3. INGRESOS DEL MES PASADO (para comparar)
+        $ingresos_mes_pasado = $wpdb->get_var($wpdb->prepare(
+            "SELECT SUM(precio_final) FROM $table_reservas 
          WHERE fecha BETWEEN %s AND %s AND estado = 'confirmada'",
-        $last_month_start,
-        $last_month_end
-    )) ?: 0;
-    
-    // 4. CRECIMIENTO PORCENTUAL
-    $crecimiento = 0;
-    if ($ingresos_mes_pasado > 0) {
-        $crecimiento = (($ingresos_mes_actual - $ingresos_mes_pasado) / $ingresos_mes_pasado) * 100;
-    } elseif ($ingresos_mes_actual > 0) {
-        $crecimiento = 100; // Si mes pasado = 0 y este mes > 0, es 100% crecimiento
-    }
-    
-    // 5. TOP 3 DÍAS CON MÁS RESERVAS ESTE MES
-    $top_dias = $wpdb->get_results($wpdb->prepare(
-        "SELECT fecha, COUNT(*) as total_reservas, SUM(total_personas) as total_personas 
+            $last_month_start,
+            $last_month_end
+        )) ?: 0;
+
+        // 4. CRECIMIENTO PORCENTUAL
+        $crecimiento = 0;
+        if ($ingresos_mes_pasado > 0) {
+            $crecimiento = (($ingresos_mes_actual - $ingresos_mes_pasado) / $ingresos_mes_pasado) * 100;
+        } elseif ($ingresos_mes_actual > 0) {
+            $crecimiento = 100; // Si mes pasado = 0 y este mes > 0, es 100% crecimiento
+        }
+
+        // 5. TOP 3 DÍAS CON MÁS RESERVAS ESTE MES
+        $top_dias = $wpdb->get_results($wpdb->prepare(
+            "SELECT fecha, COUNT(*) as total_reservas, SUM(total_personas) as total_personas 
          FROM $table_reservas 
          WHERE fecha >= %s AND estado = 'confirmada'
          GROUP BY fecha 
          ORDER BY total_reservas DESC 
          LIMIT 3",
-        $this_month_start
-    ));
-    
-    // 6. OCUPACIÓN PROMEDIO (este mes)
-    $ocupacion_data = $wpdb->get_row($wpdb->prepare(
-        "SELECT 
+            $this_month_start
+        ));
+
+        // 6. OCUPACIÓN PROMEDIO (este mes)
+        $ocupacion_data = $wpdb->get_row($wpdb->prepare(
+            "SELECT 
             SUM(s.plazas_totales) as plazas_totales,
             SUM(s.plazas_totales - s.plazas_disponibles) as plazas_ocupadas
          FROM $table_servicios s
          WHERE s.fecha >= %s AND s.status = 'active'",
-        $this_month_start
-    ));
-    
-    $ocupacion_porcentaje = 0;
-    if ($ocupacion_data && $ocupacion_data->plazas_totales > 0) {
-        $ocupacion_porcentaje = ($ocupacion_data->plazas_ocupadas / $ocupacion_data->plazas_totales) * 100;
-    }
-    
-    // 7. CLIENTE MÁS FRECUENTE (último mes)
-    $cliente_frecuente = $wpdb->get_row($wpdb->prepare(
-        "SELECT email, CONCAT(nombre, ' ', apellidos) as nombre_completo, COUNT(*) as total_reservas
+            $this_month_start
+        ));
+
+        $ocupacion_porcentaje = 0;
+        if ($ocupacion_data && $ocupacion_data->plazas_totales > 0) {
+            $ocupacion_porcentaje = ($ocupacion_data->plazas_ocupadas / $ocupacion_data->plazas_totales) * 100;
+        }
+
+        // 7. CLIENTE MÁS FRECUENTE (último mes)
+        $cliente_frecuente = $wpdb->get_row($wpdb->prepare(
+            "SELECT email, CONCAT(nombre, ' ', apellidos) as nombre_completo, COUNT(*) as total_reservas
          FROM $table_reservas 
          WHERE created_at >= %s AND estado = 'confirmada'
          GROUP BY email 
          ORDER BY total_reservas DESC 
          LIMIT 1",
-        date('Y-m-d', strtotime('-30 days'))
-    ));
-    
-    // 8. PRÓXIMOS SERVICIOS CON ALTA OCUPACIÓN (>80%)
-    $servicios_alta_ocupacion = $wpdb->get_results($wpdb->prepare(
-        "SELECT fecha, hora, plazas_totales, plazas_disponibles,
+            date('Y-m-d', strtotime('-30 days'))
+        ));
+
+        // 8. PRÓXIMOS SERVICIOS CON ALTA OCUPACIÓN (>80%)
+        $servicios_alta_ocupacion = $wpdb->get_results($wpdb->prepare(
+            "SELECT fecha, hora, plazas_totales, plazas_disponibles,
                 ((plazas_totales - plazas_disponibles) / plazas_totales * 100) as ocupacion
          FROM $table_servicios 
          WHERE fecha >= %s AND status = 'active'
          AND ((plazas_totales - plazas_disponibles) / plazas_totales * 100) > 80
          ORDER BY fecha, hora 
          LIMIT 5",
-        $today
-    ));
-    
-    // 9. ESTADÍSTICAS DE TIPOS DE CLIENTE (este mes)
-    $tipos_cliente = $wpdb->get_row($wpdb->prepare(
-        "SELECT 
+            $today
+        ));
+
+        // 9. ESTADÍSTICAS DE TIPOS DE CLIENTE (este mes)
+        $tipos_cliente = $wpdb->get_row($wpdb->prepare(
+            "SELECT 
             SUM(adultos) as total_adultos,
             SUM(residentes) as total_residentes,
             SUM(ninos_5_12) as total_ninos,
             SUM(ninos_menores) as total_bebes
          FROM $table_reservas 
          WHERE fecha >= %s AND estado = 'confirmada'",
-        $this_month_start
-    ));
+            $this_month_start
+        ));
 
-    // PREPARAR RESPUESTA
-    $stats = array(
-        'hoy' => array(
-            'reservas' => intval($reservas_hoy),
-            'fecha' => $today
-        ),
-        'ingresos' => array(
-            'mes_actual' => floatval($ingresos_mes_actual),
-            'mes_pasado' => floatval($ingresos_mes_pasado),
-            'crecimiento' => round($crecimiento, 1),
-            'mes_nombre' => date('F Y', strtotime($this_month_start))
-        ),
-        'top_dias' => $top_dias,
-        'ocupacion' => array(
-            'porcentaje' => round($ocupacion_porcentaje, 1),
-            'plazas_totales' => intval($ocupacion_data->plazas_totales ?? 0),
-            'plazas_ocupadas' => intval($ocupacion_data->plazas_ocupadas ?? 0)
-        ),
-        'cliente_frecuente' => $cliente_frecuente,
-        'servicios_alta_ocupacion' => $servicios_alta_ocupacion,
-        'tipos_cliente' => $tipos_cliente
-    );
+        // PREPARAR RESPUESTA
+        $stats = array(
+            'hoy' => array(
+                'reservas' => intval($reservas_hoy),
+                'fecha' => $today
+            ),
+            'ingresos' => array(
+                'mes_actual' => floatval($ingresos_mes_actual),
+                'mes_pasado' => floatval($ingresos_mes_pasado),
+                'crecimiento' => round($crecimiento, 1),
+                'mes_nombre' => date('F Y', strtotime($this_month_start))
+            ),
+            'top_dias' => $top_dias,
+            'ocupacion' => array(
+                'porcentaje' => round($ocupacion_porcentaje, 1),
+                'plazas_totales' => intval($ocupacion_data->plazas_totales ?? 0),
+                'plazas_ocupadas' => intval($ocupacion_data->plazas_ocupadas ?? 0)
+            ),
+            'cliente_frecuente' => $cliente_frecuente,
+            'servicios_alta_ocupacion' => $servicios_alta_ocupacion,
+            'tipos_cliente' => $tipos_cliente
+        );
 
-    wp_send_json_success($stats);
-}
+        wp_send_json_success($stats);
+    }
+
+
+
+    public function cancel_reservation()
+    {
+        if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+            wp_send_json_error('Error de seguridad');
+        }
+
+        if (!session_id()) {
+            session_start();
+        }
+
+        if (!isset($_SESSION['reservas_user']) || !in_array($_SESSION['reservas_user']['role'], ['super_admin', 'admin'])) {
+            wp_send_json_error('Sin permisos');
+        }
+
+        global $wpdb;
+        $table_reservas = $wpdb->prefix . 'reservas_reservas';
+        $table_servicios = $wpdb->prefix . 'reservas_servicios';
+
+        $reserva_id = intval($_POST['reserva_id']);
+        $motivo_cancelacion = sanitize_text_field($_POST['motivo_cancelacion'] ?? 'Cancelación administrativa');
+
+        // Obtener datos de la reserva
+        $reserva = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_reservas WHERE id = %d AND estado != 'cancelada'",
+            $reserva_id
+        ));
+
+        if (!$reserva) {
+            wp_send_json_error('Reserva no encontrada o ya cancelada');
+        }
+
+        // Iniciar transacción
+        $wpdb->query('START TRANSACTION');
+
+        try {
+            // 1. Actualizar estado de la reserva
+            $update_reserva = $wpdb->update(
+                $table_reservas,
+                array(
+                    'estado' => 'cancelada',
+                    'motivo_cancelacion' => $motivo_cancelacion,
+                    'fecha_cancelacion' => current_time('mysql')
+                ),
+                array('id' => $reserva_id)
+            );
+
+            if ($update_reserva === false) {
+                throw new Exception('Error actualizando reserva');
+            }
+
+            // 2. Liberar las plazas en el servicio
+            $update_plazas = $wpdb->query($wpdb->prepare(
+                "UPDATE $table_servicios 
+             SET plazas_disponibles = plazas_disponibles + %d 
+             WHERE id = %d",
+                $reserva->total_personas,
+                $reserva->servicio_id
+            ));
+
+            if ($update_plazas === false) {
+                throw new Exception('Error liberando plazas');
+            }
+
+            // 3. Enviar email de cancelación al cliente
+            if (!class_exists('ReservasEmailService')) {
+                require_once RESERVAS_PLUGIN_PATH . 'includes/class-email-service.php';
+            }
+
+            $reserva_array = (array) $reserva;
+            $reserva_array['motivo_cancelacion'] = $motivo_cancelacion;
+
+            $email_result = ReservasEmailService::send_cancellation_email($reserva_array);
+
+            // Confirmar transacción
+            $wpdb->query('COMMIT');
+
+            $message = 'Reserva cancelada correctamente';
+            if ($email_result['success']) {
+                $message .= ' y email enviado al cliente';
+            } else {
+                $message .= ' (email no enviado: ' . $email_result['message'] . ')';
+            }
+
+            wp_send_json_success($message);
+        } catch (Exception $e) {
+            // Rollback en caso de error
+            $wpdb->query('ROLLBACK');
+            wp_send_json_error('Error cancelando reserva: ' . $e->getMessage());
+        }
+    }
+
+
+
+    /**
+     * ✅ NUEVO: Enviar email de cancelación al cliente
+     */
+    public static function send_cancellation_email($reserva_data)
+    {
+        $config = self::get_email_config();
+
+        $to = $reserva_data['email'];
+        $subject = "Reserva Cancelada - Localizador: " . $reserva_data['localizador'];
+
+        $message = self::build_cancellation_email_template($reserva_data);
+
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . $config['nombre_remitente'] . ' <' . $config['email_remitente'] . '>'
+        );
+
+        $sent = wp_mail($to, $subject, $message, $headers);
+
+        if ($sent) {
+            error_log("✅ Email de cancelación enviado al cliente: " . $to);
+            return array('success' => true, 'message' => 'Email de cancelación enviado correctamente');
+        } else {
+            error_log("❌ Error enviando email de cancelación al cliente: " . $to);
+            return array('success' => false, 'message' => 'Error enviando email de cancelación');
+        }
+    }
+
+    /**
+     * ✅ NUEVO: Template de email de cancelación (breve)
+     */
+    private static function build_cancellation_email_template($reserva)
+    {
+        $fecha_formateada = date('d/m/Y', strtotime($reserva['fecha']));
+        $motivo = $reserva['motivo_cancelacion'] ?? 'Cancelación administrativa';
+
+        return "
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset='UTF-8'>
+        <title>Reserva Cancelada</title>
+    </head>
+    <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 500px; margin: 0 auto; padding: 20px;'>
+        
+        <div style='background: #dc3545; color: white; text-align: center; padding: 20px; margin-bottom: 20px; border-radius: 8px;'>
+            <h1 style='margin: 0; font-size: 24px;'>❌ RESERVA CANCELADA</h1>
+        </div>
+
+        <div style='background: #f8f9fa; padding: 20px; margin-bottom: 20px; border-radius: 8px; border-left: 4px solid #dc3545;'>
+            <h2 style='color: #dc3545; margin-top: 0; font-size: 18px;'>Información de la Reserva Cancelada</h2>
+            <table style='width: 100%; border-collapse: collapse;'>
+                <tr>
+                    <td style='padding: 8px 0; font-weight: bold;'>Localizador:</td>
+                    <td style='padding: 8px 0; text-align: right; color: #dc3545; font-weight: bold;'>" . $reserva['localizador'] . "</td>
+                </tr>
+                <tr>
+                    <td style='padding: 8px 0; font-weight: bold;'>Fecha del viaje:</td>
+                    <td style='padding: 8px 0; text-align: right;'>" . $fecha_formateada . "</td>
+                </tr>
+                <tr>
+                    <td style='padding: 8px 0; font-weight: bold;'>Hora:</td>
+                    <td style='padding: 8px 0; text-align: right;'>" . substr($reserva['hora'], 0, 5) . "</td>
+                </tr>
+                <tr>
+                    <td style='padding: 8px 0; font-weight: bold;'>Cliente:</td>
+                    <td style='padding: 8px 0; text-align: right;'>" . $reserva['nombre'] . " " . $reserva['apellidos'] . "</td>
+                </tr>
+            </table>
+        </div>
+
+        <div style='background: #fff3cd; padding: 15px; margin-bottom: 20px; border-radius: 8px; border-left: 4px solid #ffc107;'>
+            <h3 style='color: #856404; margin-top: 0; font-size: 16px;'>Motivo de la Cancelación</h3>
+            <p style='margin: 0; color: #856404; font-weight: 600;'>" . $motivo . "</p>
+        </div>
+
+        <div style='background: #e2e3e5; padding: 15px; border-radius: 8px; text-align: center;'>
+            <p style='margin: 0; color: #495057; font-size: 14px;'>
+                <strong>¿Necesitas hacer una nueva reserva?</strong><br>
+                Puedes realizar una nueva reserva cuando lo desees.<br>
+                Lamentamos las molestias ocasionadas.
+            </p>
+        </div>
+
+    </body>
+    </html>";
+    }
 }

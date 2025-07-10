@@ -2,7 +2,7 @@
 
 /**
  * Plugin Name: Sistema de Reservas
- * Description: Sistema completo de reservas para servicios de transporte
+ * Description: Sistema completo de reservas para servicios de transporte - CON RECORDATORIOS AUTOMÁTICOS
  * Version: 1.0
  */
 
@@ -89,7 +89,7 @@ public function debug_session_info() {
             'includes/class-configuration-admin.php',
             'includes/class-reports-admin.php',         
             'includes/class-reservas-processor.php', // ✅ CON EMAILS
-            'includes/class-email-service.php',       // ✅ CLASE DE EMAILS
+            'includes/class-email-service.php',       // ✅ CLASE DE EMAILS CON RECORDATORIOS
             'includes/class-frontend.php',
         );
 
@@ -123,7 +123,7 @@ public function debug_session_info() {
             $this->discounts_admin = new ReservasDiscountsAdmin();
         }
 
-        // Inicializar clase de configuración CON EMAILS
+        // ✅ INICIALIZAR CONFIGURACIÓN CON RECORDATORIOS
         if (class_exists('ReservasConfigurationAdmin')) {
             $this->configuration_admin = new ReservasConfigurationAdmin();
         }
@@ -138,7 +138,7 @@ public function debug_session_info() {
             new ReservasProcessor();
         }
 
-        // Inicializar servicio de emails
+        // ✅ INICIALIZAR SERVICIO DE EMAILS CON RECORDATORIOS
         if (class_exists('ReservasEmailService')) {
             new ReservasEmailService();
         }
@@ -195,12 +195,22 @@ public function debug_session_info() {
 
         // Flush rewrite rules para activar las nuevas URLs
         flush_rewrite_rules();
+        
+        // ✅ PROGRAMAR CRON JOB PARA RECORDATORIOS
+        if (!wp_next_scheduled('reservas_send_reminders')) {
+            wp_schedule_event(time(), 'hourly', 'reservas_send_reminders');
+            error_log('✅ Cron job de recordatorios programado');
+        }
     }
 
     public function deactivate()
     {
         // Limpiar rewrite rules
         flush_rewrite_rules();
+        
+        // ✅ LIMPIAR CRON JOB DE RECORDATORIOS
+        wp_clear_scheduled_hook('reservas_send_reminders');
+        error_log('✅ Cron job de recordatorios eliminado');
     }
 
     private function create_tables()
@@ -252,7 +262,7 @@ public function debug_session_info() {
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql_servicios);
 
-        // Tabla de reservas
+        // ✅ TABLA DE RESERVAS ACTUALIZADA CON CAMPO DE RECORDATORIO
         $table_reservas = $wpdb->prefix . 'reservas_reservas';
         $sql_reservas = "CREATE TABLE $table_reservas (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
@@ -273,6 +283,7 @@ public function debug_session_info() {
             descuento_total decimal(10,2) DEFAULT 0.00,
             precio_final decimal(10,2) NOT NULL,
             regla_descuento_aplicada TEXT NULL,
+            recordatorio_enviado tinyint(1) DEFAULT 0,
             estado enum('pendiente', 'confirmada', 'cancelada') DEFAULT 'confirmada',
             metodo_pago varchar(50) DEFAULT 'directo',
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
@@ -281,7 +292,8 @@ public function debug_session_info() {
             KEY servicio_id (servicio_id),
             KEY fecha (fecha),
             KEY estado (estado),
-            KEY localizador (localizador)
+            KEY localizador (localizador),
+            KEY recordatorio_enviado (recordatorio_enviado)
         ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -307,7 +319,7 @@ public function debug_session_info() {
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql_discounts);
 
-        // ✅ TABLA DE CONFIGURACIÓN CON EMAILS
+        // ✅ TABLA DE CONFIGURACIÓN CON NUEVOS CAMPOS
         $table_configuration = $wpdb->prefix . 'reservas_configuration';
         $sql_configuration = "CREATE TABLE $table_configuration (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
@@ -331,8 +343,58 @@ public function debug_session_info() {
         // Crear regla de descuento por defecto
         $this->create_default_discount_rule();
 
-        // ✅ CREAR CONFIGURACIÓN CON EMAILS
+        // ✅ CREAR CONFIGURACIÓN CON NUEVOS CAMPOS
         $this->create_default_configuration();
+        
+        // ✅ ACTUALIZAR TABLA EXISTENTE SI ES NECESARIO
+        $this->maybe_update_existing_tables();
+    }
+
+    // ✅ NUEVA FUNCIÓN PARA ACTUALIZAR TABLAS EXISTENTES
+    private function maybe_update_existing_tables() {
+        global $wpdb;
+        
+        $table_reservas = $wpdb->prefix . 'reservas_reservas';
+        
+        // Verificar si el campo recordatorio_enviado existe
+        $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_reservas LIKE 'recordatorio_enviado'");
+        
+        if (empty($column_exists)) {
+            // Añadir columna para tracking de recordatorios
+            $wpdb->query("ALTER TABLE $table_reservas ADD COLUMN recordatorio_enviado TINYINT(1) DEFAULT 0");
+            $wpdb->query("ALTER TABLE $table_reservas ADD INDEX recordatorio_enviado (recordatorio_enviado)");
+            error_log('✅ Columna recordatorio_enviado añadida a tabla de reservas');
+        }
+        
+        // Verificar y actualizar configuración si es necesario
+        $table_configuration = $wpdb->prefix . 'reservas_configuration';
+        
+        // Verificar si existe el nuevo campo email_reservas
+        $email_reservas_exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_configuration WHERE config_key = %s",
+            'email_reservas'
+        ));
+        
+        if ($email_reservas_exists == 0) {
+            // Añadir nueva configuración
+            $wpdb->insert(
+                $table_configuration,
+                array(
+                    'config_key' => 'email_reservas',
+                    'config_value' => get_option('admin_email'),
+                    'config_group' => 'notificaciones',
+                    'description' => 'Email donde se recibirán las notificaciones de nuevas reservas'
+                )
+            );
+            error_log('✅ Configuración email_reservas añadida');
+        }
+        
+        // Actualizar descripción del email remitente
+        $wpdb->update(
+            $table_configuration,
+            array('description' => 'Email remitente para todas las notificaciones del sistema (NO MODIFICAR sin conocimientos técnicos)'),
+            array('config_key' => 'email_remitente')
+        );
     }
 
     private function create_super_admin()
@@ -386,7 +448,7 @@ public function debug_session_info() {
         }
     }
 
-    // ✅ FUNCIÓN CON CONFIGURACIÓN DE EMAILS RESTAURADA
+    // ✅ FUNCIÓN CON CONFIGURACIÓN ACTUALIZADA
     private function create_default_configuration()
     {
         global $wpdb;
@@ -428,24 +490,24 @@ public function debug_session_info() {
                 'description' => 'Días de anticipación mínima para poder reservar (bloquea fechas en calendario)'
             ),
             
-            // ✅ CONFIGURACIÓN DE EMAILS COMPLETA
+            // ✅ CONFIGURACIÓN DE EMAILS ACTUALIZADA
             array(
                 'config_key' => 'email_recordatorio_activo',
-                'config_value' => '0',
+                'config_value' => '1', // ✅ ACTIVO POR DEFECTO
                 'config_group' => 'notificaciones',
-                'description' => 'Activar recordatorios antes del viaje'
+                'description' => 'Activar recordatorios automáticos antes del viaje'
             ),
             array(
                 'config_key' => 'horas_recordatorio',
                 'config_value' => '24',
                 'config_group' => 'notificaciones',
-                'description' => 'Horas antes del viaje para enviar recordatorio'
+                'description' => 'Horas antes del viaje para enviar recordatorio automático'
             ),
             array(
                 'config_key' => 'email_remitente',
                 'config_value' => get_option('admin_email'),
                 'config_group' => 'notificaciones',
-                'description' => 'Email remitente para notificaciones del sistema'
+                'description' => 'Email remitente para todas las notificaciones del sistema (NO MODIFICAR sin conocimientos técnicos)'
             ),
             array(
                 'config_key' => 'nombre_remitente',
@@ -453,11 +515,12 @@ public function debug_session_info() {
                 'config_group' => 'notificaciones',
                 'description' => 'Nombre del remitente para notificaciones'
             ),
+            // ✅ NUEVO CAMPO: Email de reservas
             array(
-                'config_key' => 'email_admin_reservas',
+                'config_key' => 'email_reservas',
                 'config_value' => get_option('admin_email'),
                 'config_group' => 'notificaciones',
-                'description' => 'Email del administrador donde se enviarán las notificaciones de nuevas reservas'
+                'description' => 'Email donde se recibirán las notificaciones de nuevas reservas'
             ),
             
             // General
@@ -775,6 +838,7 @@ function confirmacion_reserva_shortcode() {
                 <li><strong>Los residentes</strong> deben presentar documento acreditativo</li>
                 <li><strong>Los niños menores de 5 años</strong> viajan gratis sin ocupar plaza</li>
                 <li><strong>Guarda este localizador</strong> para futuras consultas</li>
+                <li><strong>Recibirás un recordatorio automático</strong> antes de tu viaje</li>
             </ul>
         </div>
 

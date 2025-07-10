@@ -1,6 +1,6 @@
 <?php
 /**
- * Clase para gestionar la configuración del sistema de reservas - CON EMAILS
+ * Clase para gestionar la configuración del sistema de reservas - CON RECORDATORIOS AUTOMÁTICOS
  * Archivo: wp-content/plugins/sistema-reservas/includes/class-configuration-admin.php
  */
 class ReservasConfigurationAdmin {
@@ -14,7 +14,89 @@ public function __construct() {
     
     // Hook para activación del plugin (crear tabla)
     add_action('init', array($this, 'maybe_create_table'));
+    
+    // ✅ NUEVO: Hook para programar recordatorios automáticos
+    add_action('wp', array($this, 'schedule_reminder_cron'));
+    
+    // ✅ NUEVO: Hook para ejecutar recordatorios
+    add_action('reservas_send_reminders', array($this, 'send_reminder_emails'));
 }
+
+    /**
+     * ✅ NUEVO: Programar cron job para recordatorios
+     */
+    public function schedule_reminder_cron() {
+        if (!wp_next_scheduled('reservas_send_reminders')) {
+            // Programar para que se ejecute cada hora
+            wp_schedule_event(time(), 'hourly', 'reservas_send_reminders');
+        }
+    }
+
+    /**
+     * ✅ NUEVO: Enviar emails de recordatorio automáticamente
+     */
+    public function send_reminder_emails() {
+        error_log('=== EJECUTANDO RECORDATORIOS AUTOMÁTICOS ===');
+        
+        // Verificar si los recordatorios están activos
+        $recordatorios_activos = self::get_config('email_recordatorio_activo', '0');
+        if ($recordatorios_activos != '1') {
+            error_log('Recordatorios desactivados en configuración');
+            return;
+        }
+        
+        $horas_anticipacion = intval(self::get_config('horas_recordatorio', '24'));
+        error_log("Buscando reservas para recordar con $horas_anticipacion horas de anticipación");
+        
+        global $wpdb;
+        $table_reservas = $wpdb->prefix . 'reservas_reservas';
+        
+        // Calcular el momento exacto para enviar recordatorios
+        $fecha_hora_limite = date('Y-m-d H:i:s', strtotime("+$horas_anticipacion hours"));
+        $fecha_hora_limite_fin = date('Y-m-d H:i:s', strtotime("+$horas_anticipacion hours +1 hour"));
+        
+        // Buscar reservas que necesiten recordatorio
+        $reservas_para_recordar = $wpdb->get_results($wpdb->prepare(
+            "SELECT r.*, s.precio_adulto, s.precio_nino, s.precio_residente 
+             FROM $table_reservas r
+             LEFT JOIN {$wpdb->prefix}reservas_servicios s ON r.servicio_id = s.id
+             WHERE r.estado = 'confirmada'
+             AND CONCAT(r.fecha, ' ', r.hora) BETWEEN %s AND %s
+             AND (r.recordatorio_enviado IS NULL OR r.recordatorio_enviado = 0)",
+            $fecha_hora_limite,
+            $fecha_hora_limite_fin
+        ));
+        
+        error_log('Encontradas ' . count($reservas_para_recordar) . ' reservas para recordar');
+        
+        if (!class_exists('ReservasEmailService')) {
+            require_once RESERVAS_PLUGIN_PATH . 'includes/class-email-service.php';
+        }
+        
+        $recordatorios_enviados = 0;
+        
+        foreach ($reservas_para_recordar as $reserva) {
+            $reserva_array = (array) $reserva;
+            
+            // Enviar recordatorio
+            $resultado = ReservasEmailService::send_reminder_email($reserva_array);
+            
+            if ($resultado['success']) {
+                // Marcar como recordatorio enviado
+                $wpdb->update(
+                    $table_reservas,
+                    array('recordatorio_enviado' => 1),
+                    array('id' => $reserva->id)
+                );
+                $recordatorios_enviados++;
+                error_log("✅ Recordatorio enviado para reserva {$reserva->localizador}");
+            } else {
+                error_log("❌ Error enviando recordatorio para reserva {$reserva->localizador}: " . $resultado['message']);
+            }
+        }
+        
+        error_log("=== RECORDATORIOS COMPLETADOS: $recordatorios_enviados enviados ===");
+    }
 
     /**
      * Crear tabla de configuración si no existe
@@ -29,6 +111,27 @@ public function __construct() {
         
         if (!$table_exists) {
             $this->create_configuration_table();
+        }
+        
+        // ✅ VERIFICAR SI NECESITAMOS ACTUALIZAR LA TABLA DE RESERVAS PARA RECORDATORIOS
+        $this->maybe_update_reservas_table();
+    }
+
+    /**
+     * ✅ NUEVO: Actualizar tabla de reservas para añadir campo de recordatorio
+     */
+    private function maybe_update_reservas_table() {
+        global $wpdb;
+        
+        $table_reservas = $wpdb->prefix . 'reservas_reservas';
+        
+        // Verificar si el campo recordatorio_enviado existe
+        $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_reservas LIKE 'recordatorio_enviado'");
+        
+        if (empty($column_exists)) {
+            // Añadir columna para tracking de recordatorios
+            $wpdb->query("ALTER TABLE $table_reservas ADD COLUMN recordatorio_enviado TINYINT(1) DEFAULT 0");
+            error_log('✅ Columna recordatorio_enviado añadida a tabla de reservas');
         }
     }
 
@@ -62,7 +165,7 @@ public function __construct() {
     }
 
     /**
-     * Crear configuración por defecto - CON EMAILS
+     * ✅ ACTUALIZADO: Crear configuración por defecto - SIN CHECKBOX DE CONFIRMACIÓN + NUEVO CAMPO
      */
     private function create_default_configuration() {
         global $wpdb;
@@ -104,24 +207,24 @@ public function __construct() {
                 'description' => 'Días de anticipación mínima para poder reservar (bloquea fechas en calendario)'
             ),
             
-            // ✅ CONFIGURACIÓN DE EMAILS - RESTAURADA
+            // ✅ CONFIGURACIÓN DE EMAILS ACTUALIZADA
             array(
                 'config_key' => 'email_recordatorio_activo',
-                'config_value' => '0',
+                'config_value' => '1', // ✅ ACTIVO POR DEFECTO
                 'config_group' => 'notificaciones',
-                'description' => 'Activar recordatorios antes del viaje'
+                'description' => 'Activar recordatorios automáticos antes del viaje'
             ),
             array(
                 'config_key' => 'horas_recordatorio',
                 'config_value' => '24',
                 'config_group' => 'notificaciones',
-                'description' => 'Horas antes del viaje para enviar recordatorio'
+                'description' => 'Horas antes del viaje para enviar recordatorio automático'
             ),
             array(
                 'config_key' => 'email_remitente',
                 'config_value' => get_option('admin_email'),
                 'config_group' => 'notificaciones',
-                'description' => 'Email remitente para notificaciones del sistema'
+                'description' => 'Email remitente para todas las notificaciones del sistema (NO MODIFICAR sin conocimientos técnicos)'
             ),
             array(
                 'config_key' => 'nombre_remitente',
@@ -129,11 +232,12 @@ public function __construct() {
                 'config_group' => 'notificaciones',
                 'description' => 'Nombre del remitente para notificaciones'
             ),
+            // ✅ NUEVO CAMPO: Email de reservas separado del técnico
             array(
-                'config_key' => 'email_admin_reservas',
+                'config_key' => 'email_reservas',
                 'config_value' => get_option('admin_email'),
                 'config_group' => 'notificaciones',
-                'description' => 'Email del administrador donde se enviarán las notificaciones de nuevas reservas'
+                'description' => 'Email donde se recibirán las notificaciones de nuevas reservas'
             ),
             
             // General
@@ -239,7 +343,7 @@ public function get_configuration() {
 }
 
     /**
-     * Guardar configuración - CON EMAILS
+     * ✅ ACTUALIZADO: Guardar configuración - SIN CHECKBOX + NUEVO CAMPO
      */
     public function save_configuration() {
         if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
@@ -299,7 +403,7 @@ public function get_configuration() {
             $configs_to_save['dias_anticipacion_minima'] = $dias_anticipacion;
         }
         
-        // ✅ NOTIFICACIONES - EMAILS RESTAURADOS
+        // ✅ NOTIFICACIONES - SIN CHECKBOX DE CONFIRMACIÓN
         $configs_to_save['email_recordatorio_activo'] = isset($_POST['email_recordatorio_activo']) ? 1 : 0;
         
         if (isset($_POST['horas_recordatorio'])) {
@@ -323,12 +427,13 @@ public function get_configuration() {
             }
             $configs_to_save['nombre_remitente'] = $nombre;
         }
-        if (isset($_POST['email_admin_reservas'])) {
-            $email_admin = sanitize_email($_POST['email_admin_reservas']);
-            if (empty($email_admin) || !is_email($email_admin)) {
-                wp_send_json_error('El email del administrador no es válido');
+        // ✅ NUEVO CAMPO: Email de reservas
+        if (isset($_POST['email_reservas'])) {
+            $email_reservas = sanitize_email($_POST['email_reservas']);
+            if (empty($email_reservas) || !is_email($email_reservas)) {
+                wp_send_json_error('El email de reservas no es válido');
             }
-            $configs_to_save['email_admin_reservas'] = $email_admin;
+            $configs_to_save['email_reservas'] = $email_reservas;
         }
         
         // General

@@ -1106,7 +1106,7 @@ function loadConfigurationData() {
     });
 }
 
-// ✅ FUNCIÓN ACTUALIZADA SIN PERSONALIZACIÓN E IDIOMA
+// ✅ FUNCIÓN ACTUALIZADA SIN CHECKBOX DE CONFIRMACIÓN + NUEVO CAMPO
 function renderConfigurationForm(configs) {
     let html = `
         <form id="configurationForm" class="configuration-form">
@@ -1155,23 +1155,15 @@ function renderConfigurationForm(configs) {
                 </div>
             </div>
 
-            <!-- Sección: Notificaciones -->
+            <!-- ✅ SECCIÓN ACTUALIZADA: Notificaciones - SIN CHECKBOX DE CONFIRMACIÓN -->
             <div class="config-section">
                 <h3>📧 Notificaciones por Email</h3>
                 <div class="config-grid">
                     <div class="config-item config-checkbox">
                         <label>
-                            <input type="checkbox" id="email_confirmacion_activo" name="email_confirmacion_activo" 
-                                   ${configs.notificaciones?.email_confirmacion_activo?.value == '1' ? 'checked' : ''}>
-                            Email de Confirmación Automático
-                        </label>
-                        <small>${configs.notificaciones?.email_confirmacion_activo?.description || ''}</small>
-                    </div>
-                    <div class="config-item config-checkbox">
-                        <label>
                             <input type="checkbox" id="email_recordatorio_activo" name="email_recordatorio_activo" 
                                    ${configs.notificaciones?.email_recordatorio_activo?.value == '1' ? 'checked' : ''}>
-                            Recordatorios antes del Viaje
+                            Recordatorios Automáticos antes del Viaje
                         </label>
                         <small>${configs.notificaciones?.email_recordatorio_activo?.description || ''}</small>
                     </div>
@@ -1182,10 +1174,11 @@ function renderConfigurationForm(configs) {
                         <small>${configs.notificaciones?.horas_recordatorio?.description || ''}</small>
                     </div>
                     <div class="config-item">
-                        <label for="email_remitente">Email Remitente</label>
+                        <label for="email_remitente">Email Remitente (Técnico)</label>
                         <input type="email" id="email_remitente" name="email_remitente" 
-                               value="${configs.notificaciones?.email_remitente?.value || ''}">
-                        <small>${configs.notificaciones?.email_remitente?.description || ''}</small>
+                               value="${configs.notificaciones?.email_remitente?.value || ''}"
+                               style="background-color: #fff3cd; border: 2px solid #ffc107;">
+                        <small style="color: #856404; font-weight: bold;">⚠️ ${configs.notificaciones?.email_remitente?.description || 'Email técnico desde el que se envían todos los correos - NO MODIFICAR sin conocimientos técnicos'}</small>
                     </div>
                     <div class="config-item">
                         <label for="nombre_remitente">Nombre del Remitente</label>
@@ -1193,6 +1186,25 @@ function renderConfigurationForm(configs) {
                                value="${configs.notificaciones?.nombre_remitente?.value || ''}">
                         <small>${configs.notificaciones?.nombre_remitente?.description || ''}</small>
                     </div>
+                    <!-- ✅ NUEVO CAMPO: Email de Reservas -->
+                    <div class="config-item">
+                        <label for="email_reservas">Email de Reservas</label>
+                        <input type="email" id="email_reservas" name="email_reservas" 
+                               value="${configs.notificaciones?.email_reservas?.value || ''}"
+                               style="background-color: #e8f5e8; border: 2px solid #28a745;">
+                        <small style="color: #155724; font-weight: bold;">📧 ${configs.notificaciones?.email_reservas?.description || 'Email donde llegarán las notificaciones de nuevas reservas de clientes'}</small>
+                    </div>
+                </div>
+                
+                <!-- ✅ INFORMACIÓN ADICIONAL SOBRE EMAILS -->
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #2196f3;">
+                    <h4 style="margin-top: 0; color: #1565c0;">ℹ️ Información sobre Emails</h4>
+                    <ul style="margin: 0; padding-left: 20px; color: #1565c0;">
+                        <li><strong>Confirmaciones:</strong> Se envían automáticamente SIEMPRE al cliente tras cada reserva</li>
+                        <li><strong>Recordatorios:</strong> Se envían automáticamente según las horas configuradas</li>
+                        <li><strong>Notificaciones de reservas:</strong> Llegan al "Email de Reservas" cada vez que un cliente hace una reserva</li>
+                        <li><strong>Email Remitente:</strong> Es el email técnico desde el que se envían todos los correos</li>
+                    </ul>
                 </div>
             </div>
 
@@ -1660,10 +1672,14 @@ function renderReservationsReport(data) {
                     <td><strong>${parseFloat(reserva.precio_final).toFixed(2)}€</strong></td>
                     <td><span class="status-badge status-${reserva.estado}">${reserva.estado}</span></td>
                     <td>
-                        <button class="btn-small btn-info" onclick="showReservationDetails(${reserva.id})" title="Ver detalles">👁️</button>
-                        <button class="btn-small btn-edit" onclick="showEditEmailModal(${reserva.id}, '${reserva.email}')" title="Editar email">✏️</button>
-                        <button class="btn-small btn-primary" onclick="resendConfirmationEmail(${reserva.id})" title="Reenviar confirmación">📧</button>
-                    </td>
+        <button class="btn-small btn-info" onclick="showReservationDetails(${reserva.id})" title="Ver detalles">👁️</button>
+        <button class="btn-small btn-edit" onclick="showEditEmailModal(${reserva.id}, '${reserva.email}')" title="Editar email">✏️</button>
+        <button class="btn-small btn-primary" onclick="resendConfirmationEmail(${reserva.id})" title="Reenviar confirmación">📧</button>
+        ${reserva.estado !== 'cancelada' ? 
+            `<button class="btn-small btn-danger" onclick="showCancelReservationModal(${reserva.id}, '${reserva.localizador}')" title="Cancelar reserva">❌</button>` : 
+            `<span class="btn-small" style="background: #6c757d; color: white;">CANCELADA</span>`
+        }
+    </td>
                 </tr>
             `;
         });
@@ -1803,10 +1819,14 @@ function renderSearchResults(data) {
                     <td title="Adultos: ${reserva.adultos}, Residentes: ${reserva.residentes}, Niños 5-12: ${reserva.ninos_5_12}, Menores: ${reserva.ninos_menores}">${personasDetalle}</td>
                     <td><strong>${parseFloat(reserva.precio_final).toFixed(2)}€</strong></td>
                     <td>
-                        <button class="btn-small btn-info" onclick="showReservationDetails(${reserva.id})" title="Ver detalles">👁️</button>
-                        <button class="btn-small btn-edit" onclick="showEditEmailModal(${reserva.id}, '${reserva.email}')" title="Editar email">✏️</button>
-                        <button class="btn-small btn-primary" onclick="resendConfirmationEmail(${reserva.id})" title="Reenviar confirmación">📧</button>
-                    </td>
+        <button class="btn-small btn-info" onclick="showReservationDetails(${reserva.id})" title="Ver detalles">👁️</button>
+        <button class="btn-small btn-edit" onclick="showEditEmailModal(${reserva.id}, '${reserva.email}')" title="Editar email">✏️</button>
+        <button class="btn-small btn-primary" onclick="resendConfirmationEmail(${reserva.id})" title="Reenviar confirmación">📧</button>
+        ${reserva.estado !== 'cancelada' ? 
+            `<button class="btn-small btn-danger" onclick="showCancelReservationModal(${reserva.id}, '${reserva.localizador}')" title="Cancelar reserva">❌</button>` : 
+            `<span class="btn-small" style="background: #6c757d; color: white;">CANCELADA</span>`
+        }
+    </td>
                 </tr>
             `;
         });
@@ -2412,4 +2432,124 @@ function closeReservationDetailsModal() {
 
 function closeEditEmailModal() {
     document.getElementById('editEmailModal').style.display = 'none';
+}
+
+
+function showCancelReservationModal(reservaId, localizador) {
+    // Crear modal si no existe
+    if (!document.getElementById('cancelReservationModal')) {
+        const modalHtml = `
+            <div id="cancelReservationModal" class="modal" style="display: none;">
+                <div class="modal-content" style="max-width: 500px;">
+                    <span class="close" onclick="closeCancelReservationModal()">&times;</span>
+                    <h3 style="color: #dc3545;">⚠️ Cancelar Reserva</h3>
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #ffc107;">
+                        <p style="margin: 0; color: #856404; font-weight: bold;">
+                            ¿Estás seguro de que quieres cancelar la reserva <strong id="cancel-localizador"></strong>?
+                        </p>
+                        <p style="margin: 5px 0 0 0; color: #856404; font-size: 14px;">
+                            Esta acción NO se puede deshacer y se enviarán notificaciones automáticas.
+                        </p>
+                    </div>
+                    <form id="cancelReservationForm">
+                        <input type="hidden" id="cancel-reserva-id">
+                        <div class="form-group">
+                            <label for="motivo-cancelacion" style="font-weight: bold; color: #495057;">
+                                Motivo de cancelación (opcional):
+                            </label>
+                            <textarea id="motivo-cancelacion" name="motivo_cancelacion" 
+                                      rows="3" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;" 
+                                      placeholder="Ej: Problema técnico, Cancelación por parte del cliente, etc."></textarea>
+                        </div>
+                        <div class="form-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                            <button type="button" class="btn-secondary" onclick="closeCancelReservationModal()">
+                                Cancelar
+                            </button>
+                            <button type="submit" class="btn-danger" style="background: #dc3545; color: white;">
+                                ❌ Confirmar Cancelación
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Añadir evento al formulario
+        document.getElementById('cancelReservationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            processCancelReservation();
+        });
+    }
+    
+    // Configurar modal
+    document.getElementById('cancel-reserva-id').value = reservaId;
+    document.getElementById('cancel-localizador').textContent = localizador;
+    document.getElementById('motivo-cancelacion').value = '';
+    document.getElementById('cancelReservationModal').style.display = 'block';
+}
+
+/**
+ * Cerrar modal de cancelación
+ */
+function closeCancelReservationModal() {
+    document.getElementById('cancelReservationModal').style.display = 'none';
+}
+
+/**
+ * Procesar cancelación de reserva
+ */
+function processCancelReservation() {
+    const reservaId = document.getElementById('cancel-reserva-id').value;
+    const motivo = document.getElementById('motivo-cancelacion').value || 'Cancelación administrativa';
+    
+    if (!confirm('¿Estás COMPLETAMENTE SEGURO de cancelar esta reserva?\n\n⚠️ ESTA ACCIÓN NO SE PUEDE DESHACER ⚠️')) {
+        return;
+    }
+    
+    // Deshabilitar botón
+    const submitBtn = document.querySelector('#cancelReservationForm button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = '⏳ Cancelando...';
+    
+    const formData = new FormData();
+    formData.append('action', 'cancel_reservation');
+    formData.append('reserva_id', reservaId);
+    formData.append('motivo_cancelacion', motivo);
+    formData.append('nonce', reservasAjax.nonce);
+
+    fetch(reservasAjax.ajax_url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Rehabilitar botón
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+        
+        if (data.success) {
+            alert('✅ ' + data.data);
+            closeCancelReservationModal();
+            
+            // Recargar la lista actual
+            const activeTab = document.querySelector('.tab-btn.active');
+            if (activeTab && activeTab.textContent.includes('Reservas')) {
+                loadReservationsByDate();
+            } else if (activeTab && activeTab.textContent.includes('Buscar')) {
+                searchReservations();
+            }
+        } else {
+            alert('❌ Error: ' + data.data);
+        }
+    })
+    .catch(error => {
+        // Rehabilitar botón
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+        
+        console.error('Error:', error);
+        alert('❌ Error de conexión al cancelar la reserva');
+    });
 }
