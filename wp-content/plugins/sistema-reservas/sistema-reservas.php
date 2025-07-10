@@ -57,7 +57,8 @@ class SistemaReservas
             'includes/class-discounts-admin.php',
             'includes/class-configuration-admin.php',
             'includes/class-reports-admin.php',         
-            'includes/class-reservas-processor.php', // ✅ SIN EMAILS NI TPV
+            'includes/class-reservas-processor.php', // ✅ CON EMAILS
+            'includes/class-email-service.php',       // ✅ CLASE DE EMAILS
             'includes/class-frontend.php',
         );
 
@@ -91,7 +92,7 @@ class SistemaReservas
             $this->discounts_admin = new ReservasDiscountsAdmin();
         }
 
-        // Inicializar clase de configuración
+        // Inicializar clase de configuración CON EMAILS
         if (class_exists('ReservasConfigurationAdmin')) {
             $this->configuration_admin = new ReservasConfigurationAdmin();
         }
@@ -101,9 +102,14 @@ class SistemaReservas
             $this->reports_admin = new ReservasReportsAdmin();
         }
 
-        // Inicializar procesador de reservas SIMPLIFICADO
+        // Inicializar procesador de reservas CON EMAILS
         if (class_exists('ReservasProcessor')) {
             new ReservasProcessor();
+        }
+
+        // Inicializar servicio de emails
+        if (class_exists('ReservasEmailService')) {
+            new ReservasEmailService();
         }
 
         if (class_exists('ReservasFrontend')) {
@@ -215,7 +221,7 @@ class SistemaReservas
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql_servicios);
 
-        // Tabla de reservas ✅ SIN CAMPOS DE TPV
+        // Tabla de reservas
         $table_reservas = $wpdb->prefix . 'reservas_reservas';
         $sql_reservas = "CREATE TABLE $table_reservas (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
@@ -270,7 +276,7 @@ class SistemaReservas
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql_discounts);
 
-        // ✅ TABLA DE CONFIGURACIÓN SIMPLIFICADA (SIN EMAILS)
+        // ✅ TABLA DE CONFIGURACIÓN CON EMAILS
         $table_configuration = $wpdb->prefix . 'reservas_configuration';
         $sql_configuration = "CREATE TABLE $table_configuration (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
@@ -294,7 +300,7 @@ class SistemaReservas
         // Crear regla de descuento por defecto
         $this->create_default_discount_rule();
 
-        // ✅ CREAR CONFIGURACIÓN SIMPLIFICADA SIN EMAILS
+        // ✅ CREAR CONFIGURACIÓN CON EMAILS
         $this->create_default_configuration();
     }
 
@@ -349,7 +355,7 @@ class SistemaReservas
         }
     }
 
-    // ✅ FUNCIÓN SIMPLIFICADA SIN CONFIGURACIÓN DE EMAILS
+    // ✅ FUNCIÓN CON CONFIGURACIÓN DE EMAILS RESTAURADA
     private function create_default_configuration()
     {
         global $wpdb;
@@ -391,6 +397,38 @@ class SistemaReservas
                 'description' => 'Días de anticipación mínima para poder reservar (bloquea fechas en calendario)'
             ),
             
+            // ✅ CONFIGURACIÓN DE EMAILS COMPLETA
+            array(
+                'config_key' => 'email_recordatorio_activo',
+                'config_value' => '0',
+                'config_group' => 'notificaciones',
+                'description' => 'Activar recordatorios antes del viaje'
+            ),
+            array(
+                'config_key' => 'horas_recordatorio',
+                'config_value' => '24',
+                'config_group' => 'notificaciones',
+                'description' => 'Horas antes del viaje para enviar recordatorio'
+            ),
+            array(
+                'config_key' => 'email_remitente',
+                'config_value' => get_option('admin_email'),
+                'config_group' => 'notificaciones',
+                'description' => 'Email remitente para notificaciones del sistema'
+            ),
+            array(
+                'config_key' => 'nombre_remitente',
+                'config_value' => get_bloginfo('name'),
+                'config_group' => 'notificaciones',
+                'description' => 'Nombre del remitente para notificaciones'
+            ),
+            array(
+                'config_key' => 'email_admin_reservas',
+                'config_value' => get_option('admin_email'),
+                'config_group' => 'notificaciones',
+                'description' => 'Email del administrador donde se enviarán las notificaciones de nuevas reservas'
+            ),
+            
             // General
             array(
                 'config_key' => 'zona_horaria',
@@ -429,7 +467,7 @@ class SistemaReservas
     }
 }
 
-// ✅ SHORTCODES SIMPLIFICADOS (SIN TPV)
+// ✅ SHORTCODES SIN CAMBIOS
 
 // Shortcode para uso en páginas de WordPress (alternativa)
 add_shortcode('reservas_login', 'reservas_login_shortcode');
@@ -499,7 +537,7 @@ function reservas_login_shortcode()
     return ob_get_clean();
 }
 
-// ✅ SHORTCODE PARA PÁGINA DE CONFIRMACIÓN SIMPLIFICADO
+// ✅ SHORTCODE PARA PÁGINA DE CONFIRMACIÓN SIN CAMBIOS
 add_shortcode('confirmacion_reserva', 'confirmacion_reserva_shortcode');
 
 function confirmacion_reserva_shortcode() {

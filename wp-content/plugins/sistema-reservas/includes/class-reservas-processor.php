@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Clase para procesar reservas - VERSIÓN SIMPLIFICADA SIN TPV NI EMAILS
+ * Clase para procesar reservas - CON ENVÍO DE EMAILS
  * Archivo: wp-content/plugins/sistema-reservas/includes/class-reservas-processor.php
  */
 
@@ -16,7 +16,7 @@ class ReservasProcessor
     }
 
     /**
-     * Procesar una nueva reserva - VERSIÓN SIMPLIFICADA
+     * Procesar una nueva reserva - CON EMAILS
      */
     public function process_reservation()
     {
@@ -29,7 +29,7 @@ class ReservasProcessor
         header('Content-Type: application/json');
 
         try {
-            error_log('=== INICIANDO PROCESS_RESERVATION ===');
+            error_log('=== INICIANDO PROCESS_RESERVATION CON EMAILS ===');
 
             // Verificar nonce
             if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
@@ -89,6 +89,9 @@ class ReservasProcessor
                 return;
             }
 
+            // ✅ ENVIAR EMAILS DE CONFIRMACIÓN
+            $this->send_confirmation_emails($resultado_reserva['reserva_id']);
+
             // ✅ RESPUESTA EXITOSA PARA MOSTRAR ALERT Y REDIRIGIR
             $response_data = array(
                 'mensaje' => 'Reserva procesada correctamente',
@@ -102,12 +105,57 @@ class ReservasProcessor
                 )
             );
 
-            error_log('SUCCESS: Reserva completada sin TPV ni emails');
+            error_log('SUCCESS: Reserva completada con emails enviados');
             wp_send_json_success($response_data);
 
         } catch (Exception $e) {
             error_log('EXCEPTION: ' . $e->getMessage());
             wp_send_json_error('Error interno del servidor: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * ✅ FUNCIÓN PARA ENVIAR EMAILS DE CONFIRMACIÓN
+     */
+    private function send_confirmation_emails($reserva_id) {
+        error_log('=== ENVIANDO EMAILS DE CONFIRMACIÓN ===');
+
+        // Cargar clase de emails
+        if (!class_exists('ReservasEmailService')) {
+            require_once RESERVAS_PLUGIN_PATH . 'includes/class-email-service.php';
+        }
+
+        // Obtener datos de la reserva
+        global $wpdb;
+        $table_reservas = $wpdb->prefix . 'reservas_reservas';
+        
+        $reserva = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_reservas WHERE id = %d",
+            $reserva_id
+        ));
+
+        if (!$reserva) {
+            error_log('ERROR: No se encontró la reserva para enviar emails');
+            return;
+        }
+
+        // Convertir a array
+        $reserva_array = (array) $reserva;
+
+        // Enviar email al cliente
+        $customer_result = ReservasEmailService::send_customer_confirmation($reserva_array);
+        if ($customer_result['success']) {
+            error_log('✅ Email enviado al cliente correctamente');
+        } else {
+            error_log('❌ Error enviando email al cliente: ' . $customer_result['message']);
+        }
+
+        // Enviar email al administrador
+        $admin_result = ReservasEmailService::send_admin_notification($reserva_array);
+        if ($admin_result['success']) {
+            error_log('✅ Email enviado al administrador correctamente');
+        } else {
+            error_log('❌ Error enviando email al administrador: ' . $admin_result['message']);
         }
     }
 

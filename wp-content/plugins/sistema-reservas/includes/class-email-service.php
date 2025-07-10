@@ -1,6 +1,6 @@
 <?php
 /**
- * Clase para gestionar envío de emails del sistema de reservas
+ * Clase para gestionar envío de emails del sistema de reservas usando WordPress nativo
  * Archivo: wp-content/plugins/sistema-reservas/includes/class-email-service.php
  */
 class ReservasEmailService {
@@ -15,10 +15,6 @@ class ReservasEmailService {
     public static function send_customer_confirmation($reserva_data) {
         $config = self::get_email_config();
         
-        if (!$config['active']) {
-            return array('success' => false, 'message' => 'Envío de emails desactivado');
-        }
-
         $to = $reserva_data['email'];
         $subject = "Confirmación de Reserva - Localizador: " . $reserva_data['localizador'];
         
@@ -46,8 +42,9 @@ class ReservasEmailService {
     public static function send_admin_notification($reserva_data) {
         $config = self::get_email_config();
         
-        if (!$config['active'] || empty($config['email_admin'])) {
-            return array('success' => false, 'message' => 'Envío de emails o email admin no configurado');
+        if (empty($config['email_admin'])) {
+            error_log("❌ No hay email de administrador configurado");
+            return array('success' => false, 'message' => 'Email de administrador no configurado');
         }
 
         $to = $config['email_admin'];
@@ -72,7 +69,7 @@ class ReservasEmailService {
     }
 
     /**
-     * Obtener configuración de email
+     * Obtener configuración de email desde la base de datos
      */
     private static function get_email_config() {
         if (!class_exists('ReservasConfigurationAdmin')) {
@@ -80,10 +77,9 @@ class ReservasEmailService {
         }
 
         return array(
-            'active' => true, // Siempre activo
             'email_remitente' => ReservasConfigurationAdmin::get_config('email_remitente', get_option('admin_email')),
             'nombre_remitente' => ReservasConfigurationAdmin::get_config('nombre_remitente', get_bloginfo('name')),
-            'email_admin' => ReservasConfigurationAdmin::get_config('email_admin_reservas', ''),
+            'email_admin' => ReservasConfigurationAdmin::get_config('email_admin_reservas', get_option('admin_email')),
         );
     }
 

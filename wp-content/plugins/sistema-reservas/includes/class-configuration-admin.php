@@ -1,6 +1,6 @@
 <?php
 /**
- * Clase para gestionar la configuración del sistema de reservas - ACTUALIZADA CON EMAIL ADMIN
+ * Clase para gestionar la configuración del sistema de reservas - CON EMAILS
  * Archivo: wp-content/plugins/sistema-reservas/includes/class-configuration-admin.php
  */
 class ReservasConfigurationAdmin {
@@ -60,7 +60,7 @@ class ReservasConfigurationAdmin {
     }
 
     /**
-     * Crear configuración por defecto - ACTUALIZADA CON EMAIL ADMIN
+     * Crear configuración por defecto - CON EMAILS
      */
     private function create_default_configuration() {
         global $wpdb;
@@ -102,7 +102,7 @@ class ReservasConfigurationAdmin {
                 'description' => 'Días de anticipación mínima para poder reservar (bloquea fechas en calendario)'
             ),
             
-            // Notificaciones - QUITADO CHECKBOX DE CONFIRMACIÓN
+            // ✅ CONFIGURACIÓN DE EMAILS - RESTAURADA
             array(
                 'config_key' => 'email_recordatorio_activo',
                 'config_value' => '0',
@@ -127,7 +127,6 @@ class ReservasConfigurationAdmin {
                 'config_group' => 'notificaciones',
                 'description' => 'Nombre del remitente para notificaciones'
             ),
-            // ✅ NUEVO CAMPO PARA EMAIL DEL ADMINISTRADOR
             array(
                 'config_key' => 'email_admin_reservas',
                 'config_value' => get_option('admin_email'),
@@ -208,7 +207,7 @@ class ReservasConfigurationAdmin {
     }
 
     /**
-     * Guardar configuración - ACTUALIZADA SIN CHECKBOX DE CONFIRMACIÓN
+     * Guardar configuración - CON EMAILS
      */
     public function save_configuration() {
         if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
@@ -268,7 +267,7 @@ class ReservasConfigurationAdmin {
             $configs_to_save['dias_anticipacion_minima'] = $dias_anticipacion;
         }
         
-        // Notificaciones - SIN CHECKBOX DE CONFIRMACIÓN, SIEMPRE ACTIVO
+        // ✅ NOTIFICACIONES - EMAILS RESTAURADOS
         $configs_to_save['email_recordatorio_activo'] = isset($_POST['email_recordatorio_activo']) ? 1 : 0;
         
         if (isset($_POST['horas_recordatorio'])) {
@@ -292,7 +291,6 @@ class ReservasConfigurationAdmin {
             }
             $configs_to_save['nombre_remitente'] = $nombre;
         }
-        // ✅ NUEVO CAMPO EMAIL ADMIN
         if (isset($_POST['email_admin_reservas'])) {
             $email_admin = sanitize_email($_POST['email_admin_reservas']);
             if (empty($email_admin) || !is_email($email_admin)) {
