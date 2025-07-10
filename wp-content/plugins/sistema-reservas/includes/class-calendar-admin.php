@@ -108,26 +108,25 @@ class ReservasCalendarAdmin {
     }
 
 public function save_service() {
-    // ✅ VERIFICACIÓN SIMPLIFICADA
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-        wp_send_json_error('Error de seguridad');
-        return;
-    }
+if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+    wp_send_json_error('Error de seguridad');
+    return;
+}
 
-    if (!session_id()) {
-        session_start();
-    }
+if (!session_id()) {
+    session_start();
+}
 
-    if (!isset($_SESSION['reservas_user'])) {
-        wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
-        return;
-    }
+if (!isset($_SESSION['reservas_user'])) {
+    wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
+    return;
+}
 
-    $user = $_SESSION['reservas_user'];
-    if (!in_array($user['role'], ['super_admin', 'admin'])) {
-        wp_send_json_error('Sin permisos');
-        return;
-    }
+$user = $_SESSION['reservas_user'];
+if (!in_array($user['role'], ['super_admin', 'admin'])) {
+    wp_send_json_error('Sin permisos');
+    return;
+}
 
     global $wpdb;
     $table_name = $wpdb->prefix . 'reservas_servicios';
@@ -201,25 +200,25 @@ public function save_service() {
 
  public function delete_service() {
     // ✅ VERIFICACIÓN SIMPLIFICADA
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-        wp_send_json_error('Error de seguridad');
-        return;
-    }
+if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+    wp_send_json_error('Error de seguridad');
+    return;
+}
 
-    if (!session_id()) {
-        session_start();
-    }
+if (!session_id()) {
+    session_start();
+}
 
-    if (!isset($_SESSION['reservas_user'])) {
-        wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
-        return;
-    }
+if (!isset($_SESSION['reservas_user'])) {
+    wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
+    return;
+}
 
-    $user = $_SESSION['reservas_user'];
-    if (!in_array($user['role'], ['super_admin', 'admin'])) {
-        wp_send_json_error('Sin permisos');
-        return;
-    }
+$user = $_SESSION['reservas_user'];
+if (!in_array($user['role'], ['super_admin', 'admin'])) {
+    wp_send_json_error('Sin permisos');
+    return;
+}
 
     global $wpdb;
     $table_name = $wpdb->prefix . 'reservas_servicios';
@@ -236,26 +235,25 @@ public function save_service() {
 }
 
  public function get_service_details() {
-    // ✅ VERIFICACIÓN SIMPLIFICADA
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-        wp_send_json_error('Error de seguridad');
-        return;
-    }
+if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+    wp_send_json_error('Error de seguridad');
+    return;
+}
 
-    if (!session_id()) {
-        session_start();
-    }
+if (!session_id()) {
+    session_start();
+}
 
-    if (!isset($_SESSION['reservas_user'])) {
-        wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
-        return;
-    }
+if (!isset($_SESSION['reservas_user'])) {
+    wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
+    return;
+}
 
-    $user = $_SESSION['reservas_user'];
-    if (!in_array($user['role'], ['super_admin', 'admin'])) {
-        wp_send_json_error('Sin permisos');
-        return;
-    }
+$user = $_SESSION['reservas_user'];
+if (!in_array($user['role'], ['super_admin', 'admin'])) {
+    wp_send_json_error('Sin permisos');
+    return;
+}
 
     global $wpdb;
     $table_name = $wpdb->prefix . 'reservas_servicios';
