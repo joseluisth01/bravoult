@@ -41,7 +41,7 @@ function handleAjaxError(xhr, status, error) {
         responseText: xhr.responseText,
         error: error
     });
-    
+
     if (xhr.status === 403 || xhr.status === 401) {
         alert('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
         window.location.reload();
@@ -55,7 +55,7 @@ function handleAjaxError(xhr, status, error) {
 function loadDefaultConfiguration() {
     return new Promise((resolve, reject) => {
         console.log('=== CARGANDO CONFIGURACIÓN ===');
-        
+
         // ✅ VERIFICAR QUE TENEMOS LAS VARIABLES NECESARIAS
         if (typeof reservasAjax === 'undefined') {
             console.error('reservasAjax no está definido');
@@ -73,43 +73,43 @@ function loadDefaultConfiguration() {
             body: formData,
             credentials: 'same-origin' // ✅ IMPORTANTE PARA SESIONES
         })
-        .then(response => {
-            console.log('Response status:', response.status);
-            console.log('Response headers:', response.headers);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            return response.text(); // ✅ OBTENER COMO TEXTO PRIMERO
-        })
-        .then(text => {
-            console.log('Response text:', text);
-            
-            try {
-                const data = JSON.parse(text);
-                if (data.success) {
-                    defaultConfig = data.data;
-                    console.log('✅ Configuración cargada:', defaultConfig);
-                    resolve();
-                } else {
-                    console.error('❌ Error del servidor:', data.data);
-                    // Usar valores por defecto
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                return response.text(); // ✅ OBTENER COMO TEXTO PRIMERO
+            })
+            .then(text => {
+                console.log('Response text:', text);
+
+                try {
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                        defaultConfig = data.data;
+                        console.log('✅ Configuración cargada:', defaultConfig);
+                        resolve();
+                    } else {
+                        console.error('❌ Error del servidor:', data.data);
+                        // Usar valores por defecto
+                        defaultConfig = getDefaultConfigValues();
+                        resolve();
+                    }
+                } catch (e) {
+                    console.error('❌ Error parsing JSON:', e);
+                    console.error('Raw response:', text);
                     defaultConfig = getDefaultConfigValues();
                     resolve();
                 }
-            } catch (e) {
-                console.error('❌ Error parsing JSON:', e);
-                console.error('Raw response:', text);
+            })
+            .catch(error => {
+                console.error('❌ Fetch error:', error);
                 defaultConfig = getDefaultConfigValues();
                 resolve();
-            }
-        })
-        .catch(error => {
-            console.error('❌ Fetch error:', error);
-            defaultConfig = getDefaultConfigValues();
-            resolve();
-        });
+            });
     });
 }
 
@@ -150,7 +150,7 @@ function changeMonth(direction) {
 
 function loadCalendarData() {
     console.log('=== INICIANDO CARGA DE CALENDARIO ===');
-    
+
     if (typeof reservasAjax === 'undefined') {
         console.error('❌ reservasAjax no está definido');
         alert('Error: Variables AJAX no disponibles. Recarga la página.');
@@ -167,30 +167,30 @@ function loadCalendarData() {
     formData.append('nonce', reservasAjax.nonce);
 
     fetch(reservasAjax.ajax_url, {
-    method: 'POST',
-    body: formData,
-    credentials: 'same-origin'
-})
-.then(response => {
-    if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    return response.json();
-})
-.then(data => {
-    if (data.success) {
-        servicesData = data.data;
-        renderCalendar();
-        console.log('✅ Calendario renderizado correctamente');
-    } else {
-        console.error('❌ Error del servidor:', data.data);
-        alert('Error del servidor: ' + (data.data || 'Error desconocido'));
-    }
-})
-.catch(error => {
-    console.error('❌ Fetch error:', error);
-    handleAjaxError({status: 500, statusText: error.message}, 'error', error);
-});
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                servicesData = data.data;
+                renderCalendar();
+                console.log('✅ Calendario renderizado correctamente');
+            } else {
+                console.error('❌ Error del servidor:', data.data);
+                alert('Error del servidor: ' + (data.data || 'Error desconocido'));
+            }
+        })
+        .catch(error => {
+            console.error('❌ Fetch error:', error);
+            handleAjaxError({ status: 500, statusText: error.message }, 'error', error);
+        });
 }
 
 function renderCalendar() {
@@ -237,7 +237,7 @@ function renderCalendar() {
         // Verificar si algún servicio tiene descuento
         let hasDiscount = false;
         if (servicesData[dateStr]) {
-            hasDiscount = servicesData[dateStr].some(service => 
+            hasDiscount = servicesData[dateStr].some(service =>
                 service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0
             );
         }
@@ -247,12 +247,12 @@ function renderCalendar() {
             servicesData[dateStr].forEach(service => {
                 let serviceClass = 'service-item';
                 let discountText = '';
-                
+
                 if (service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0) {
                     serviceClass += ' service-discount';
                     discountText = ` (${service.porcentaje_descuento}% OFF)`;
                 }
-                
+
                 servicesHTML += `<div class="${serviceClass}" onclick="editService(${service.id})">${service.hora}${discountText}</div>`;
             });
         }
@@ -477,19 +477,19 @@ function getModalHTML() {
 
 function initModalEvents() {
     // Formulario de servicio individual
-    document.getElementById('serviceForm').addEventListener('submit', function(e) {
+    document.getElementById('serviceForm').addEventListener('submit', function (e) {
         e.preventDefault();
         saveService();
     });
 
     // Formulario de servicios masivos
-    document.getElementById('bulkAddForm').addEventListener('submit', function(e) {
+    document.getElementById('bulkAddForm').addEventListener('submit', function (e) {
         e.preventDefault();
         saveBulkServices();
     });
 
     // Eventos para los checkboxes de descuento
-    document.getElementById('tieneDescuento').addEventListener('change', function() {
+    document.getElementById('tieneDescuento').addEventListener('change', function () {
         const discountFields = document.getElementById('discountFields');
         if (this.checked) {
             discountFields.style.display = 'block';
@@ -499,7 +499,7 @@ function initModalEvents() {
         }
     });
 
-    document.getElementById('bulkTieneDescuento').addEventListener('change', function() {
+    document.getElementById('bulkTieneDescuento').addEventListener('change', function () {
         const bulkDiscountFields = document.getElementById('bulkDiscountFields');
         if (this.checked) {
             bulkDiscountFields.style.display = 'block';
@@ -555,73 +555,73 @@ function editService(serviceId) {
     formData.append('nonce', reservasAjax.nonce);
 
     console.log('=== DEBUG FETCH REQUEST ===');
-console.log('URL:', reservasAjax.ajax_url);
-console.log('FormData contents:');
-for (let [key, value] of formData.entries()) {
-    console.log(key + ': ' + value);
-}
+    console.log('URL:', reservasAjax.ajax_url);
+    console.log('FormData contents:');
+    for (let [key, value] of formData.entries()) {
+        console.log(key + ': ' + value);
+    }
 
-fetch(reservasAjax.ajax_url, {
-    method: 'POST',
-    body: formData,
-    credentials: 'same-origin'
-})
-    .then(response => {
-    console.log('=== RESPONSE DEBUG ===');
-    console.log('Response status:', response.status);
-    console.log('Response headers:', response.headers);
-    console.log('Response OK:', response.ok);
-    console.log('Response statusText:', response.statusText);
-    
-    // ✅ LEER LA RESPUESTA COMO TEXTO PRIMERO
-    return response.text().then(text => {
-        console.log('Response text:', text);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText} - ${text}`);
-        }
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            console.error('JSON Parse Error:', e);
-            throw new Error('Invalid JSON response: ' + text);
-        }
-    });
-})
-    .then(data => {
-        console.log('Service details response:', data);
-        if (data.success) {
-            const service = data.data;
-            document.getElementById('serviceModalTitle').textContent = 'Editar Servicio';
-            document.getElementById('serviceId').value = service.id;
-            document.getElementById('serviceFecha').value = service.fecha;
-            document.getElementById('serviceHora').value = service.hora;
-            document.getElementById('servicePlazas').value = service.plazas_totales;
-            document.getElementById('precioAdulto').value = service.precio_adulto;
-            document.getElementById('precioNino').value = service.precio_nino;
-            document.getElementById('precioResidente').value = service.precio_residente;
-            
-            // Cargar datos de descuento
-            const tieneDescuento = service.tiene_descuento == '1';
-            document.getElementById('tieneDescuento').checked = tieneDescuento;
-            
-            if (tieneDescuento) {
-                document.getElementById('discountFields').style.display = 'block';
-                document.getElementById('porcentajeDescuento').value = service.porcentaje_descuento || '';
-            } else {
-                document.getElementById('discountFields').style.display = 'none';
-                document.getElementById('porcentajeDescuento').value = '';
-            }
-
-            document.getElementById('deleteServiceBtn').style.display = 'block';
-            document.getElementById('serviceModal').style.display = 'block';
-        } else {
-            alert('Error al cargar el servicio: ' + data.data);
-        }
+    fetch(reservasAjax.ajax_url, {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
     })
-    .catch(error => {
-        console.error('Error loading service details:', error);
-        alert('Error de conexión: ' + error.message);
-    });
+        .then(response => {
+            console.log('=== RESPONSE DEBUG ===');
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            console.log('Response OK:', response.ok);
+            console.log('Response statusText:', response.statusText);
+
+            // ✅ LEER LA RESPUESTA COMO TEXTO PRIMERO
+            return response.text().then(text => {
+                console.log('Response text:', text);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText} - ${text}`);
+                }
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('JSON Parse Error:', e);
+                    throw new Error('Invalid JSON response: ' + text);
+                }
+            });
+        })
+        .then(data => {
+            console.log('Service details response:', data);
+            if (data.success) {
+                const service = data.data;
+                document.getElementById('serviceModalTitle').textContent = 'Editar Servicio';
+                document.getElementById('serviceId').value = service.id;
+                document.getElementById('serviceFecha').value = service.fecha;
+                document.getElementById('serviceHora').value = service.hora;
+                document.getElementById('servicePlazas').value = service.plazas_totales;
+                document.getElementById('precioAdulto').value = service.precio_adulto;
+                document.getElementById('precioNino').value = service.precio_nino;
+                document.getElementById('precioResidente').value = service.precio_residente;
+
+                // Cargar datos de descuento
+                const tieneDescuento = service.tiene_descuento == '1';
+                document.getElementById('tieneDescuento').checked = tieneDescuento;
+
+                if (tieneDescuento) {
+                    document.getElementById('discountFields').style.display = 'block';
+                    document.getElementById('porcentajeDescuento').value = service.porcentaje_descuento || '';
+                } else {
+                    document.getElementById('discountFields').style.display = 'none';
+                    document.getElementById('porcentajeDescuento').value = '';
+                }
+
+                document.getElementById('deleteServiceBtn').style.display = 'block';
+                document.getElementById('serviceModal').style.display = 'block';
+            } else {
+                alert('Error al cargar el servicio: ' + data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading service details:', error);
+            alert('Error de conexión: ' + error.message);
+        });
 }
 
 function saveService() {
@@ -640,27 +640,27 @@ function saveService() {
         body: formData,
         credentials: 'same-origin'
     })
-    .then(response => {
-        console.log('Response status:', response.status);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('Response data:', data);
-        if (data.success) {
-            alert('Servicio guardado correctamente');
-            closeServiceModal();
-            loadCalendarData();
-        } else {
-            alert('Error: ' + data.data);
-        }
-    })
-    .catch(error => {
-        console.error('Error guardando servicio:', error);
-        alert('Error de conexión: ' + error.message);
-    });
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response data:', data);
+            if (data.success) {
+                alert('Servicio guardado correctamente');
+                closeServiceModal();
+                loadCalendarData();
+            } else {
+                alert('Error: ' + data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error guardando servicio:', error);
+            alert('Error de conexión: ' + error.message);
+        });
 }
 
 function deleteService() {
@@ -675,9 +675,9 @@ function deleteService() {
     formData.append('nonce', reservasAjax.nonce);
 
     fetch(reservasAjax.ajax_url, {
-            method: 'POST',
-            body: formData
-        })
+        method: 'POST',
+        body: formData
+    })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -717,7 +717,7 @@ function showBulkAddModal() {
     const fechaMinima = new Date();
     fechaMinima.setDate(fechaMinima.getDate() + parseInt(diasAnticiapcion));
     const fechaMinimaStr = fechaMinima.toISOString().split('T')[0];
-    
+
     document.getElementById('bulkFechaInicio').setAttribute('min', fechaMinimaStr);
     document.getElementById('bulkFechaFin').setAttribute('min', fechaMinimaStr);
 
@@ -794,9 +794,9 @@ function saveBulkServices() {
     });
 
     fetch(reservasAjax.ajax_url, {
-            method: 'POST',
-            body: formData
-        })
+        method: 'POST',
+        body: formData
+    })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -894,14 +894,14 @@ function loadDiscountsConfigSection() {
 
     // Inicializar eventos
     initDiscountEvents();
-    
+
     // Cargar reglas existentes
     loadDiscountRules();
 }
 
 function initDiscountEvents() {
     // Formulario de regla de descuento
-    document.getElementById('discountForm').addEventListener('submit', function(e) {
+    document.getElementById('discountForm').addEventListener('submit', function (e) {
         e.preventDefault();
         saveDiscountRule();
     });
@@ -916,25 +916,25 @@ function loadDiscountRules() {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            renderDiscountRules(data.data);
-        } else {
-            document.getElementById('discounts-list').innerHTML = 
-                '<p class="error">Error cargando las reglas: ' + data.data + '</p>';
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('discounts-list').innerHTML = 
-            '<p class="error">Error de conexión</p>';
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderDiscountRules(data.data);
+            } else {
+                document.getElementById('discounts-list').innerHTML =
+                    '<p class="error">Error cargando las reglas: ' + data.data + '</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('discounts-list').innerHTML =
+                '<p class="error">Error de conexión</p>';
+        });
 }
 
 function renderDiscountRules(rules) {
     let html = '';
-    
+
     if (rules.length === 0) {
         html = `
             <div class="no-rules">
@@ -958,12 +958,12 @@ function renderDiscountRules(rules) {
                     </thead>
                     <tbody>
         `;
-        
+
         rules.forEach(rule => {
             const statusClass = rule.is_active == 1 ? 'status-active' : 'status-inactive';
             const statusText = rule.is_active == 1 ? 'Activa' : 'Inactiva';
             const applyToText = getApplyToText(rule.apply_to);
-            
+
             html += `
                 <tr>
                     <td>${rule.rule_name}</td>
@@ -978,14 +978,14 @@ function renderDiscountRules(rules) {
                 </tr>
             `;
         });
-        
+
         html += `
                     </tbody>
                 </table>
             </div>
         `;
     }
-    
+
     document.getElementById('discounts-list').innerHTML = html;
 }
 
@@ -1004,12 +1004,12 @@ function showAddDiscountModal() {
     document.getElementById('discountId').value = '';
     document.getElementById('deleteDiscountBtn').style.display = 'none';
     document.getElementById('isActive').checked = true;
-    
+
     // Valores por defecto
     document.getElementById('minimumPersons').value = 10;
     document.getElementById('discountPercentage').value = 15;
     document.getElementById('applyTo').value = 'total';
-    
+
     document.getElementById('discountModal').style.display = 'block';
 }
 
@@ -1023,29 +1023,29 @@ function editDiscountRule(ruleId) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const rule = data.data;
-            document.getElementById('discountModalTitle').textContent = 'Editar Regla de Descuento';
-            document.getElementById('discountId').value = rule.id;
-            document.getElementById('ruleName').value = rule.rule_name;
-            document.getElementById('minimumPersons').value = rule.minimum_persons;
-            document.getElementById('discountPercentage').value = rule.discount_percentage;
-            document.getElementById('applyTo').value = rule.apply_to;
-            document.getElementById('ruleDescription').value = rule.rule_description || '';
-            document.getElementById('isActive').checked = rule.is_active == 1;
-            document.getElementById('deleteDiscountBtn').style.display = 'block';
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const rule = data.data;
+                document.getElementById('discountModalTitle').textContent = 'Editar Regla de Descuento';
+                document.getElementById('discountId').value = rule.id;
+                document.getElementById('ruleName').value = rule.rule_name;
+                document.getElementById('minimumPersons').value = rule.minimum_persons;
+                document.getElementById('discountPercentage').value = rule.discount_percentage;
+                document.getElementById('applyTo').value = rule.apply_to;
+                document.getElementById('ruleDescription').value = rule.rule_description || '';
+                document.getElementById('isActive').checked = rule.is_active == 1;
+                document.getElementById('deleteDiscountBtn').style.display = 'block';
 
-            document.getElementById('discountModal').style.display = 'block';
-        } else {
-            alert('Error al cargar la regla: ' + data.data);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error de conexión');
-    });
+                document.getElementById('discountModal').style.display = 'block';
+            } else {
+                alert('Error al cargar la regla: ' + data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
 }
 
 function saveDiscountRule() {
@@ -1057,20 +1057,20 @@ function saveDiscountRule() {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Regla guardada correctamente');
-            closeDiscountModal();
-            loadDiscountRules();
-        } else {
-            alert('Error: ' + data.data);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error de conexión');
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Regla guardada correctamente');
+                closeDiscountModal();
+                loadDiscountRules();
+            } else {
+                alert('Error: ' + data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
 }
 
 function confirmDeleteRule(ruleId) {
@@ -1081,7 +1081,7 @@ function confirmDeleteRule(ruleId) {
 
 function deleteDiscountRule(ruleId = null) {
     const id = ruleId || document.getElementById('discountId').value;
-    
+
     const formData = new FormData();
     formData.append('action', 'delete_discount_rule');
     formData.append('rule_id', id);
@@ -1091,20 +1091,20 @@ function deleteDiscountRule(ruleId = null) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Regla eliminada correctamente');
-            closeDiscountModal();
-            loadDiscountRules();
-        } else {
-            alert('Error: ' + data.data);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error de conexión');
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Regla eliminada correctamente');
+                closeDiscountModal();
+                loadDiscountRules();
+            } else {
+                alert('Error: ' + data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
 }
 
 function closeDiscountModal() {
@@ -1142,20 +1142,20 @@ function loadConfigurationData() {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            renderConfigurationForm(data.data);
-        } else {
-            document.querySelector('.configuration-content').innerHTML = 
-                '<p class="error">Error cargando la configuración: ' + data.data + '</p>';
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.querySelector('.configuration-content').innerHTML = 
-            '<p class="error">Error de conexión</p>';
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderConfigurationForm(data.data);
+            } else {
+                document.querySelector('.configuration-content').innerHTML =
+                    '<p class="error">Error cargando la configuración: ' + data.data + '</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.querySelector('.configuration-content').innerHTML =
+                '<p class="error">Error de conexión</p>';
+        });
 }
 
 // ✅ FUNCIÓN ACTUALIZADA SIN CHECKBOX DE CONFIRMACIÓN + NUEVO CAMPO
@@ -1300,29 +1300,29 @@ function renderConfigurationForm(configs) {
     `;
 
     document.querySelector('.configuration-content').innerHTML = html;
-    
+
     // Inicializar eventos del formulario
     initConfigurationEvents();
 }
 
 function initConfigurationEvents() {
     // Formulario de configuración
-    document.getElementById('configurationForm').addEventListener('submit', function(e) {
+    document.getElementById('configurationForm').addEventListener('submit', function (e) {
         e.preventDefault();
         saveAllConfiguration();
     });
 
     // Eventos para los selectores de moneda (sincronizar símbolo)
-    document.getElementById('moneda').addEventListener('change', function() {
+    document.getElementById('moneda').addEventListener('change', function () {
         const monedaSeleccionada = this.value;
         const simboloInput = document.getElementById('simbolo_moneda');
-        
+
         const simbolos = {
             'EUR': '€',
             'USD': ',',
             'GBP': '£'
         };
-        
+
         if (simbolos[monedaSeleccionada]) {
             simboloInput.value = simbolos[monedaSeleccionada];
         }
@@ -1345,33 +1345,33 @@ function saveAllConfiguration() {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        // Restaurar botón
-        submitButton.disabled = false;
-        submitButton.textContent = originalText;
-        
-        if (data.success) {
-            alert('✅ ' + data.data);
-            
-            // ✅ RECARGAR CONFIGURACIÓN POR DEFECTO DESPUÉS DE GUARDAR
-            loadDefaultConfiguration().then(() => {
-                showConfigurationNotification('Configuración guardada y sincronizada exitosamente', 'success');
-            });
-        } else {
-            alert('❌ Error: ' + data.data);
-            showConfigurationNotification('Error guardando configuración: ' + data.data, 'error');
-        }
-    })
-    .catch(error => {
-        // Restaurar botón
-        submitButton.disabled = false;
-        submitButton.textContent = originalText;
-        
-        console.error('Error:', error);
-        alert('❌ Error de conexión: ' + error.message);
-        showConfigurationNotification('Error de conexión', 'error');
-    });
+        .then(response => response.json())
+        .then(data => {
+            // Restaurar botón
+            submitButton.disabled = false;
+            submitButton.textContent = originalText;
+
+            if (data.success) {
+                alert('✅ ' + data.data);
+
+                // ✅ RECARGAR CONFIGURACIÓN POR DEFECTO DESPUÉS DE GUARDAR
+                loadDefaultConfiguration().then(() => {
+                    showConfigurationNotification('Configuración guardada y sincronizada exitosamente', 'success');
+                });
+            } else {
+                alert('❌ Error: ' + data.data);
+                showConfigurationNotification('Error guardando configuración: ' + data.data, 'error');
+            }
+        })
+        .catch(error => {
+            // Restaurar botón
+            submitButton.disabled = false;
+            submitButton.textContent = originalText;
+
+            console.error('Error:', error);
+            alert('❌ Error de conexión: ' + error.message);
+            showConfigurationNotification('Error de conexión', 'error');
+        });
 }
 
 function resetConfigurationForm() {
@@ -1388,11 +1388,11 @@ function showConfigurationNotification(message, type) {
         <span>${message}</span>
         <button onclick="this.parentElement.remove()">✕</button>
     `;
-    
+
     // Agregar al top de la página
     const header = document.querySelector('.configuration-header');
     header.insertAdjacentElement('afterend', notification);
-    
+
     // Auto-eliminar después de 5 segundos
     setTimeout(() => {
         if (notification.parentElement) {
@@ -1557,7 +1557,7 @@ function loadReportsSection() {
 
     // Inicializar eventos
     initReportsEvents();
-    
+
     // Cargar datos iniciales
     loadReservationsByDate();
 }
@@ -1565,16 +1565,16 @@ function loadReportsSection() {
 // ✅ FUNCIÓN PARA INICIALIZAR EVENTOS
 function initReportsEvents() {
     // Evento para el formulario de editar email
-    document.getElementById('editEmailForm').addEventListener('submit', function(e) {
+    document.getElementById('editEmailForm').addEventListener('submit', function (e) {
         e.preventDefault();
         updateReservationEmail();
     });
 
     // Evento para cambiar tipo de búsqueda
-    document.getElementById('search-type').addEventListener('change', function() {
+    document.getElementById('search-type').addEventListener('change', function () {
         const searchValue = document.getElementById('search-value');
         const searchType = this.value;
-        
+
         if (searchType === 'fecha_emision' || searchType === 'fecha_servicio') {
             searchValue.type = 'date';
             searchValue.placeholder = 'Selecciona una fecha';
@@ -1585,7 +1585,7 @@ function initReportsEvents() {
     });
 
     // Permitir búsqueda con Enter
-    document.getElementById('search-value').addEventListener('keypress', function(e) {
+    document.getElementById('search-value').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
             searchReservations();
         }
@@ -1598,15 +1598,15 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-panel').forEach(panel => {
         panel.classList.remove('active');
     });
-    
+
     // Quitar clase active de todos los botones
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    
+
     // Mostrar pestaña seleccionada
     document.getElementById('tab-' + tabName).classList.add('active');
-    
+
     // Activar botón correspondiente
     event.target.classList.add('active');
 }
@@ -1615,14 +1615,14 @@ function switchTab(tabName) {
 function loadReservationsByDate(page = 1) {
     const fechaInicio = document.getElementById('fecha-inicio').value;
     const fechaFin = document.getElementById('fecha-fin').value;
-    
+
     if (!fechaInicio || !fechaFin) {
         alert('Por favor, selecciona ambas fechas');
         return;
     }
-    
+
     document.getElementById('reservations-list').innerHTML = '<div class="loading">Cargando reservas...</div>';
-    
+
     const formData = new FormData();
     formData.append('action', 'get_reservations_report');
     formData.append('fecha_inicio', fechaInicio);
@@ -1634,20 +1634,20 @@ function loadReservationsByDate(page = 1) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            renderReservationsReport(data.data);
-        } else {
-            document.getElementById('reservations-list').innerHTML = 
-                '<div class="error">Error: ' + data.data + '</div>';
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('reservations-list').innerHTML = 
-            '<div class="error">Error de conexión</div>';
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderReservationsReport(data.data);
+            } else {
+                document.getElementById('reservations-list').innerHTML =
+                    '<div class="error">Error: ' + data.data + '</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('reservations-list').innerHTML =
+                '<div class="error">Error de conexión</div>';
+        });
 }
 
 function renderReservationsReport(data) {
@@ -1680,10 +1680,10 @@ function renderReservationsReport(data) {
             </div>
         </div>
     `;
-    
+
     document.getElementById('reservations-stats').innerHTML = statsHtml;
     document.getElementById('reservations-stats').style.display = 'block';
-    
+
     // Mostrar tabla de reservas
     let tableHtml = `
         <div class="table-header">
@@ -1706,12 +1706,12 @@ function renderReservationsReport(data) {
             </thead>
             <tbody>
     `;
-    
+
     if (data.reservas && data.reservas.length > 0) {
         data.reservas.forEach(reserva => {
             const fechaFormateada = new Date(reserva.fecha).toLocaleDateString('es-ES');
             const personasDetalle = `A:${reserva.adultos} R:${reserva.residentes} N:${reserva.ninos_5_12} B:${reserva.ninos_menores}`;
-            
+
             tableHtml += `
                 <tr>
                     <td><strong>${reserva.localizador}</strong></td>
@@ -1727,10 +1727,10 @@ function renderReservationsReport(data) {
         <button class="btn-small btn-info" onclick="showReservationDetails(${reserva.id})" title="Ver detalles">👁️</button>
         <button class="btn-small btn-edit" onclick="showEditEmailModal(${reserva.id}, '${reserva.email}')" title="Editar email">✏️</button>
         <button class="btn-small btn-primary" onclick="resendConfirmationEmail(${reserva.id})" title="Reenviar confirmación">📧</button>
-        ${reserva.estado !== 'cancelada' ? 
-            `<button class="btn-small btn-danger" onclick="showCancelReservationModal(${reserva.id}, '${reserva.localizador}')" title="Cancelar reserva">❌</button>` : 
-            `<span class="btn-small" style="background: #6c757d; color: white;">CANCELADA</span>`
-        }
+        ${reserva.estado !== 'cancelada' ?
+                    `<button class="btn-small btn-danger" onclick="showCancelReservationModal(${reserva.id}, '${reserva.localizador}')" title="Cancelar reserva">❌</button>` :
+                    `<span class="btn-small" style="background: #6c757d; color: white;">CANCELADA</span>`
+                }
     </td>
                 </tr>
             `;
@@ -1744,14 +1744,14 @@ function renderReservationsReport(data) {
             </tr>
         `;
     }
-    
+
     tableHtml += `
             </tbody>
         </table>
     `;
-    
+
     document.getElementById('reservations-list').innerHTML = tableHtml;
-    
+
     // Mostrar paginación
     if (data.pagination && data.pagination.total_pages > 1) {
         renderPagination(data.pagination);
@@ -1762,12 +1762,12 @@ function renderReservationsReport(data) {
 
 function renderPagination(pagination) {
     let paginationHtml = '<div class="pagination">';
-    
+
     // Botón anterior
     if (pagination.current_page > 1) {
         paginationHtml += `<button class="btn-pagination" onclick="loadReservationsByDate(${pagination.current_page - 1})">« Anterior</button>`;
     }
-    
+
     // Números de página
     for (let i = 1; i <= pagination.total_pages; i++) {
         if (i === pagination.current_page) {
@@ -1776,18 +1776,18 @@ function renderPagination(pagination) {
             paginationHtml += `<button class="btn-pagination" onclick="loadReservationsByDate(${i})">${i}</button>`;
         }
     }
-    
+
     // Botón siguiente
     if (pagination.current_page < pagination.total_pages) {
         paginationHtml += `<button class="btn-pagination" onclick="loadReservationsByDate(${pagination.current_page + 1})">Siguiente »</button>`;
     }
-    
+
     paginationHtml += `</div>
         <div class="pagination-info">
             Página ${pagination.current_page} de ${pagination.total_pages} 
             (${pagination.total_items} reservas total)
         </div>`;
-    
+
     document.getElementById('reservations-pagination').innerHTML = paginationHtml;
 }
 
@@ -1796,14 +1796,14 @@ function renderPagination(pagination) {
 function searchReservations() {
     const searchType = document.getElementById('search-type').value;
     const searchValue = document.getElementById('search-value').value.trim();
-    
+
     if (!searchValue) {
         alert('Por favor, introduce un valor para buscar');
         return;
     }
-    
+
     document.getElementById('search-results').innerHTML = '<div class="loading">Buscando reservas...</div>';
-    
+
     const formData = new FormData();
     formData.append('action', 'search_reservations');
     formData.append('search_type', searchType);
@@ -1814,20 +1814,20 @@ function searchReservations() {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            renderSearchResults(data.data);
-        } else {
-            document.getElementById('search-results').innerHTML = 
-                '<div class="error">Error: ' + data.data + '</div>';
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('search-results').innerHTML = 
-            '<div class="error">Error de conexión</div>';
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderSearchResults(data.data);
+            } else {
+                document.getElementById('search-results').innerHTML =
+                    '<div class="error">Error: ' + data.data + '</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('search-results').innerHTML =
+                '<div class="error">Error de conexión</div>';
+        });
 }
 
 
@@ -1838,7 +1838,7 @@ function renderSearchResults(data) {
             <p>Búsqueda por <strong>${data.search_type}</strong>: "${data.search_value}"</p>
         </div>
     `;
-    
+
     if (data.reservas && data.reservas.length > 0) {
         resultsHtml += `
             <table class="search-results-table">
@@ -1856,11 +1856,11 @@ function renderSearchResults(data) {
                 </thead>
                 <tbody>
         `;
-        
+
         data.reservas.forEach(reserva => {
             const fechaFormateada = new Date(reserva.fecha).toLocaleDateString('es-ES');
             const personasDetalle = `A:${reserva.adultos} R:${reserva.residentes} N:${reserva.ninos_5_12} B:${reserva.ninos_menores}`;
-            
+
             resultsHtml += `
                 <tr>
                     <td><strong>${reserva.localizador}</strong></td>
@@ -1874,15 +1874,15 @@ function renderSearchResults(data) {
         <button class="btn-small btn-info" onclick="showReservationDetails(${reserva.id})" title="Ver detalles">👁️</button>
         <button class="btn-small btn-edit" onclick="showEditEmailModal(${reserva.id}, '${reserva.email}')" title="Editar email">✏️</button>
         <button class="btn-small btn-primary" onclick="resendConfirmationEmail(${reserva.id})" title="Reenviar confirmación">📧</button>
-        ${reserva.estado !== 'cancelada' ? 
-            `<button class="btn-small btn-danger" onclick="showCancelReservationModal(${reserva.id}, '${reserva.localizador}')" title="Cancelar reserva">❌</button>` : 
-            `<span class="btn-small" style="background: #6c757d; color: white;">CANCELADA</span>`
-        }
+        ${reserva.estado !== 'cancelada' ?
+                    `<button class="btn-small btn-danger" onclick="showCancelReservationModal(${reserva.id}, '${reserva.localizador}')" title="Cancelar reserva">❌</button>` :
+                    `<span class="btn-small" style="background: #6c757d; color: white;">CANCELADA</span>`
+                }
     </td>
                 </tr>
             `;
         });
-        
+
         resultsHtml += `
                 </tbody>
             </table>
@@ -1894,7 +1894,7 @@ function renderSearchResults(data) {
             </div>
         `;
     }
-    
+
     document.getElementById('search-results').innerHTML = resultsHtml;
 }
 
@@ -1909,26 +1909,26 @@ function showReservationDetails(reservaId) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            renderReservationDetails(data.data);
-            document.getElementById('reservationDetailsModal').style.display = 'block';
-        } else {
-            alert('Error cargando detalles: ' + data.data);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error de conexión');
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderReservationDetails(data.data);
+                document.getElementById('reservationDetailsModal').style.display = 'block';
+            } else {
+                alert('Error cargando detalles: ' + data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
 }
 
 
 function renderReservationDetails(reserva) {
     const fechaServicio = new Date(reserva.fecha).toLocaleDateString('es-ES');
     const fechaCreacion = new Date(reserva.created_at).toLocaleDateString('es-ES');
-    
+
     let descuentoInfo = '';
     if (reserva.regla_descuento_aplicada) {
         descuentoInfo = `
@@ -1940,7 +1940,7 @@ function renderReservationDetails(reserva) {
             </div>
         `;
     }
-    
+
     const detailsHtml = `
         <div class="reservation-details">
             <div class="details-grid">
@@ -1986,7 +1986,7 @@ function renderReservationDetails(reserva) {
             </div>
         </div>
     `;
-    
+
     document.getElementById('reservationModalTitle').textContent = `Detalles de Reserva - ${reserva.localizador}`;
     document.getElementById('reservation-details-content').innerHTML = detailsHtml;
 }
@@ -2002,12 +2002,12 @@ function showEditEmailModal(reservaId, currentEmail) {
 function updateReservationEmail() {
     const reservaId = document.getElementById('edit-reserva-id').value;
     const newEmail = document.getElementById('new-email').value;
-    
+
     if (!newEmail || !newEmail.includes('@')) {
         alert('Por favor, introduce un email válido');
         return;
     }
-    
+
     const formData = new FormData();
     formData.append('action', 'update_reservation_email');
     formData.append('reserva_id', reservaId);
@@ -2018,26 +2018,26 @@ function updateReservationEmail() {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Email actualizado correctamente');
-            closeEditEmailModal();
-            // Recargar la lista actual
-            const activeTab = document.querySelector('.tab-btn.active').onclick.toString();
-            if (activeTab.includes('reservations')) {
-                loadReservationsByDate();
-            } else if (activeTab.includes('search')) {
-                searchReservations();
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Email actualizado correctamente');
+                closeEditEmailModal();
+                // Recargar la lista actual
+                const activeTab = document.querySelector('.tab-btn.active').onclick.toString();
+                if (activeTab.includes('reservations')) {
+                    loadReservationsByDate();
+                } else if (activeTab.includes('search')) {
+                    searchReservations();
+                }
+            } else {
+                alert('Error actualizando email: ' + data.data);
             }
-        } else {
-            alert('Error actualizando email: ' + data.data);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error de conexión');
-    });
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
 }
 
 // ✅ FUNCIÓN PARA REENVIAR EMAIL DE CONFIRMACIÓN
@@ -2045,7 +2045,7 @@ function resendConfirmationEmail(reservaId) {
     if (!confirm('¿Reenviar email de confirmación al cliente?')) {
         return;
     }
-    
+
     const formData = new FormData();
     formData.append('action', 'resend_confirmation_email');
     formData.append('reserva_id', reservaId);
@@ -2055,24 +2055,24 @@ function resendConfirmationEmail(reservaId) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert(data.data);
-        } else {
-            alert('Error reenviando email: ' + data.data);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error de conexión');
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.data);
+            } else {
+                alert('Error reenviando email: ' + data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
 }
 
 // ✅ FUNCIÓN PARA CARGAR ESTADÍSTICAS POR RANGO
 function loadRangeStats(rangeType) {
     document.getElementById('analytics-results').innerHTML = '<div class="loading">Cargando análisis...</div>';
-    
+
     const formData = new FormData();
     formData.append('action', 'get_date_range_stats');
     formData.append('range_type', rangeType);
@@ -2082,34 +2082,34 @@ function loadRangeStats(rangeType) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            renderAnalyticsResults(data.data);
-        } else {
-            document.getElementById('analytics-results').innerHTML = 
-                '<div class="error">Error: ' + data.data + '</div>';
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('analytics-results').innerHTML = 
-            '<div class="error">Error de conexión</div>';
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderAnalyticsResults(data.data);
+            } else {
+                document.getElementById('analytics-results').innerHTML =
+                    '<div class="error">Error: ' + data.data + '</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('analytics-results').innerHTML =
+                '<div class="error">Error de conexión</div>';
+        });
 }
 
 // ✅ FUNCIÓN PARA CARGAR ESTADÍSTICAS PERSONALIZADAS
 function loadCustomRangeStats() {
     const fechaInicio = document.getElementById('custom-fecha-inicio').value;
     const fechaFin = document.getElementById('custom-fecha-fin').value;
-    
+
     if (!fechaInicio || !fechaFin) {
         alert('Por favor, selecciona ambas fechas');
         return;
     }
-    
+
     document.getElementById('analytics-results').innerHTML = '<div class="loading">Cargando análisis...</div>';
-    
+
     const formData = new FormData();
     formData.append('action', 'get_date_range_stats');
     formData.append('range_type', 'custom');
@@ -2121,28 +2121,28 @@ function loadCustomRangeStats() {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            renderAnalyticsResults(data.data);
-        } else {
-            document.getElementById('analytics-results').innerHTML = 
-                '<div class="error">Error: ' + data.data + '</div>';
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('analytics-results').innerHTML = 
-            '<div class="error">Error de conexión</div>';
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderAnalyticsResults(data.data);
+            } else {
+                document.getElementById('analytics-results').innerHTML =
+                    '<div class="error">Error: ' + data.data + '</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('analytics-results').innerHTML =
+                '<div class="error">Error de conexión</div>';
+        });
 }
 
 // ✅ FUNCIÓN PARA RENDERIZAR RESULTADOS DE ANÁLISIS
 function renderAnalyticsResults(data) {
     const stats = data.stats;
-    const promedioPersonasPorReserva = stats.total_reservas > 0 ? 
+    const promedioPersonasPorReserva = stats.total_reservas > 0 ?
         (parseFloat(stats.total_personas_con_plaza) / parseFloat(stats.total_reservas)).toFixed(1) : 0;
-    
+
     let analyticsHtml = `
         <div class="analytics-summary">
             <h4>📊 Resumen del Período: ${data.fecha_inicio} al ${data.fecha_fin}</h4>
@@ -2194,7 +2194,7 @@ function renderAnalyticsResults(data) {
             </div>
         </div>
     `;
-    
+
     // Agregar gráfico simple de reservas por día si hay datos
     if (data.reservas_por_dia && data.reservas_por_dia.length > 0) {
         analyticsHtml += `
@@ -2202,11 +2202,11 @@ function renderAnalyticsResults(data) {
                 <h5>📈 Reservas por Día</h5>
                 <div class="chart-container">
         `;
-        
+
         data.reservas_por_dia.forEach(dia => {
-            const fecha = new Date(dia.fecha).toLocaleDateString('es-ES', { 
-                day: '2-digit', 
-                month: '2-digit' 
+            const fecha = new Date(dia.fecha).toLocaleDateString('es-ES', {
+                day: '2-digit',
+                month: '2-digit'
             });
             analyticsHtml += `
                 <div class="chart-bar">
@@ -2216,20 +2216,20 @@ function renderAnalyticsResults(data) {
                 </div>
             `;
         });
-        
+
         analyticsHtml += `
                 </div>
             </div>
         `;
     }
-    
+
     document.getElementById('analytics-results').innerHTML = analyticsHtml;
 }
 
 function showQuickStatsModal() {
     document.getElementById('quick-stats-content').innerHTML = '<div class="loading">📊 Cargando estadísticas...</div>';
     document.getElementById('quickStatsModal').style.display = 'block';
-    
+
     // Cargar estadísticas
     loadQuickStats();
 }
@@ -2244,36 +2244,36 @@ function loadQuickStats() {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            renderQuickStats(data.data);
-        } else {
-            document.getElementById('quick-stats-content').innerHTML = 
-                '<div class="error">❌ Error cargando estadísticas: ' + data.data + '</div>';
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('quick-stats-content').innerHTML = 
-            '<div class="error">❌ Error de conexión</div>';
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderQuickStats(data.data);
+            } else {
+                document.getElementById('quick-stats-content').innerHTML =
+                    '<div class="error">❌ Error cargando estadísticas: ' + data.data + '</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('quick-stats-content').innerHTML =
+                '<div class="error">❌ Error de conexión</div>';
+        });
 }
 
 
 function renderQuickStats(stats) {
-    const hoy = new Date().toLocaleDateString('es-ES', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+    const hoy = new Date().toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
     });
-    
+
     // Determinar color y emoji para el crecimiento
     let crecimientoColor = '#28a745';
     let crecimientoEmoji = '📈';
     let crecimientoTexto = 'Crecimiento';
-    
+
     if (stats.ingresos.crecimiento < 0) {
         crecimientoColor = '#dc3545';
         crecimientoEmoji = '📉';
@@ -2335,16 +2335,16 @@ function renderQuickStats(stats) {
                     <h5>🏆 Top Días con Más Reservas</h5>
                     <div class="top-days">
     `;
-    
+
     if (stats.top_dias && stats.top_dias.length > 0) {
         stats.top_dias.forEach((dia, index) => {
-            const fecha = new Date(dia.fecha).toLocaleDateString('es-ES', { 
-                weekday: 'short', 
-                day: '2-digit', 
-                month: '2-digit' 
+            const fecha = new Date(dia.fecha).toLocaleDateString('es-ES', {
+                weekday: 'short',
+                day: '2-digit',
+                month: '2-digit'
             });
             const medalla = ['🥇', '🥈', '🥉'][index] || '🏅';
-            
+
             html += `
                 <div class="top-day-item">
                     <span class="medal">${medalla}</span>
@@ -2357,7 +2357,7 @@ function renderQuickStats(stats) {
     } else {
         html += '<p class="no-data">📊 No hay datos suficientes este mes</p>';
     }
-    
+
     html += `
                     </div>
                 </div>
@@ -2366,7 +2366,7 @@ function renderQuickStats(stats) {
                 <div class="stat-section">
                     <h5>⭐ Cliente Más Frecuente (último mes)</h5>
     `;
-    
+
     if (stats.cliente_frecuente && stats.cliente_frecuente.total_reservas > 1) {
         html += `
             <div class="frequent-customer">
@@ -2382,7 +2382,7 @@ function renderQuickStats(stats) {
     } else {
         html += '<p class="no-data">👥 No hay clientes frecuentes aún</p>';
     }
-    
+
     html += `
                 </div>
                 
@@ -2391,13 +2391,13 @@ function renderQuickStats(stats) {
                     <h5>👥 Distribución de Clientes (Este Mes)</h5>
                     <div class="client-distribution">
     `;
-    
+
     if (stats.tipos_cliente) {
-        const total = parseInt(stats.tipos_cliente.total_adultos || 0) + 
-                     parseInt(stats.tipos_cliente.total_residentes || 0) + 
-                     parseInt(stats.tipos_cliente.total_ninos || 0) + 
-                     parseInt(stats.tipos_cliente.total_bebes || 0);
-        
+        const total = parseInt(stats.tipos_cliente.total_adultos || 0) +
+            parseInt(stats.tipos_cliente.total_residentes || 0) +
+            parseInt(stats.tipos_cliente.total_ninos || 0) +
+            parseInt(stats.tipos_cliente.total_bebes || 0);
+
         if (total > 0) {
             html += `
                 <div class="client-type">
@@ -2425,7 +2425,7 @@ function renderQuickStats(stats) {
             html += '<p class="no-data">📊 No hay reservas este mes</p>';
         }
     }
-    
+
     html += `
                     </div>
                 </div>
@@ -2435,17 +2435,17 @@ function renderQuickStats(stats) {
                     <h5>⚠️ Próximos Servicios con Alta Ocupación (>80%)</h5>
                     <div class="high-occupancy">
     `;
-    
+
     if (stats.servicios_alta_ocupacion && stats.servicios_alta_ocupacion.length > 0) {
         stats.servicios_alta_ocupacion.forEach(servicio => {
-            const fecha = new Date(servicio.fecha).toLocaleDateString('es-ES', { 
-                weekday: 'short', 
-                day: '2-digit', 
-                month: '2-digit' 
+            const fecha = new Date(servicio.fecha).toLocaleDateString('es-ES', {
+                weekday: 'short',
+                day: '2-digit',
+                month: '2-digit'
             });
             const ocupacion = parseFloat(servicio.ocupacion).toFixed(1);
             const ocupadas = servicio.plazas_totales - servicio.plazas_disponibles;
-            
+
             html += `
                 <div class="service-alert">
                     <span class="service-date">${fecha} ${servicio.hora}</span>
@@ -2457,7 +2457,7 @@ function renderQuickStats(stats) {
     } else {
         html += '<p class="no-data">✅ No hay servicios con alta ocupación</p>';
     }
-    
+
     html += `
                     </div>
                 </div>
@@ -2469,7 +2469,7 @@ function renderQuickStats(stats) {
             </div>
         </div>
     `;
-    
+
     document.getElementById('quick-stats-content').innerHTML = html;
 }
 
@@ -2526,14 +2526,14 @@ function showCancelReservationModal(reservaId, localizador) {
             </div>
         `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
-        
+
         // Añadir evento al formulario
-        document.getElementById('cancelReservationForm').addEventListener('submit', function(e) {
+        document.getElementById('cancelReservationForm').addEventListener('submit', function (e) {
             e.preventDefault();
             processCancelReservation();
         });
     }
-    
+
     // Configurar modal
     document.getElementById('cancel-reserva-id').value = reservaId;
     document.getElementById('cancel-localizador').textContent = localizador;
@@ -2554,17 +2554,17 @@ function closeCancelReservationModal() {
 function processCancelReservation() {
     const reservaId = document.getElementById('cancel-reserva-id').value;
     const motivo = document.getElementById('motivo-cancelacion').value || 'Cancelación administrativa';
-    
+
     if (!confirm('¿Estás COMPLETAMENTE SEGURO de cancelar esta reserva?\n\n⚠️ ESTA ACCIÓN NO SE PUEDE DESHACER ⚠️')) {
         return;
     }
-    
+
     // Deshabilitar botón
     const submitBtn = document.querySelector('#cancelReservationForm button[type="submit"]');
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = '⏳ Cancelando...';
-    
+
     const formData = new FormData();
     formData.append('action', 'cancel_reservation');
     formData.append('reserva_id', reservaId);
@@ -2575,33 +2575,1125 @@ function processCancelReservation() {
         method: 'POST',
         body: formData
     })
+        .then(response => response.json())
+        .then(data => {
+            // Rehabilitar botón
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+
+            if (data.success) {
+                alert('✅ ' + data.data);
+                closeCancelReservationModal();
+
+                // Recargar la lista actual
+                const activeTab = document.querySelector('.tab-btn.active');
+                if (activeTab && activeTab.textContent.includes('Reservas')) {
+                    loadReservationsByDate();
+                } else if (activeTab && activeTab.textContent.includes('Buscar')) {
+                    searchReservations();
+                }
+            } else {
+                alert('❌ Error: ' + data.data);
+            }
+        })
+        .catch(error => {
+            // Rehabilitar botón
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+
+            console.error('Error:', error);
+            alert('❌ Error de conexión al cancelar la reserva');
+        });
+}
+
+
+
+// ✅ NUEVA FUNCIÓN: Reserva Rápida para Dashboard Admin
+// Agregar al archivo: wp-content/plugins/sistema-reservas/assets/js/dashboard-script.js
+
+function loadReservaRapidaSection() {
+    document.body.innerHTML = `
+        <div class="reserva-rapida-management">
+            <div class="reserva-rapida-header">
+                <h1>⚡ Reserva Rápida - Administración</h1>
+                <div class="reserva-rapida-actions">
+                    <button class="btn-secondary" onclick="goBackToDashboard()">← Volver al Dashboard</button>
+                </div>
+            </div>
+            
+            <!-- Contenedor principal con pasos -->
+            <div class="reserva-rapida-container">
+                
+                <!-- PASO 1: Selección de Fecha y Horario -->
+                <div class="step-card" id="step-1-admin">
+                    <h3>1. SELECCIONAR FECHA Y HORARIO</h3>
+                    <div class="calendar-container">
+                        <div class="calendar-header">
+                            <button type="button" id="admin-prev-month">‹</button>
+                            <span id="admin-current-month-year"></span>
+                            <button type="button" id="admin-next-month">›</button>
+                        </div>
+                        <div class="calendar-grid" id="admin-calendar-grid">
+                            <div class="loading">Cargando calendario...</div>
+                        </div>
+                        <div class="calendar-legend">
+                            <span class="legend-item">
+                                <span class="legend-color no-disponible"></span>
+                                No Disponible
+                            </span>
+                            <span class="legend-item">
+                                <span class="legend-color seleccion"></span>
+                                Selección
+                            </span>
+                            <span class="legend-item">
+                                <span class="legend-color oferta"></span>
+                                Con Oferta
+                            </span>
+                        </div>
+                        <div class="horarios-section" style="margin-top: 20px;">
+                            <label style="font-weight: bold; margin-bottom: 10px; display: block;">HORARIOS DISPONIBLES:</label>
+                            <select id="admin-horarios-select" disabled style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px;">
+                                <option value="">Selecciona primero una fecha</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PASO 2: Selección de Personas -->
+                <div class="step-card" id="step-2-admin" style="display: none;">
+                    <h3>2. SELECCIONAR PERSONAS</h3>
+                    <div class="calendar-container">
+                        <div class="persons-grid">
+                            <div class="person-selector">
+                                <label>ADULTOS</label>
+                                <input type="number" id="admin-adultos" min="0" max="999" value="0" class="person-input">
+                            </div>
+                            <div class="person-selector">
+                                <label>RESIDENTES</label>
+                                <input type="number" id="admin-residentes" min="0" max="999" value="0" class="person-input">
+                            </div>
+                            <div class="person-selector">
+                                <label>NIÑOS (5-12 AÑOS)</label>
+                                <input type="number" id="admin-ninos-5-12" min="0" max="999" value="0" class="person-input">
+                            </div>
+                            <div class="person-selector">
+                                <label>NIÑOS (-5 AÑOS)</label>
+                                <input type="number" id="admin-ninos-menores" min="0" max="999" value="0" class="person-input">
+                            </div>
+                        </div>
+
+                        <div class="price-summary" style="margin-top: 20px;">
+                            <div class="price-row">
+                                <span>ADULTOS: <span id="admin-price-adultos">10€</span></span>
+                                <span>NIÑOS (5-12): <span id="admin-price-ninos">5€</span></span>
+                            </div>
+                            <div class="price-notes">
+                                <p>*NIÑOS (Menores de 5 años): 0€ (viajan gratis).</p>
+                                <p>*RESIDENTES en Córdoba: 50% de descuento.</p>
+                                <p>*En reservas de más de 10 personas se aplica DESCUENTO POR GRUPO.</p>
+                            </div>
+                        </div>
+
+                        <!-- Mensaje de descuento por grupo -->
+                        <div id="admin-discount-message" class="discount-message">
+                            <span id="admin-discount-text">Descuento del 15% por grupo numeroso</span>
+                        </div>
+
+                        <div class="total-price">
+                            <div class="discount-row" id="admin-discount-row" style="display: none;">
+                                <span class="discount">DESCUENTOS: <span id="admin-total-discount"></span></span>
+                            </div>
+                            <div class="total-row">
+                                <span class="total">TOTAL: <span id="admin-total-price">0€</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PASO 3: Datos del Cliente -->
+                <div class="step-card" id="step-3-admin" style="display: none;">
+                    <h3>3. DATOS DEL CLIENTE</h3>
+                    <div class="calendar-container">
+                        <form id="admin-client-form">
+                            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                <div class="form-group">
+                                    <label style="font-weight: bold; margin-bottom: 5px; display: block;">NOMBRE:</label>
+                                    <input type="text" name="nombre" placeholder="Nombre del cliente" required style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px;">
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-weight: bold; margin-bottom: 5px; display: block;">APELLIDOS:</label>
+                                    <input type="text" name="apellidos" placeholder="Apellidos del cliente" required style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px;">
+                                </div>
+                            </div>
+                            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                <div class="form-group">
+                                    <label style="font-weight: bold; margin-bottom: 5px; display: block;">EMAIL:</label>
+                                    <input type="email" name="email" placeholder="email@ejemplo.com" required style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px;">
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-weight: bold; margin-bottom: 5px; display: block;">TELÉFONO:</label>
+                                    <input type="tel" name="telefono" placeholder="600 000 000" required style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px;">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- PASO 4: Confirmación -->
+                <div class="step-card" id="step-4-admin" style="display: none;">
+                    <h3>4. CONFIRMACIÓN DE RESERVA</h3>
+                    <div class="calendar-container">
+                        <div class="confirmation-summary" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                            <h4 style="margin-top: 0; color: #0073aa;">📋 Resumen de la Reserva</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <div>
+                                    <p><strong>Fecha:</strong> <span id="confirm-fecha">-</span></p>
+                                    <p><strong>Hora:</strong> <span id="confirm-hora">-</span></p>
+                                    <p><strong>Total personas:</strong> <span id="confirm-personas">-</span></p>
+                                </div>
+                                <div>
+                                    <p><strong>Cliente:</strong> <span id="confirm-cliente">-</span></p>
+                                    <p><strong>Email:</strong> <span id="confirm-email">-</span></p>
+                                    <p><strong>Total:</strong> <span id="confirm-total" style="color: #28a745; font-weight: bold;">-</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navegación entre pasos -->
+                <div class="step-navigation" style="display: flex; justify-content: space-between; margin-top: 30px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <button type="button" id="admin-btn-anterior" class="btn-secondary" onclick="adminPreviousStep()" style="display: none;">← Anterior</button>
+                    <div class="step-indicator" style="flex: 1; text-align: center;">
+                        <span id="admin-step-text">Paso 1 de 4: Seleccionar fecha y horario</span>
+                    </div>
+                    <button type="button" id="admin-btn-siguiente" class="btn-primary" onclick="adminNextStep()" disabled>Siguiente →</button>
+                    <button type="button" id="admin-btn-confirmar" class="btn-primary" onclick="adminConfirmReservation()" style="display: none;">✅ CONFIRMAR RESERVA</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Agregar estilos específicos -->
+        <style>
+        .reserva-rapida-management {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            background: #f1f1f1;
+            min-height: 100vh;
+        }
+
+        .reserva-rapida-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .reserva-rapida-header h1 {
+            margin: 0;
+            color: #23282d;
+        }
+
+        .reserva-rapida-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .step-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .step-card h3 {
+            background: #EFCF4B;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .calendar-container {
+            padding: 20px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .calendar-header button {
+            background: #0073aa;
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .calendar-header span {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            margin-bottom: 20px;
+        }
+
+        .calendar-day-header {
+            background: #666;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .calendar-day {
+            background: white;
+            min-height: 50px;
+            padding: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            position: relative;
+            transition: all 0.3s;
+            border: 1px solid #ddd;
+        }
+
+        .calendar-day:hover {
+            background: #f8f9fa;
+        }
+
+        .calendar-day.other-month {
+            background: #E5E5E5;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        .calendar-day.no-disponible {
+            background: #E5E5E5;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        .calendar-day.disponible {
+            background: white;
+            cursor: pointer;
+        }
+
+        .calendar-day.selected {
+            background: #E74C3C !important;
+            color: white;
+        }
+
+        .calendar-day.oferta {
+            background: #F4D03F;
+            color: #333;
+        }
+
+        .calendar-legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .legend-color.no-disponible {
+            background: #E5E5E5;
+        }
+
+        .legend-color.seleccion {
+            background: #E74C3C;
+        }
+
+        .legend-color.oferta {
+            background: #F4D03F;
+        }
+
+        .persons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .person-selector {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .person-selector label {
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .person-input {
+            width: 60px;
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .price-summary {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .price-notes {
+            margin: 15px 0;
+        }
+
+        .price-notes p {
+            margin: 5px 0;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .total-price {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 2px solid #ddd;
+        }
+
+        .discount-message {
+            background: #871727;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .discount-message.show {
+            display: block;
+        }
+
+        .step-navigation {
+            position: sticky;
+            bottom: 0;
+            z-index: 100;
+        }
+
+        .step-indicator {
+            font-weight: bold;
+            color: #0073aa;
+        }
+
+        @media (max-width: 768px) {
+            .reserva-rapida-management {
+                padding: 10px;
+            }
+            
+            .persons-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr !important;
+            }
+        }
+        </style>
+    `;
+
+    // Inicializar la reserva rápida
+    initAdminQuickReservation();
+}
+
+// Variables globales para reserva rápida admin
+let adminCurrentDate = new Date();
+let adminSelectedDate = null;
+let adminSelectedServiceId = null;
+let adminServicesData = {};
+let adminCurrentStep = 1;
+let adminDiasAnticiapcionMinima = 1;
+
+function initAdminQuickReservation() {
+    console.log('=== INICIALIZANDO RESERVA RÁPIDA ADMIN ===');
+    
+    // Cargar configuración y luego calendario
+    loadAdminSystemConfiguration().then(() => {
+        loadAdminCalendar();
+        setupAdminEventListeners();
+    });
+}
+
+function loadAdminSystemConfiguration() {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('action', 'get_configuration');
+        formData.append('nonce', reservasAjax.nonce);
+
+        fetch(reservasAjax.ajax_url, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const config = data.data;
+                adminDiasAnticiapcionMinima = parseInt(config.servicios?.dias_anticipacion_minima?.value || '1');
+                console.log('Admin: Días de anticipación mínima cargados:', adminDiasAnticiapcionMinima);
+                resolve();
+            } else {
+                console.warn('Admin: No se pudo cargar configuración, usando valores por defecto');
+                adminDiasAnticiapcionMinima = 1;
+                resolve();
+            }
+        })
+        .catch(error => {
+            console.error('Error cargando configuración:', error);
+            adminDiasAnticiapcionMinima = 1;
+            resolve();
+        });
+    });
+}
+
+function setupAdminEventListeners() {
+    // Navegación del calendario
+    document.getElementById('admin-prev-month').addEventListener('click', function() {
+        adminCurrentDate.setMonth(adminCurrentDate.getMonth() - 1);
+        loadAdminCalendar();
+    });
+
+    document.getElementById('admin-next-month').addEventListener('click', function() {
+        adminCurrentDate.setMonth(adminCurrentDate.getMonth() + 1);
+        loadAdminCalendar();
+    });
+
+    // Selección de horario
+    document.getElementById('admin-horarios-select').addEventListener('change', function() {
+        adminSelectedServiceId = this.value;
+        if (adminSelectedServiceId) {
+            document.getElementById('admin-btn-siguiente').disabled = false;
+            loadAdminPrices();
+        } else {
+            document.getElementById('admin-btn-siguiente').disabled = true;
+            document.getElementById('admin-total-price').textContent = '0€';
+        }
+    });
+
+    // Cambios en selectores de personas
+    ['admin-adultos', 'admin-residentes', 'admin-ninos-5-12', 'admin-ninos-menores'].forEach(id => {
+        document.getElementById(id).addEventListener('input', function() {
+            setTimeout(() => {
+                calculateAdminTotalPrice();
+                validateAdminPersonSelection();
+            }, 100);
+        });
+    });
+}
+
+function loadAdminCalendar() {
+    updateAdminCalendarHeader();
+
+    const formData = new FormData();
+    formData.append('action', 'get_available_services');
+    formData.append('month', adminCurrentDate.getMonth() + 1);
+    formData.append('year', adminCurrentDate.getFullYear());
+    formData.append('nonce', reservasAjax.nonce);
+
+    fetch(reservasAjax.ajax_url, {
+        method: 'POST',
+        body: formData
+    })
     .then(response => response.json())
     .then(data => {
-        // Rehabilitar botón
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
-        
         if (data.success) {
-            alert('✅ ' + data.data);
-            closeCancelReservationModal();
-            
-            // Recargar la lista actual
-            const activeTab = document.querySelector('.tab-btn.active');
-            if (activeTab && activeTab.textContent.includes('Reservas')) {
-                loadReservationsByDate();
-            } else if (activeTab && activeTab.textContent.includes('Buscar')) {
-                searchReservations();
-            }
+            adminServicesData = data.data;
+            renderAdminCalendar();
         } else {
-            alert('❌ Error: ' + data.data);
+            console.error('Error cargando servicios admin:', data.data);
         }
     })
     .catch(error => {
-        // Rehabilitar botón
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText;
-        
         console.error('Error:', error);
-        alert('❌ Error de conexión al cancelar la reserva');
     });
 }
+
+function updateAdminCalendarHeader() {
+    const monthNames = [
+        'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+        'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+    ];
+
+    const monthYear = monthNames[adminCurrentDate.getMonth()] + ' ' + adminCurrentDate.getFullYear();
+    document.getElementById('admin-current-month-year').textContent = monthYear;
+}
+
+function renderAdminCalendar() {
+    const year = adminCurrentDate.getFullYear();
+    const month = adminCurrentDate.getMonth();
+
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    let firstDayOfWeek = firstDay.getDay();
+    firstDayOfWeek = (firstDayOfWeek + 6) % 7; // Lunes = 0
+
+    const daysInMonth = lastDay.getDate();
+    const dayNames = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+    let calendarHTML = '';
+
+    // Encabezados de días
+    dayNames.forEach(day => {
+        calendarHTML += `<div class="calendar-day-header">${day}</div>`;
+    });
+
+    // Días del mes anterior
+    for (let i = 0; i < firstDayOfWeek; i++) {
+        const dayNum = new Date(year, month, -firstDayOfWeek + i + 1).getDate();
+        calendarHTML += `<div class="calendar-day other-month">${dayNum}</div>`;
+    }
+
+    // Calcular fecha mínima basada en configuración
+    const today = new Date();
+    const fechaMinima = new Date();
+    fechaMinima.setDate(today.getDate() + adminDiasAnticiapcionMinima);
+
+    // Días del mes actual
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayDate = new Date(year, month, day);
+
+        let dayClass = 'calendar-day';
+        let clickHandler = '';
+
+        // Verificar si el día está bloqueado por días de anticipación
+        const isBlockedByAnticipacion = dayDate < fechaMinima;
+
+        if (isBlockedByAnticipacion) {
+            dayClass += ' no-disponible';
+        } else if (adminServicesData[dateStr] && adminServicesData[dateStr].length > 0) {
+            dayClass += ' disponible';
+            clickHandler = `onclick="selectAdminDate('${dateStr}')"`;
+
+            // Verificar si algún servicio tiene descuento
+            const tieneDescuento = adminServicesData[dateStr].some(service =>
+                service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0
+            );
+
+            if (tieneDescuento) {
+                dayClass += ' oferta';
+            }
+        } else {
+            dayClass += ' no-disponible';
+        }
+
+        if (adminSelectedDate === dateStr) {
+            dayClass += ' selected';
+        }
+
+        calendarHTML += `<div class="${dayClass}" ${clickHandler}>${day}</div>`;
+    }
+
+    document.getElementById('admin-calendar-grid').innerHTML = calendarHTML;
+}
+
+function selectAdminDate(dateStr) {
+    adminSelectedDate = dateStr;
+    adminSelectedServiceId = null;
+
+    // Actualizar visual del calendario
+    document.querySelectorAll('.calendar-day').forEach(day => {
+        day.classList.remove('selected');
+    });
+    event.target.classList.add('selected');
+
+    // Cargar horarios disponibles
+    loadAdminAvailableSchedules(dateStr);
+}
+
+function loadAdminAvailableSchedules(dateStr) {
+    const services = adminServicesData[dateStr] || [];
+
+    let optionsHTML = '<option value="">Selecciona un horario</option>';
+
+    services.forEach(service => {
+        let descuentoInfo = '';
+        if (service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0) {
+            descuentoInfo = ` (${service.porcentaje_descuento}% descuento)`;
+        }
+
+        optionsHTML += `<option value="${service.id}">${service.hora} - ${service.plazas_disponibles} plazas disponibles${descuentoInfo}</option>`;
+    });
+
+    document.getElementById('admin-horarios-select').innerHTML = optionsHTML;
+    document.getElementById('admin-horarios-select').disabled = false;
+    document.getElementById('admin-btn-siguiente').disabled = true;
+}
+
+function loadAdminPrices() {
+    if (!adminSelectedServiceId) return;
+
+    const service = findAdminServiceById(adminSelectedServiceId);
+    if (service) {
+        document.getElementById('admin-price-adultos').textContent = service.precio_adulto + '€';
+        document.getElementById('admin-price-ninos').textContent = service.precio_nino + '€';
+        calculateAdminTotalPrice();
+    }
+}
+
+function findAdminServiceById(serviceId) {
+    for (let date in adminServicesData) {
+        for (let service of adminServicesData[date]) {
+            if (service.id == serviceId) {
+                return service;
+            }
+        }
+    }
+    return null;
+}
+
+function calculateAdminTotalPrice() {
+    if (!adminSelectedServiceId) {
+        clearAdminPricing();
+        return;
+    }
+
+    const adultos = parseInt(document.getElementById('admin-adultos').value) || 0;
+    const residentes = parseInt(document.getElementById('admin-residentes').value) || 0;
+    const ninos512 = parseInt(document.getElementById('admin-ninos-5-12').value) || 0;
+    const ninosMenores = parseInt(document.getElementById('admin-ninos-menores').value) || 0;
+
+    const totalPersonas = adultos + residentes + ninos512 + ninosMenores;
+
+    if (totalPersonas === 0) {
+        document.getElementById('admin-total-discount').textContent = '';
+        document.getElementById('admin-total-price').textContent = '0€';
+        document.getElementById('admin-discount-row').style.display = 'none';
+        document.getElementById('admin-discount-message').classList.remove('show');
+        return;
+    }
+
+    // Llamar al cálculo de precio del servidor
+    const formData = new FormData();
+    formData.append('action', 'calculate_price');
+    formData.append('service_id', adminSelectedServiceId);
+    formData.append('adultos', adultos);
+    formData.append('residentes', residentes);
+    formData.append('ninos_5_12', ninos512);
+    formData.append('ninos_menores', ninosMenores);
+    formData.append('nonce', reservasAjax.nonce);
+
+    fetch(reservasAjax.ajax_url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const result = data.data;
+            updateAdminPricingDisplay(result);
+        } else {
+            console.error('Error calculando precio admin:', data);
+            document.getElementById('admin-total-price').textContent = '0€';
+            document.getElementById('admin-total-discount').textContent = '';
+            document.getElementById('admin-discount-row').style.display = 'none';
+            document.getElementById('admin-discount-message').classList.remove('show');
+        }
+    })
+    .catch(error => {
+        console.error('Error calculando precio admin:', error);
+        document.getElementById('admin-total-price').textContent = '0€';
+        document.getElementById('admin-total-discount').textContent = '';
+        document.getElementById('admin-discount-row').style.display = 'none';
+        document.getElementById('admin-discount-message').classList.remove('show');
+    });
+}
+
+function updateAdminPricingDisplay(result) {
+    // Manejar descuentos
+    if (result.descuento > 0) {
+        document.getElementById('admin-total-discount').textContent = '-' + result.descuento.toFixed(2) + '€';
+        document.getElementById('admin-discount-row').style.display = 'block';
+    } else {
+        document.getElementById('admin-discount-row').style.display = 'none';
+    }
+
+    // Manejar mensaje de descuento por grupo
+    if (result.regla_descuento_aplicada && result.regla_descuento_aplicada.rule_name) {
+        const regla = result.regla_descuento_aplicada;
+        const mensaje = `Descuento del ${regla.discount_percentage}% por ${regla.rule_name.toLowerCase()}`;
+
+        document.getElementById('admin-discount-text').textContent = mensaje;
+        document.getElementById('admin-discount-message').classList.add('show');
+    } else {
+        document.getElementById('admin-discount-message').classList.remove('show');
+    }
+
+    window.adminLastDiscountRule = result.regla_descuento_aplicada;
+
+    // Actualizar precio total
+    const totalPrice = parseFloat(result.total) || 0;
+    document.getElementById('admin-total-price').textContent = totalPrice.toFixed(2) + '€';
+}
+
+function clearAdminPricing() {
+    document.getElementById('admin-total-discount').textContent = '';
+    document.getElementById('admin-total-price').textContent = '0€';
+    document.getElementById('admin-discount-row').style.display = 'none';
+    document.getElementById('admin-discount-message').classList.remove('show');
+}
+
+function validateAdminPersonSelection() {
+    const adultos = parseInt(document.getElementById('admin-adultos').value) || 0;
+    const residentes = parseInt(document.getElementById('admin-residentes').value) || 0;
+    const ninos512 = parseInt(document.getElementById('admin-ninos-5-12').value) || 0;
+    const ninosMenores = parseInt(document.getElementById('admin-ninos-menores').value) || 0;
+
+    const totalAdults = adultos + residentes;
+    const totalChildren = ninos512 + ninosMenores;
+
+    if (totalChildren > 0 && totalAdults === 0) {
+        alert('Debe haber al menos un adulto si hay niños en la reserva.');
+        document.getElementById('admin-ninos-5-12').value = 0;
+        document.getElementById('admin-ninos-menores').value = 0;
+        calculateAdminTotalPrice();
+        return false;
+    }
+
+    return true;
+}
+
+// Navegación entre pasos
+function adminNextStep() {
+    console.log('Admin: Avanzando al siguiente paso desde', adminCurrentStep);
+    
+    if (adminCurrentStep === 1) {
+        // Validar paso 1
+        if (!adminSelectedDate || !adminSelectedServiceId) {
+            alert('Por favor, selecciona una fecha y horario.');
+            return;
+        }
+        
+        // Mostrar paso 2
+        document.getElementById('step-1-admin').style.display = 'none';
+        document.getElementById('step-2-admin').style.display = 'block';
+        document.getElementById('admin-btn-anterior').style.display = 'block';
+        document.getElementById('admin-btn-siguiente').disabled = true;
+        document.getElementById('admin-step-text').textContent = 'Paso 2 de 4: Seleccionar personas';
+        adminCurrentStep = 2;
+        
+    } else if (adminCurrentStep === 2) {
+        // Validar paso 2
+        const adultos = parseInt(document.getElementById('admin-adultos').value) || 0;
+        const residentes = parseInt(document.getElementById('admin-residentes').value) || 0;
+        const ninos512 = parseInt(document.getElementById('admin-ninos-5-12').value) || 0;
+        const ninosMenores = parseInt(document.getElementById('admin-ninos-menores').value) || 0;
+
+        const totalPersonas = adultos + residentes + ninos512 + ninosMenores;
+
+        if (totalPersonas === 0) {
+            alert('Debe seleccionar al menos una persona.');
+            return;
+        }
+
+        if (!validateAdminPersonSelection()) {
+            return;
+        }
+        
+        // Mostrar paso 3
+        document.getElementById('step-2-admin').style.display = 'none';
+        document.getElementById('step-3-admin').style.display = 'block';
+        document.getElementById('admin-btn-siguiente').disabled = true;
+        document.getElementById('admin-step-text').textContent = 'Paso 3 de 4: Datos del cliente';
+        adminCurrentStep = 3;
+        
+        // Listener para validar formulario
+        setupAdminFormValidation();
+        
+    } else if (adminCurrentStep === 3) {
+        // Validar paso 3
+        const form = document.getElementById('admin-client-form');
+        const formData = new FormData(form);
+        
+        const nombre = formData.get('nombre').trim();
+        const apellidos = formData.get('apellidos').trim();
+        const email = formData.get('email').trim();
+        const telefono = formData.get('telefono').trim();
+
+        if (!nombre || !apellidos || !email || !telefono) {
+            alert('Por favor, completa todos los campos del cliente.');
+            return;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            alert('Por favor, introduce un email válido.');
+            return;
+        }
+        
+        // Mostrar paso 4 - confirmación
+        fillAdminConfirmationData();
+        document.getElementById('step-3-admin').style.display = 'none';
+        document.getElementById('step-4-admin').style.display = 'block';
+        document.getElementById('admin-btn-siguiente').style.display = 'none';
+        document.getElementById('admin-btn-confirmar').style.display = 'block';
+        document.getElementById('admin-step-text').textContent = 'Paso 4 de 4: Confirmar reserva';
+        adminCurrentStep = 4;
+    }
+}
+
+function adminPreviousStep() {
+    console.log('Admin: Retrocediendo desde paso', adminCurrentStep);
+    
+    if (adminCurrentStep === 2) {
+        // Volver al paso 1
+        document.getElementById('step-2-admin').style.display = 'none';
+        document.getElementById('step-1-admin').style.display = 'block';
+        document.getElementById('admin-btn-anterior').style.display = 'none';
+        document.getElementById('admin-btn-siguiente').disabled = adminSelectedServiceId ? false : true;
+        document.getElementById('admin-step-text').textContent = 'Paso 1 de 4: Seleccionar fecha y horario';
+        adminCurrentStep = 1;
+        
+    } else if (adminCurrentStep === 3) {
+        // Volver al paso 2
+        document.getElementById('step-3-admin').style.display = 'none';
+        document.getElementById('step-2-admin').style.display = 'block';
+        document.getElementById('admin-btn-siguiente').disabled = false;
+        document.getElementById('admin-step-text').textContent = 'Paso 2 de 4: Seleccionar personas';
+        adminCurrentStep = 2;
+        
+    } else if (adminCurrentStep === 4) {
+        // Volver al paso 3
+        document.getElementById('step-4-admin').style.display = 'none';
+        document.getElementById('step-3-admin').style.display = 'block';
+        document.getElementById('admin-btn-siguiente').style.display = 'block';
+        document.getElementById('admin-btn-confirmar').style.display = 'none';
+        document.getElementById('admin-btn-siguiente').disabled = false;
+        document.getElementById('admin-step-text').textContent = 'Paso 3 de 4: Datos del cliente';
+        adminCurrentStep = 3;
+    }
+}
+
+function setupAdminFormValidation() {
+    const inputs = document.querySelectorAll('#admin-client-form input');
+    
+    function validateForm() {
+        let allValid = true;
+        inputs.forEach(input => {
+            if (!input.value.trim()) {
+                allValid = false;
+            }
+        });
+        
+        // Validar email específicamente
+        const emailInput = document.querySelector('#admin-client-form input[name="email"]');
+        if (emailInput.value.trim()) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(emailInput.value.trim())) {
+                allValid = false;
+            }
+        }
+        
+        document.getElementById('admin-btn-siguiente').disabled = !allValid;
+    }
+    
+    inputs.forEach(input => {
+        input.addEventListener('input', validateForm);
+        input.addEventListener('blur', validateForm);
+    });
+    
+    // Validar inicialmente
+    validateForm();
+}
+
+function fillAdminConfirmationData() {
+    const service = findAdminServiceById(adminSelectedServiceId);
+    const form = document.getElementById('admin-client-form');
+    const formData = new FormData(form);
+    
+    const adultos = parseInt(document.getElementById('admin-adultos').value) || 0;
+    const residentes = parseInt(document.getElementById('admin-residentes').value) || 0;
+    const ninos512 = parseInt(document.getElementById('admin-ninos-5-12').value) || 0;
+    const ninosMenores = parseInt(document.getElementById('admin-ninos-menores').value) || 0;
+    const totalPersonas = adultos + residentes + ninos512 + ninosMenores;
+    
+    // Formatear fecha
+    const fechaObj = new Date(adminSelectedDate + 'T00:00:00');
+    const fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    
+    document.getElementById('confirm-fecha').textContent = fechaFormateada;
+    document.getElementById('confirm-hora').textContent = service.hora;
+    document.getElementById('confirm-personas').textContent = totalPersonas + ' personas';
+    document.getElementById('confirm-cliente').textContent = formData.get('nombre') + ' ' + formData.get('apellidos');
+    document.getElementById('confirm-email').textContent = formData.get('email');
+    document.getElementById('confirm-total').textContent = document.getElementById('admin-total-price').textContent;
+}
+
+function adminConfirmReservation() {
+    console.log('=== CONFIRMANDO RESERVA RÁPIDA ADMIN ===');
+    
+    if (!confirm('¿Estás seguro de que quieres procesar esta reserva?\n\nSe enviará automáticamente la confirmación por email al cliente.')) {
+        return;
+    }
+    
+    // Deshabilitar botón
+    const confirmBtn = document.getElementById('admin-btn-confirmar');
+    const originalText = confirmBtn.textContent;
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = '⏳ Procesando...';
+    
+    // Preparar datos de la reserva
+    const service = findAdminServiceById(adminSelectedServiceId);
+    const form = document.getElementById('admin-client-form');
+    const formData = new FormData(form);
+    
+    const adultos = parseInt(document.getElementById('admin-adultos').value) || 0;
+    const residentes = parseInt(document.getElementById('admin-residentes').value) || 0;
+    const ninos_5_12 = parseInt(document.getElementById('admin-ninos-5-12').value) || 0;
+    const ninos_menores = parseInt(document.getElementById('admin-ninos-menores').value) || 0;
+    
+    const totalPrice = document.getElementById('admin-total-price').textContent.replace('€', '').trim();
+    const descuentoTotal = document.getElementById('admin-total-discount').textContent.replace('€', '').replace('-', '').trim();
+    
+    const reservationData = {
+        fecha: adminSelectedDate,
+        service_id: adminSelectedServiceId,
+        hora_ida: service.hora,
+        adultos: adultos,
+        residentes: residentes,
+        ninos_5_12: ninos_5_12,
+        ninos_menores: ninos_menores,
+        precio_adulto: service.precio_adulto,
+        precio_nino: service.precio_nino,
+        precio_residente: service.precio_residente,
+        total_price: totalPrice,
+        descuento_grupo: descuentoTotal ? parseFloat(descuentoTotal) : 0,
+        regla_descuento_aplicada: window.adminLastDiscountRule || null
+    };
+    
+    // Enviar solicitud AJAX
+    const ajaxData = {
+        action: 'process_reservation',
+        nonce: reservasAjax.nonce,
+        nombre: formData.get('nombre'),
+        apellidos: formData.get('apellidos'),
+        email: formData.get('email'),
+        telefono: formData.get('telefono'),
+        reservation_data: JSON.stringify(reservationData)
+    };
+    
+    console.log('Datos a enviar:', ajaxData);
+    
+    fetch(reservasAjax.ajax_url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(ajaxData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Respuesta recibida:', data);
+        
+        // Rehabilitar botón
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = originalText;
+        
+        if (data && data.success) {
+            console.log('Reserva procesada exitosamente:', data.data);
+            
+            // Mostrar mensaje de éxito
+            const detalles = data.data.detalles;
+            const mensaje = "🎉 ¡RESERVA CREADA EXITOSAMENTE! 🎉\n\n" +
+                           "📋 LOCALIZADOR: " + data.data.localizador + "\n\n" +
+                           "📅 DETALLES:\n" +
+                           "• Fecha: " + detalles.fecha + "\n" +
+                           "• Hora: " + detalles.hora + "\n" +
+                           "• Personas: " + detalles.personas + "\n" +
+                           "• Precio: " + detalles.precio_final + "€\n\n" +
+                           "✅ La reserva ha sido procesada correctamente.\n" +
+                           "📧 El cliente recibirá la confirmación por email.\n\n" +
+                           "¡Reserva administrativa completada!";
+
+            alert(mensaje);
+            
+            // Volver al dashboard
+            setTimeout(() => {
+                goBackToDashboard();
+            }, 2000);
+            
+        } else {
+            console.error('Error procesando reserva:', data);
+            const errorMsg = data && data.data ? data.data : 'Error desconocido';
+            alert('❌ Error procesando la reserva: ' + errorMsg);
+        }
+    })
+    .catch(error => {
+        console.error('Error de conexión:', error);
+        
+        // Rehabilitar botón
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = originalText;
+        
+        alert('❌ Error de conexión al procesar la reserva.\n\nPor favor, inténtalo de nuevo. Si el problema persiste, contacta con soporte técnico.');
+    });
+}
+
+// Exponer funciones globalmente para onclick
+window.selectAdminDate = selectAdminDate;
+window.adminNextStep = adminNextStep;
+window.adminPreviousStep = adminPreviousStep;
+window.adminConfirmReservation = adminConfirmReservation;

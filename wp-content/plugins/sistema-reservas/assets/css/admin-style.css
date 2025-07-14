@@ -1785,7 +1785,69 @@ body {
     text-align: center;
 }
 
+.action-btn.reserva-rapida {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+    border-left: 4px solid #155724 !important;
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+    transform: scale(1.02);
+}
 
+.action-btn.reserva-rapida:hover {
+    background: linear-gradient(135deg, #218838 0%, #1dc49a 100%) !important;
+    transform: scale(1.05);
+    box-shadow: 0 6px 12px rgba(40, 167, 69, 0.4);
+}
+
+/* ✅ Mejoras para todos los botones de acción */
+.action-btn {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.action-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.action-btn:hover::before {
+    left: 100%;
+}
+
+/* ✅ Responsive para los botones */
+@media (max-width: 768px) {
+    .action-buttons {
+        grid-template-columns: 1fr;
+    }
+    
+    .action-btn {
+        padding: 18px;
+        font-size: 16px;
+    }
+}
+
+/* ✅ Animaciones adicionales */
+@keyframes pulse-success {
+    0% {
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+    }
+    50% {
+        box-shadow: 0 4px 20px rgba(40, 167, 69, 0.5);
+    }
+    100% {
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+    }
+}
+
+.action-btn[onclick*="loadReservaRapidaSection"]:hover {
+    animation: pulse-success 1.5s ease-in-out infinite;
+}
 
 .details-grid {
     display: grid;
