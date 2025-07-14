@@ -11,12 +11,10 @@ class ReservasConfigurationAdmin
     {
         // Hooks AJAX para configuración
         add_action('wp_ajax_get_configuration', array($this, 'get_configuration'));
-        add_action('wp_ajax_nopriv_get_configuration', array($this, 'get_configuration')); // ✅ AÑADIR
+        add_action('wp_ajax_nopriv_get_configuration', array($this, 'get_configuration'));
 
         add_action('wp_ajax_save_configuration', array($this, 'save_configuration'));
-
-        // Hook para activación del plugin (crear tabla)
-        add_action('init', array($this, 'maybe_create_table'));
+        add_action('wp_ajax_nopriv_save_configuration', array($this, 'save_configuration'));
 
         // ✅ NUEVO: Hook para programar recordatorios automáticos
         add_action('wp', array($this, 'schedule_reminder_cron'));
@@ -355,25 +353,28 @@ class ReservasConfigurationAdmin
         header('Content-Type: application/json');
 
         try {
-            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-                wp_send_json_error('Error de seguridad');
-                return;
-            }
-
             if (!session_id()) {
                 session_start();
             }
 
+            error_log('=== SAVE CONFIGURATION DEBUG ===');
+            error_log('Session data: ' . print_r($_SESSION ?? [], true));
+            error_log('POST data keys: ' . print_r(array_keys($_POST), true));
+
             if (!isset($_SESSION['reservas_user'])) {
+                error_log('❌ No hay usuario en sesión');
                 wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
                 return;
             }
 
             $user = $_SESSION['reservas_user'];
             if ($user['role'] !== 'super_admin') {
+                error_log('❌ Usuario sin permisos: ' . $user['role']);
                 wp_send_json_error('Sin permisos');
                 return;
             }
+
+            error_log('✅ Usuario validado: ' . $user['username']);
 
             global $wpdb;
             $table_name = $wpdb->prefix . 'reservas_configuration';

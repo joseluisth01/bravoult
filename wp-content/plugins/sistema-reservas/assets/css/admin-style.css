@@ -1785,10 +1785,7 @@ body {
     text-align: center;
 }
 
-/* ========== MODALES DE RESERVAS ========== */
-.reservation-details {
-    max-width: 800px;
-}
+
 
 .details-grid {
     display: grid;

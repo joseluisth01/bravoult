@@ -554,18 +554,39 @@ function editService(serviceId) {
     formData.append('service_id', serviceId);
     formData.append('nonce', reservasAjax.nonce);
 
-    fetch(reservasAjax.ajax_url, {
-        method: 'POST',
-        body: formData,
-        credentials: 'same-origin'
-    })
+    console.log('=== DEBUG FETCH REQUEST ===');
+console.log('URL:', reservasAjax.ajax_url);
+console.log('FormData contents:');
+for (let [key, value] of formData.entries()) {
+    console.log(key + ': ' + value);
+}
+
+fetch(reservasAjax.ajax_url, {
+    method: 'POST',
+    body: formData,
+    credentials: 'same-origin'
+})
     .then(response => {
-        console.log('Response status:', response.status);
+    console.log('=== RESPONSE DEBUG ===');
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
+    console.log('Response OK:', response.ok);
+    console.log('Response statusText:', response.statusText);
+    
+    // ✅ LEER LA RESPUESTA COMO TEXTO PRIMERO
+    return response.text().then(text => {
+        console.log('Response text:', text);
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(`HTTP ${response.status}: ${response.statusText} - ${text}`);
         }
-        return response.json();
-    })
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            console.error('JSON Parse Error:', e);
+            throw new Error('Invalid JSON response: ' + text);
+        }
+    });
+})
     .then(data => {
         console.log('Service details response:', data);
         if (data.success) {
