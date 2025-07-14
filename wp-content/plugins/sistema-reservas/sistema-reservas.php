@@ -29,8 +29,54 @@ class SistemaReservas
         register_activation_hook(__FILE__, array($this, 'activate'));
         register_deactivation_hook(__FILE__, array($this, 'deactivate'));
         add_action('init', array($this, 'init'));
-        add_action('wp_ajax_test_pdf_generation', 'test_pdf_generation');
-add_action('wp_ajax_nopriv_test_pdf_generation', 'test_pdf_generation');
+        add_action('wp_ajax_test_pdf_generation', array($this, 'test_pdf_generation'));
+        add_action('wp_ajax_nopriv_test_pdf_generation', array($this, 'test_pdf_generation'));
+    }
+
+    public function test_pdf_generation()
+    {
+        if (!class_exists('ReservasPDFGenerator')) {
+            require_once RESERVAS_PLUGIN_PATH . 'includes/class-pdf-generator.php';
+        }
+
+        $test_data = array(
+            'localizador' => 'TEST1234',
+            'fecha' => '2025-07-20',
+            'hora' => '10:00:00',
+            'nombre' => 'Test',
+            'apellidos' => 'Usuario',
+            'email' => 'test@test.com',
+            'telefono' => '123456789',
+            'adultos' => 2,
+            'residentes' => 0,
+            'ninos_5_12' => 1,
+            'ninos_menores' => 0,
+            'total_personas' => 3,
+            'precio_base' => 25.00,
+            'descuento_total' => 0.00,
+            'precio_final' => 25.00,
+            'precio_adulto' => 10.00,
+            'precio_nino' => 5.00,
+            'precio_residente' => 5.00,
+            'created_at' => date('Y-m-d H:i:s')
+        );
+
+        try {
+            $pdf_generator = new ReservasPDFGenerator();
+            $pdf_path = $pdf_generator->generate_ticket_pdf($test_data);
+
+            wp_send_json_success(array(
+                'message' => 'PDF generado correctamente',
+                'path' => $pdf_path,
+                'exists' => file_exists($pdf_path),
+                'size' => file_exists($pdf_path) ? filesize($pdf_path) : 0
+            ));
+        } catch (Exception $e) {
+            wp_send_json_error(array(
+                'message' => 'Error: ' . $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ));
+        }
     }
 
     public function init()
@@ -109,47 +155,7 @@ add_action('wp_ajax_nopriv_test_pdf_generation', 'test_pdf_generation');
         }
     }
 
-    function test_pdf_generation() {
-    if (!class_exists('ReservasPDFGenerator')) {
-        require_once RESERVAS_PLUGIN_PATH . 'includes/class-pdf-generator.php';
-    }
-    
-    $test_data = array(
-        'localizador' => 'TEST1234',
-        'fecha' => '2025-07-20',
-        'hora' => '10:00:00',
-        'nombre' => 'Test',
-        'apellidos' => 'Usuario',
-        'email' => 'test@test.com',
-        'telefono' => '123456789',
-        'adultos' => 2,
-        'residentes' => 0,
-        'ninos_5_12' => 1,
-        'ninos_menores' => 0,
-        'total_personas' => 3,
-        'precio_base' => 25.00,
-        'descuento_total' => 0.00,
-        'precio_final' => 25.00,
-        'created_at' => date('Y-m-d H:i:s')
-    );
-    
-    try {
-        $pdf_generator = new ReservasPDFGenerator();
-        $pdf_path = $pdf_generator->generate_ticket_pdf($test_data);
-        
-        wp_send_json_success(array(
-            'message' => 'PDF generado correctamente',
-            'path' => $pdf_path,
-            'exists' => file_exists($pdf_path),
-            'size' => file_exists($pdf_path) ? filesize($pdf_path) : 0
-        ));
-    } catch (Exception $e) {
-        wp_send_json_error(array(
-            'message' => 'Error: ' . $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ));
-    }
-}
+
 
     private function initialize_classes()
     {

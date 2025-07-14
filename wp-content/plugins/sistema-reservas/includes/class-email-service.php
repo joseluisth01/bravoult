@@ -28,48 +28,69 @@ class ReservasEmailService
             'From: ' . $config['nombre_remitente'] . ' <' . $config['email_remitente'] . '>'
         );
 
+        // ✅ ENCONTRAR ESTAS LÍNEAS (alrededor de la línea 50-70):
         $attachments = array();
-try {
-    error_log('=== INICIANDO GENERACIÓN DE PDF ===');
-    $pdf_path = self::generate_ticket_pdf($reserva_data);
-    error_log('PDF generado en: ' . $pdf_path);
-    
-    if ($pdf_path && file_exists($pdf_path)) {
-        $file_size = filesize($pdf_path);
-        error_log("✅ PDF existe - Tamaño: $file_size bytes");
-        
-        if ($file_size > 0) {
-            $attachments[] = $pdf_path;
-            error_log("✅ PDF añadido a attachments");
-        } else {
-            error_log("❌ PDF está vacío");
+        try {
+            error_log('=== INICIANDO GENERACIÓN DE PDF ===');
+            $pdf_path = self::generate_ticket_pdf($reserva_data);
+            error_log('PDF generado en: ' . $pdf_path);
+
+            if ($pdf_path && file_exists($pdf_path)) {
+                $file_size = filesize($pdf_path);
+                error_log("✅ PDF existe - Tamaño: $file_size bytes");
+
+                if ($file_size > 0) {
+                    $attachments[] = $pdf_path;
+                    error_log("✅ PDF añadido a attachments: " . $pdf_path);
+                } else {
+                    error_log("❌ PDF está vacío");
+                }
+            } else {
+                error_log("❌ PDF no existe en: $pdf_path");
+            }
+        } catch (Exception $e) {
+            error_log("❌ Error generando PDF: " . $e->getMessage());
+            error_log("❌ Stack trace: " . $e->getTraceAsString());
+            // Continuar enviando email sin PDF si hay error
         }
-    } else {
-        error_log("❌ PDF no existe en: $pdf_path");
-    }
-} catch (Exception $e) {
-    error_log("❌ Error generando PDF: " . $e->getMessage());
-    error_log("❌ Stack trace: " . $e->getTraceAsString());
-    // Continuar enviando email sin PDF si hay error
-}
+
+        // ✅ AÑADIR DEBUG ANTES DE ENVIAR
+        error_log("=== ENVIANDO EMAIL ===");
+        error_log("To: " . $to);
+        error_log("Subject: " . $subject);
+        error_log("Attachments: " . print_r($attachments, true));
 
         $sent = wp_mail($to, $subject, $message, $headers, $attachments);
 
-        // ✅ LIMPIAR ARCHIVO TEMPORAL
-        if (!empty($attachments)) {
-            foreach ($attachments as $attachment) {
-                if (file_exists($attachment)) {
-                    unlink($attachment);
-                    error_log("🗑️ Archivo temporal eliminado: " . $attachment);
-                }
-            }
-        }
+        error_log("Email enviado: " . ($sent ? 'SÍ' : 'NO'));
 
+        // ✅ NO ELIMINAR EL PDF HASTA DESPUÉS DEL EMAIL
         if ($sent) {
             error_log("✅ Email enviado al cliente: " . $to . " (con PDF: " . (!empty($attachments) ? 'SÍ' : 'NO') . ")");
+
+            // ✅ AHORA SÍ ELIMINAR ARCHIVOS TEMPORALES
+            if (!empty($attachments)) {
+                foreach ($attachments as $attachment) {
+                    if (file_exists($attachment)) {
+                        unlink($attachment);
+                        error_log("🗑️ Archivo temporal eliminado: " . $attachment);
+                    }
+                }
+            }
+
             return array('success' => true, 'message' => 'Email enviado al cliente correctamente');
         } else {
             error_log("❌ Error enviando email al cliente: " . $to);
+
+            // Limpiar archivos aunque falle el email
+            if (!empty($attachments)) {
+                foreach ($attachments as $attachment) {
+                    if (file_exists($attachment)) {
+                        unlink($attachment);
+                    }
+                }
+            }
+
             return array('success' => false, 'message' => 'Error enviando email al cliente');
         }
     }
