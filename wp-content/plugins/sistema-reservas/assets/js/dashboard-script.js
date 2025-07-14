@@ -3128,15 +3128,77 @@ function setupAdminEventListeners() {
         }
     });
 
-    // Cambios en selectores de personas
     ['admin-adultos', 'admin-residentes', 'admin-ninos-5-12', 'admin-ninos-menores'].forEach(id => {
-        document.getElementById(id).addEventListener('input', function() {
-            setTimeout(() => {
-                calculateAdminTotalPrice();
-                validateAdminPersonSelection();
-            }, 100);
+        const input = document.getElementById(id);
+        
+        // Múltiples eventos para asegurar detección
+        ['input', 'change', 'keyup', 'blur'].forEach(eventType => {
+            input.addEventListener(eventType, function() {
+                setTimeout(() => {
+                    calculateAdminTotalPrice();
+                    validateAdminPersonSelectionForNext();
+                }, 100);
+            });
         });
     });
+}
+
+function validateAdminPersonSelectionForNext() {
+    const adultos = parseInt(document.getElementById('admin-adultos').value) || 0;
+    const residentes = parseInt(document.getElementById('admin-residentes').value) || 0;
+    const ninos512 = parseInt(document.getElementById('admin-ninos-5-12').value) || 0;
+    const ninosMenores = parseInt(document.getElementById('admin-ninos-menores').value) || 0;
+
+    const totalAdults = adultos + residentes;
+    const totalChildren = ninos512 + ninosMenores;
+    const totalPersonas = totalAdults + totalChildren;
+
+    console.log('=== VALIDACIÓN PARA SIGUIENTE ===');
+    console.log('Adultos:', adultos, 'Residentes:', residentes, 'Niños 5-12:', ninos512, 'Menores:', ninosMenores);
+    console.log('Total personas:', totalPersonas, 'Total adultos:', totalAdults);
+
+    // Validar que hay al menos una persona
+    if (totalPersonas === 0) {
+        console.log('❌ No hay personas seleccionadas');
+        document.getElementById('admin-btn-siguiente').disabled = true;
+        return false;
+    }
+
+    // Validar que si hay niños, debe haber al menos un adulto
+    if (totalChildren > 0 && totalAdults === 0) {
+        console.log('❌ Hay niños pero no adultos');
+        alert('Debe haber al menos un adulto si hay niños en la reserva.');
+        document.getElementById('admin-ninos-5-12').value = 0;
+        document.getElementById('admin-ninos-menores').value = 0;
+        calculateAdminTotalPrice();
+        document.getElementById('admin-btn-siguiente').disabled = true;
+        return false;
+    }
+
+    // Si llegamos aquí, todo está bien
+    console.log('✅ Validación correcta - habilitando botón siguiente');
+    document.getElementById('admin-btn-siguiente').disabled = false;
+    return true;
+}
+
+function validateAdminPersonSelection() {
+    const adultos = parseInt(document.getElementById('admin-adultos').value) || 0;
+    const residentes = parseInt(document.getElementById('admin-residentes').value) || 0;
+    const ninos512 = parseInt(document.getElementById('admin-ninos-5-12').value) || 0;
+    const ninosMenores = parseInt(document.getElementById('admin-ninos-menores').value) || 0;
+
+    const totalAdults = adultos + residentes;
+    const totalChildren = ninos512 + ninosMenores;
+
+    if (totalChildren > 0 && totalAdults === 0) {
+        alert('Debe haber al menos un adulto si hay niños en la reserva.');
+        document.getElementById('admin-ninos-5-12').value = 0;
+        document.getElementById('admin-ninos-menores').value = 0;
+        calculateAdminTotalPrice();
+        return false;
+    }
+
+    return true;
 }
 
 function loadAdminCalendar() {
