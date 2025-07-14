@@ -105,31 +105,14 @@ class ReservasEmailService
             require_once RESERVAS_PLUGIN_PATH . 'includes/class-pdf-generator.php';
         }
 
-        // Verificar si TCPDF está disponible
-        if (!class_exists('TCPDF')) {
-            // Intentar cargar TCPDF desde diferentes ubicaciones posibles
-            $tcpdf_paths = array(
-                ABSPATH . 'wp-content/plugins/sistema-reservas/vendor/tcpdf/tcpdf.php',
-                ABSPATH . 'wp-includes/tcpdf/tcpdf.php',
-                '/usr/share/php/tcpdf/tcpdf.php'
-            );
-
-            $tcpdf_loaded = false;
-            foreach ($tcpdf_paths as $path) {
-                if (file_exists($path)) {
-                    require_once $path;
-                    $tcpdf_loaded = true;
-                    break;
-                }
-            }
-
-            if (!$tcpdf_loaded) {
-                throw new Exception('TCPDF no está disponible. Instala la librería TCPDF.');
-            }
+        // ✅ USAR LA MISMA LÓGICA QUE EN EL TEST
+        try {
+            $pdf_generator = new ReservasPDFGenerator();
+            return $pdf_generator->generate_ticket_pdf($reserva_data);
+        } catch (Exception $e) {
+            error_log('❌ Error en generación PDF desde email service: ' . $e->getMessage());
+            throw $e;
         }
-
-        $pdf_generator = new ReservasPDFGenerator();
-        return $pdf_generator->generate_ticket_pdf($reserva_data);
     }
 
     /**
