@@ -29,56 +29,59 @@ class SistemaReservas
         register_activation_hook(__FILE__, array($this, 'activate'));
         register_deactivation_hook(__FILE__, array($this, 'deactivate'));
         add_action('init', array($this, 'init'));
+        add_action('wp_ajax_test_pdf_generation', 'test_pdf_generation');
+add_action('wp_ajax_nopriv_test_pdf_generation', 'test_pdf_generation');
     }
 
-public function init()
-{
-    // ✅ VERIFICAR QUE WORDPRESS ESTÁ COMPLETAMENTE CARGADO
-    if (!did_action('wp_loaded')) {
-        add_action('wp_loaded', array($this, 'init'));
-        return;
+    public function init()
+    {
+        // ✅ VERIFICAR QUE WORDPRESS ESTÁ COMPLETAMENTE CARGADO
+        if (!did_action('wp_loaded')) {
+            add_action('wp_loaded', array($this, 'init'));
+            return;
+        }
+
+        // ✅ ASEGURAR QUE LAS SESIONES FUNCIONAN CORRECTAMENTE
+        if (!session_id() && !headers_sent()) {
+            session_start();
+        }
+
+        // Cargar dependencias
+        $this->load_dependencies();
+
+        // Inicializar clases
+        $this->initialize_classes();
+
+        // Registrar reglas de reescritura
+        $this->add_rewrite_rules();
+
+        // Añadir query vars
+        add_filter('query_vars', array($this, 'add_query_vars'));
+
+        // Manejar template redirect
+        add_action('template_redirect', array($this, 'template_redirect'));
+
+        // ✅ AÑADIR DEBUG PARA AJAX
+        add_action('wp_ajax_debug_session', array($this, 'debug_session_info'));
     }
 
-    // ✅ ASEGURAR QUE LAS SESIONES FUNCIONAN CORRECTAMENTE
-    if (!session_id() && !headers_sent()) {
-        session_start();
+    public function debug_session_info()
+    {
+        if (!session_id()) {
+            session_start();
+        }
+
+        $debug_info = array(
+            'session_id' => session_id(),
+            'session_data' => $_SESSION,
+            'user_ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce_check' => wp_verify_nonce($_POST['nonce'] ?? '', 'reservas_nonce')
+        );
+
+        wp_send_json_success($debug_info);
     }
-
-    // Cargar dependencias
-    $this->load_dependencies();
-
-    // Inicializar clases
-    $this->initialize_classes();
-
-    // Registrar reglas de reescritura
-    $this->add_rewrite_rules();
-
-    // Añadir query vars
-    add_filter('query_vars', array($this, 'add_query_vars'));
-
-    // Manejar template redirect
-    add_action('template_redirect', array($this, 'template_redirect'));
-
-    // ✅ AÑADIR DEBUG PARA AJAX
-    add_action('wp_ajax_debug_session', array($this, 'debug_session_info'));
-}
-
-public function debug_session_info() {
-    if (!session_id()) {
-        session_start();
-    }
-    
-    $debug_info = array(
-        'session_id' => session_id(),
-        'session_data' => $_SESSION,
-        'user_ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
-        'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce_check' => wp_verify_nonce($_POST['nonce'] ?? '', 'reservas_nonce')
-    );
-    
-    wp_send_json_success($debug_info);
-}
 
     private function load_dependencies()
     {
@@ -90,7 +93,7 @@ public function debug_session_info() {
             'includes/class-calendar-admin.php',
             'includes/class-discounts-admin.php',
             'includes/class-configuration-admin.php',
-            'includes/class-reports-admin.php',         
+            'includes/class-reports-admin.php',
             'includes/class-reservas-processor.php', // ✅ CON EMAILS
             'includes/class-email-service.php',       // ✅ CLASE DE EMAILS CON RECORDATORIOS
             'includes/class-frontend.php',
@@ -105,6 +108,48 @@ public function debug_session_info() {
             }
         }
     }
+
+    function test_pdf_generation() {
+    if (!class_exists('ReservasPDFGenerator')) {
+        require_once RESERVAS_PLUGIN_PATH . 'includes/class-pdf-generator.php';
+    }
+    
+    $test_data = array(
+        'localizador' => 'TEST1234',
+        'fecha' => '2025-07-20',
+        'hora' => '10:00:00',
+        'nombre' => 'Test',
+        'apellidos' => 'Usuario',
+        'email' => 'test@test.com',
+        'telefono' => '123456789',
+        'adultos' => 2,
+        'residentes' => 0,
+        'ninos_5_12' => 1,
+        'ninos_menores' => 0,
+        'total_personas' => 3,
+        'precio_base' => 25.00,
+        'descuento_total' => 0.00,
+        'precio_final' => 25.00,
+        'created_at' => date('Y-m-d H:i:s')
+    );
+    
+    try {
+        $pdf_generator = new ReservasPDFGenerator();
+        $pdf_path = $pdf_generator->generate_ticket_pdf($test_data);
+        
+        wp_send_json_success(array(
+            'message' => 'PDF generado correctamente',
+            'path' => $pdf_path,
+            'exists' => file_exists($pdf_path),
+            'size' => file_exists($pdf_path) ? filesize($pdf_path) : 0
+        ));
+    } catch (Exception $e) {
+        wp_send_json_error(array(
+            'message' => 'Error: ' . $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ));
+    }
+}
 
     private function initialize_classes()
     {
@@ -198,7 +243,7 @@ public function debug_session_info() {
 
         // Flush rewrite rules para activar las nuevas URLs
         flush_rewrite_rules();
-        
+
         // ✅ PROGRAMAR CRON JOB PARA RECORDATORIOS
         if (!wp_next_scheduled('reservas_send_reminders')) {
             wp_schedule_event(time(), 'hourly', 'reservas_send_reminders');
@@ -210,7 +255,7 @@ public function debug_session_info() {
     {
         // Limpiar rewrite rules
         flush_rewrite_rules();
-        
+
         // ✅ LIMPIAR CRON JOB DE RECORDATORIOS
         wp_clear_scheduled_hook('reservas_send_reminders');
         error_log('✅ Cron job de recordatorios eliminado');
@@ -348,36 +393,37 @@ public function debug_session_info() {
 
         // ✅ CREAR CONFIGURACIÓN CON NUEVOS CAMPOS
         $this->create_default_configuration();
-        
+
         // ✅ ACTUALIZAR TABLA EXISTENTE SI ES NECESARIO
         $this->maybe_update_existing_tables();
     }
 
     // ✅ NUEVA FUNCIÓN PARA ACTUALIZAR TABLAS EXISTENTES
-    private function maybe_update_existing_tables() {
+    private function maybe_update_existing_tables()
+    {
         global $wpdb;
-        
+
         $table_reservas = $wpdb->prefix . 'reservas_reservas';
-        
+
         // Verificar si el campo recordatorio_enviado existe
         $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_reservas LIKE 'recordatorio_enviado'");
-        
+
         if (empty($column_exists)) {
             // Añadir columna para tracking de recordatorios
             $wpdb->query("ALTER TABLE $table_reservas ADD COLUMN recordatorio_enviado TINYINT(1) DEFAULT 0");
             $wpdb->query("ALTER TABLE $table_reservas ADD INDEX recordatorio_enviado (recordatorio_enviado)");
             error_log('✅ Columna recordatorio_enviado añadida a tabla de reservas');
         }
-        
+
         // Verificar y actualizar configuración si es necesario
         $table_configuration = $wpdb->prefix . 'reservas_configuration';
-        
+
         // Verificar si existe el nuevo campo email_reservas
         $email_reservas_exists = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM $table_configuration WHERE config_key = %s",
             'email_reservas'
         ));
-        
+
         if ($email_reservas_exists == 0) {
             // Añadir nueva configuración
             $wpdb->insert(
@@ -391,7 +437,7 @@ public function debug_session_info() {
             );
             error_log('✅ Configuración email_reservas añadida');
         }
-        
+
         // Actualizar descripción del email remitente
         $wpdb->update(
             $table_configuration,
@@ -455,9 +501,9 @@ public function debug_session_info() {
     private function create_default_configuration()
     {
         global $wpdb;
-        
+
         $table_name = $wpdb->prefix . 'reservas_configuration';
-        
+
         $default_configs = array(
             // Precios por defecto
             array(
@@ -478,7 +524,7 @@ public function debug_session_info() {
                 'config_group' => 'precios',
                 'description' => 'Precio por defecto para residentes al crear nuevos servicios'
             ),
-            
+
             // Configuración de servicios
             array(
                 'config_key' => 'plazas_defecto',
@@ -492,7 +538,7 @@ public function debug_session_info() {
                 'config_group' => 'servicios',
                 'description' => 'Días de anticipación mínima para poder reservar (bloquea fechas en calendario)'
             ),
-            
+
             // ✅ CONFIGURACIÓN DE EMAILS ACTUALIZADA
             array(
                 'config_key' => 'email_recordatorio_activo',
@@ -525,7 +571,7 @@ public function debug_session_info() {
                 'config_group' => 'notificaciones',
                 'description' => 'Email donde se recibirán las notificaciones de nuevas reservas'
             ),
-            
+
             // General
             array(
                 'config_key' => 'zona_horaria',
@@ -546,14 +592,14 @@ public function debug_session_info() {
                 'description' => 'Símbolo de la moneda'
             )
         );
-        
+
         foreach ($default_configs as $config) {
             // Verificar si ya existe
             $existing = $wpdb->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM $table_name WHERE config_key = %s",
                 $config['config_key']
             ));
-            
+
             if ($existing == 0) {
                 $result = $wpdb->insert($table_name, $config);
                 if ($result === false) {
@@ -608,7 +654,7 @@ function reservas_login_shortcode()
     }
 
     ob_start();
-    ?>
+?>
     <div style="max-width: 400px; margin: 0 auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
         <h2 style="text-align: center; color: #23282d;">Sistema de Reservas - Login</h2>
         <form method="post">
@@ -630,16 +676,17 @@ function reservas_login_shortcode()
             <p style="margin: 5px 0; font-size: 14px;"><strong>Contraseña:</strong> admin123</p>
         </div>
     </div>
-    <?php
+<?php
     return ob_get_clean();
 }
 
 // ✅ SHORTCODE PARA PÁGINA DE CONFIRMACIÓN SIN CAMBIOS
 add_shortcode('confirmacion_reserva', 'confirmacion_reserva_shortcode');
 
-function confirmacion_reserva_shortcode() {
+function confirmacion_reserva_shortcode()
+{
     ob_start();
-    ?>
+?>
     <style>
         .confirmacion-container {
             max-width: 800px;
@@ -648,6 +695,7 @@ function confirmacion_reserva_shortcode() {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             text-align: center;
         }
+
         .success-header {
             background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
             color: white;
@@ -656,16 +704,19 @@ function confirmacion_reserva_shortcode() {
             margin-bottom: 30px;
             box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
         }
+
         .success-header h1 {
             margin: 0 0 10px 0;
             font-size: 32px;
             font-weight: bold;
         }
+
         .success-header p {
             margin: 0;
             font-size: 18px;
             opacity: 0.9;
         }
+
         .checkmark {
             width: 80px;
             height: 80px;
@@ -679,12 +730,14 @@ function confirmacion_reserva_shortcode() {
             margin: 0 auto 20px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
+
         .details-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
             margin: 30px 0;
         }
+
         .detail-card {
             background: white;
             padding: 25px;
@@ -692,11 +745,13 @@ function confirmacion_reserva_shortcode() {
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             border-left: 4px solid #38a169;
         }
+
         .detail-card h3 {
             margin: 0 0 15px 0;
             color: #2d3748;
             font-size: 18px;
         }
+
         .detail-row {
             display: flex;
             justify-content: space-between;
@@ -704,17 +759,21 @@ function confirmacion_reserva_shortcode() {
             padding: 8px 0;
             border-bottom: 1px solid #e2e8f0;
         }
+
         .detail-row:last-child {
             border-bottom: none;
         }
+
         .detail-label {
             color: #4a5568;
             font-weight: 600;
         }
+
         .detail-value {
             color: #2d3748;
             font-weight: bold;
         }
+
         .localizador-box {
             background: #fef5e7;
             border: 2px solid #ed8936;
@@ -722,19 +781,23 @@ function confirmacion_reserva_shortcode() {
             padding: 20px;
             margin: 30px 0;
         }
+
         .localizador-box h3 {
             margin: 0 0 10px 0;
             color: #c05621;
         }
+
         .localizador {
             font-size: 24px;
             font-weight: bold;
             color: #c05621;
             letter-spacing: 2px;
         }
+
         .actions {
             margin: 40px 0;
         }
+
         .btn {
             display: inline-block;
             padding: 15px 30px;
@@ -747,21 +810,26 @@ function confirmacion_reserva_shortcode() {
             cursor: pointer;
             transition: all 0.3s;
         }
+
         .btn-primary {
             background: #3182ce;
             color: white;
         }
+
         .btn-primary:hover {
             background: #2c5282;
             color: white;
         }
+
         .btn-secondary {
             background: #e2e8f0;
             color: #4a5568;
         }
+
         .btn-secondary:hover {
             background: #cbd5e0;
         }
+
         .info-box {
             background: #ebf8ff;
             border: 1px solid #90cdf4;
@@ -769,15 +837,18 @@ function confirmacion_reserva_shortcode() {
             padding: 20px;
             margin: 30px 0;
         }
+
         .info-box h4 {
             margin: 0 0 10px 0;
             color: #2c5282;
         }
+
         .info-box ul {
             margin: 0;
             padding-left: 20px;
             text-align: left;
         }
+
         .info-box li {
             margin: 5px 0;
             color: #2d3748;
@@ -867,14 +938,14 @@ function confirmacion_reserva_shortcode() {
                 if (confirmedData) {
                     const data = JSON.parse(confirmedData);
                     console.log('Datos de confirmación:', data);
-                    
+
                     // Rellenar información
                     document.getElementById('reservation-localizador').textContent = data.localizador || 'N/A';
                     document.getElementById('reservation-fecha').textContent = data.detalles?.fecha || 'N/A';
                     document.getElementById('reservation-hora').textContent = data.detalles?.hora || 'N/A';
                     document.getElementById('reservation-personas').textContent = data.detalles?.personas || 'N/A';
                     document.getElementById('reservation-total').textContent = (data.detalles?.precio_final || '0') + '€';
-                    
+
                     // Limpiar sessionStorage después de mostrar
                     sessionStorage.removeItem('confirmedReservation');
                 } else {
@@ -888,7 +959,7 @@ function confirmacion_reserva_shortcode() {
             }
         });
     </script>
-    <?php
+<?php
     return ob_get_clean();
 }
 

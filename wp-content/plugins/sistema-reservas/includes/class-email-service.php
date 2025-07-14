@@ -28,18 +28,30 @@ class ReservasEmailService
             'From: ' . $config['nombre_remitente'] . ' <' . $config['email_remitente'] . '>'
         );
 
-        // ✅ GENERAR PDF Y ADJUNTARLO
         $attachments = array();
-        try {
-            $pdf_path = self::generate_ticket_pdf($reserva_data);
-            if ($pdf_path && file_exists($pdf_path)) {
-                $attachments[] = $pdf_path;
-                error_log("✅ PDF generado correctamente: " . $pdf_path);
-            }
-        } catch (Exception $e) {
-            error_log("❌ Error generando PDF: " . $e->getMessage());
-            // Continuar enviando email sin PDF si hay error
+try {
+    error_log('=== INICIANDO GENERACIÓN DE PDF ===');
+    $pdf_path = self::generate_ticket_pdf($reserva_data);
+    error_log('PDF generado en: ' . $pdf_path);
+    
+    if ($pdf_path && file_exists($pdf_path)) {
+        $file_size = filesize($pdf_path);
+        error_log("✅ PDF existe - Tamaño: $file_size bytes");
+        
+        if ($file_size > 0) {
+            $attachments[] = $pdf_path;
+            error_log("✅ PDF añadido a attachments");
+        } else {
+            error_log("❌ PDF está vacío");
         }
+    } else {
+        error_log("❌ PDF no existe en: $pdf_path");
+    }
+} catch (Exception $e) {
+    error_log("❌ Error generando PDF: " . $e->getMessage());
+    error_log("❌ Stack trace: " . $e->getTraceAsString());
+    // Continuar enviando email sin PDF si hay error
+}
 
         $sent = wp_mail($to, $subject, $message, $headers, $attachments);
 

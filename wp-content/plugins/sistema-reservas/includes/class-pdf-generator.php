@@ -20,31 +20,29 @@ class ReservasPDFGenerator {
     /**
      * ✅ FUNCIÓN MEJORADA PARA CARGAR TCPDF
      */
-    private function load_tcpdf() {
-        // ✅ Opción 1: Composer autoloader (LA CORRECTA)
-        if (file_exists(RESERVAS_PLUGIN_PATH . 'vendor/autoload.php')) {
-            require_once(RESERVAS_PLUGIN_PATH . 'vendor/autoload.php');
-            error_log('✅ TCPDF cargado via Composer autoloader');
-            return;
-        }
+private function load_tcpdf() {
+    error_log('=== INTENTANDO CARGAR TCPDF ===');
+    
+    // ✅ Opción 1: Composer autoloader (LA CORRECTA)
+    $autoload_path = RESERVAS_PLUGIN_PATH . 'vendor/autoload.php';
+    if (file_exists($autoload_path)) {
+        require_once($autoload_path);
+        error_log('✅ TCPDF cargado via Composer autoloader: ' . $autoload_path);
         
-        // ✅ Opción 2: Directo desde vendor (fallback)
-        if (file_exists(RESERVAS_PLUGIN_PATH . 'vendor/tecnickcom/tcpdf/tcpdf.php')) {
-            require_once(RESERVAS_PLUGIN_PATH . 'vendor/tecnickcom/tcpdf/tcpdf.php');
-            error_log('✅ TCPDF cargado directamente desde vendor');
+        // Verificar que TCPDF está disponible
+        if (class_exists('TCPDF')) {
+            error_log('✅ Clase TCPDF confirmada disponible');
             return;
+        } else {
+            error_log('❌ Autoloader cargado pero clase TCPDF no encontrada');
         }
-        
-        // ✅ Opción 3: Sistema (último recurso)
-        if (file_exists('/usr/share/php/tcpdf/tcpdf.php')) {
-            require_once('/usr/share/php/tcpdf/tcpdf.php');
-            error_log('✅ TCPDF cargado desde sistema');
-            return;
-        }
-        
-        // ✅ Si no se encuentra TCPDF, lanzar excepción
-        throw new Exception('TCPDF no está disponible. Verifica la instalación de Composer.');
+    } else {
+        error_log('❌ Autoloader no encontrado en: ' . $autoload_path);
     }
+    
+    // Resto de opciones...
+    throw new Exception('TCPDF no está disponible. Verifica la instalación de Composer.');
+}
     
     /**
      * Generar PDF del billete
