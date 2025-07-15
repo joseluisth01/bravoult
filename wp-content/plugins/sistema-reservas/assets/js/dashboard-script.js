@@ -3759,3 +3759,515 @@ window.selectAdminDate = selectAdminDate;
 window.adminNextStep = adminNextStep;
 window.adminPreviousStep = adminPreviousStep;
 window.adminConfirmReservation = adminConfirmReservation;
+
+
+
+
+function loadAgenciesSection() {
+    console.log('=== CARGANDO SECCIÓN DE AGENCIAS ===');
+    
+    // Mostrar indicador de carga
+    showLoadingInMainContent();
+    
+    // Cargar la lista de agencias
+    jQuery.ajax({
+        url: reservas_ajax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'get_agencies_list',
+            nonce: reservas_ajax.nonce
+        },
+        success: function(response) {
+            console.log('Respuesta del servidor:', response);
+            
+            if (response.success) {
+                renderAgenciesSection(response.data);
+            } else {
+                showErrorInMainContent('Error cargando agencias: ' + response.data);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error AJAX:', error);
+            showErrorInMainContent('Error de conexión al cargar agencias');
+        }
+    });
+}
+
+/**
+ * Renderizar la sección de gestión de agencias
+ */
+function renderAgenciesSection(agencies) {
+    const content = `
+        <div class="agencies-management">
+            <div class="section-header">
+                <h2>🏢 Gestión de Agencias</h2>
+                <p>Administra las agencias asociadas al sistema de reservas</p>
+            </div>
+            
+            <div class="actions-bar">
+                <button class="btn-primary" onclick="showCreateAgencyModal()">
+                    ➕ Crear Nueva Agencia
+                </button>
+                <button class="btn-secondary" onclick="refreshAgenciesList()">
+                    🔄 Actualizar Lista
+                </button>
+            </div>
+            
+            <div class="agencies-stats">
+                <div class="stat-card">
+                    <h3>Total Agencias</h3>
+                    <div class="stat-number">${agencies.length}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Agencias Activas</h3>
+                    <div class="stat-number">${agencies.filter(a => a.status === 'active').length}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Agencias Inactivas</h3>
+                    <div class="stat-number">${agencies.filter(a => a.status !== 'active').length}</div>
+                </div>
+            </div>
+            
+            <div class="agencies-table-container">
+                <table class="agencies-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre Agencia</th>
+                            <th>Contacto</th>
+                            <th>Email</th>
+                            <th>Usuario</th>
+                            <th>Comisión</th>
+                            <th>Estado</th>
+                            <th>Fecha Creación</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${renderAgenciesTableRows(agencies)}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        ${renderCreateAgencyModal()}
+        ${renderEditAgencyModal()}
+    `;
+    
+    // Insertar contenido en el dashboard principal
+    jQuery('.dashboard-content').html(content);
+}
+
+/**
+ * Renderizar filas de la tabla de agencias
+ */
+function renderAgenciesTableRows(agencies) {
+    if (agencies.length === 0) {
+        return `
+            <tr>
+                <td colspan="9" style="text-align: center; padding: 40px; color: #666;">
+                    No hay agencias registradas. Crea la primera agencia usando el botón "Crear Nueva Agencia".
+                </td>
+            </tr>
+        `;
+    }
+    
+    return agencies.map(agency => `
+        <tr>
+            <td>${agency.id}</td>
+            <td><strong>${escapeHtml(agency.agency_name)}</strong></td>
+            <td>${escapeHtml(agency.contact_person)}</td>
+            <td><a href="mailto:${agency.email}">${escapeHtml(agency.email)}</a></td>
+            <td><code>${escapeHtml(agency.username)}</code></td>
+            <td>${parseFloat(agency.commission_percentage).toFixed(1)}%</td>
+            <td>
+                <span class="status-badge status-${agency.status}">
+                    ${getStatusText(agency.status)}
+                </span>
+            </td>
+            <td>${formatDate(agency.created_at)}</td>
+            <td class="actions-cell">
+                <button class="btn-edit" onclick="editAgency(${agency.id})" title="Editar">
+                    ✏️
+                </button>
+                <button class="btn-toggle" onclick="toggleAgencyStatus(${agency.id}, '${agency.status}')" title="Cambiar Estado">
+                    ${agency.status === 'active' ? '⏸️' : '▶️'}
+                </button>
+                <button class="btn-delete" onclick="deleteAgency(${agency.id})" title="Eliminar">
+                    🗑️
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Renderizar modal de crear agencia
+ */
+function renderCreateAgencyModal() {
+    return `
+        <div id="createAgencyModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Crear Nueva Agencia</h3>
+                    <span class="close" onclick="closeCreateAgencyModal()">&times;</span>
+                </div>
+                <form id="createAgencyForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="agency_name">Nombre de la Agencia *</label>
+                            <input type="text" name="agency_name" required placeholder="Ej: Viajes El Sol">
+                        </div>
+                        <div class="form-group">
+                            <label for="contact_person">Persona de Contacto *</label>
+                            <input type="text" name="contact_person" required placeholder="Ej: Juan Pérez">
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email *</label>
+                            <input type="email" name="email" required placeholder="contacto@agencia.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">Teléfono</label>
+                            <input type="tel" name="phone" placeholder="957 123 456">
+                        </div>
+                        <div class="form-group">
+                            <label for="username">Usuario de Acceso *</label>
+                            <input type="text" name="username" required placeholder="agencia_sol">
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Contraseña *</label>
+                            <input type="password" name="password" required placeholder="Mínimo 6 caracteres">
+                        </div>
+                        <div class="form-group">
+                            <label for="commission_percentage">Comisión (%)</label>
+                            <input type="number" name="commission_percentage" min="0" max="100" step="0.1" value="0" placeholder="5.0">
+                        </div>
+                        <div class="form-group">
+                            <label for="max_credit_limit">Límite de Crédito (€)</label>
+                            <input type="number" name="max_credit_limit" min="0" step="0.01" value="0" placeholder="1000.00">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="address">Dirección</label>
+                        <textarea name="address" rows="2" placeholder="Dirección completa de la agencia"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="notes">Notas</label>
+                        <textarea name="notes" rows="3" placeholder="Información adicional sobre la agencia"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Estado</label>
+                        <select name="status">
+                            <option value="active">Activa</option>
+                            <option value="inactive">Inactiva</option>
+                            <option value="suspended">Suspendida</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Crear Agencia</button>
+                        <button type="button" class="btn-secondary" onclick="closeCreateAgencyModal()">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Renderizar modal de editar agencia
+ */
+function renderEditAgencyModal() {
+    return `
+        <div id="editAgencyModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Editar Agencia</h3>
+                    <span class="close" onclick="closeEditAgencyModal()">&times;</span>
+                </div>
+                <form id="editAgencyForm">
+                    <input type="hidden" name="agency_id" id="edit_agency_id">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="edit_agency_name">Nombre de la Agencia *</label>
+                            <input type="text" name="agency_name" id="edit_agency_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_contact_person">Persona de Contacto *</label>
+                            <input type="text" name="contact_person" id="edit_contact_person" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_email">Email *</label>
+                            <input type="email" name="email" id="edit_email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_phone">Teléfono</label>
+                            <input type="tel" name="phone" id="edit_phone">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_username">Usuario de Acceso *</label>
+                            <input type="text" name="username" id="edit_username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_password">Nueva Contraseña</label>
+                            <input type="password" name="password" id="edit_password" placeholder="Dejar vacío para no cambiar">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_commission_percentage">Comisión (%)</label>
+                            <input type="number" name="commission_percentage" id="edit_commission_percentage" min="0" max="100" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_max_credit_limit">Límite de Crédito (€)</label>
+                            <input type="number" name="max_credit_limit" id="edit_max_credit_limit" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_address">Dirección</label>
+                        <textarea name="address" id="edit_address" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_notes">Notas</label>
+                        <textarea name="notes" id="edit_notes" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_status">Estado</label>
+                        <select name="status" id="edit_status">
+                            <option value="active">Activa</option>
+                            <option value="inactive">Inactiva</option>
+                            <option value="suspended">Suspendida</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Actualizar Agencia</button>
+                        <button type="button" class="btn-secondary" onclick="closeEditAgencyModal()">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Mostrar modal de crear agencia
+ */
+function showCreateAgencyModal() {
+    jQuery('#createAgencyModal').show();
+    jQuery('#createAgencyForm')[0].reset();
+}
+
+/**
+ * Cerrar modal de crear agencia
+ */
+function closeCreateAgencyModal() {
+    jQuery('#createAgencyModal').hide();
+}
+
+/**
+ * Cerrar modal de editar agencia
+ */
+function closeEditAgencyModal() {
+    jQuery('#editAgencyModal').hide();
+}
+
+/**
+ * Editar agencia
+ */
+function editAgency(agencyId) {
+    console.log('Editando agencia ID:', agencyId);
+    
+    jQuery.ajax({
+        url: reservas_ajax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'get_agency_details',
+            agency_id: agencyId,
+            nonce: reservas_ajax.nonce
+        },
+        success: function(response) {
+            if (response.success) {
+                const agency = response.data;
+                
+                // Rellenar formulario de edición
+                jQuery('#edit_agency_id').val(agency.id);
+                jQuery('#edit_agency_name').val(agency.agency_name);
+                jQuery('#edit_contact_person').val(agency.contact_person);
+                jQuery('#edit_email').val(agency.email);
+                jQuery('#edit_phone').val(agency.phone || '');
+                jQuery('#edit_username').val(agency.username);
+                jQuery('#edit_password').val('');
+                jQuery('#edit_commission_percentage').val(agency.commission_percentage);
+                jQuery('#edit_max_credit_limit').val(agency.max_credit_limit);
+                jQuery('#edit_address').val(agency.address || '');
+                jQuery('#edit_notes').val(agency.notes || '');
+                jQuery('#edit_status').val(agency.status);
+                
+                // Mostrar modal
+                jQuery('#editAgencyModal').show();
+            } else {
+                alert('Error cargando datos de la agencia: ' + response.data);
+            }
+        },
+        error: function() {
+            alert('Error de conexión al cargar datos de la agencia');
+        }
+    });
+}
+
+/**
+ * Cambiar estado de agencia
+ */
+function toggleAgencyStatus(agencyId, currentStatus) {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const statusText = newStatus === 'active' ? 'activar' : 'desactivar';
+    
+    if (confirm(`¿Estás seguro de que quieres ${statusText} esta agencia?`)) {
+        jQuery.ajax({
+            url: reservas_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'toggle_agency_status',
+                agency_id: agencyId,
+                new_status: newStatus,
+                nonce: reservas_ajax.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert(response.data);
+                    loadAgenciesSection(); // Recargar lista
+                } else {
+                    alert('Error: ' + response.data);
+                }
+            },
+            error: function() {
+                alert('Error de conexión al cambiar estado');
+            }
+        });
+    }
+}
+
+/**
+ * Eliminar agencia
+ */
+function deleteAgency(agencyId) {
+    if (confirm('¿Estás seguro de que quieres eliminar esta agencia? Esta acción no se puede deshacer.')) {
+        jQuery.ajax({
+            url: reservas_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'delete_agency',
+                agency_id: agencyId,
+                nonce: reservas_ajax.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert(response.data);
+                    loadAgenciesSection(); // Recargar lista
+                } else {
+                    alert('Error: ' + response.data);
+                }
+            },
+            error: function() {
+                alert('Error de conexión al eliminar agencia');
+            }
+        });
+    }
+}
+
+/**
+ * Actualizar lista de agencias
+ */
+function refreshAgenciesList() {
+    loadAgenciesSection();
+}
+
+/**
+ * Manejar envío del formulario de crear agencia
+ */
+jQuery(document).on('submit', '#createAgencyForm', function(e) {
+    e.preventDefault();
+    
+    const formData = jQuery(this).serialize();
+    
+    jQuery.ajax({
+        url: reservas_ajax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'save_agency',
+            ...Object.fromEntries(new URLSearchParams(formData)),
+            nonce: reservas_ajax.nonce
+        },
+        success: function(response) {
+            if (response.success) {
+                alert(response.data);
+                closeCreateAgencyModal();
+                loadAgenciesSection(); // Recargar lista
+            } else {
+                alert('Error: ' + response.data);
+            }
+        },
+        error: function() {
+            alert('Error de conexión al crear agencia');
+        }
+    });
+});
+
+/**
+ * Manejar envío del formulario de editar agencia
+ */
+jQuery(document).on('submit', '#editAgencyForm', function(e) {
+    e.preventDefault();
+    
+    const formData = jQuery(this).serialize();
+    
+    jQuery.ajax({
+        url: reservas_ajax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'save_agency',
+            ...Object.fromEntries(new URLSearchParams(formData)),
+            nonce: reservas_ajax.nonce
+        },
+        success: function(response) {
+            if (response.success) {
+                alert(response.data);
+                closeEditAgencyModal();
+                loadAgenciesSection(); // Recargar lista
+            } else {
+                alert('Error: ' + response.data);
+            }
+        },
+        error: function() {
+            alert('Error de conexión al actualizar agencia');
+        }
+    });
+});
+
+// Funciones auxiliares
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function getStatusText(status) {
+    const statusMap = {
+        'active': 'Activa',
+        'inactive': 'Inactiva', 
+        'suspended': 'Suspendida'
+    };
+    return statusMap[status] || status;
+}
+
+function formatDate(dateString) {
+    if (!dateString) return '-';
+    
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    } catch (e) {
+        return dateString;
+    }
+}

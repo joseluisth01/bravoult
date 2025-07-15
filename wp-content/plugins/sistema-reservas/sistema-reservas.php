@@ -15,11 +15,12 @@ define('RESERVAS_PLUGIN_PATH', plugin_dir_path(__FILE__));
 
 class SistemaReservas
 {
-    private $dashboard;
+      private $dashboard;
     private $calendar_admin;
     private $discounts_admin;
     private $configuration_admin;
     private $reports_admin;
+    private $agencies_admin; 
 
     public function __construct()
     {
@@ -126,7 +127,7 @@ class SistemaReservas
         wp_send_json_success($debug_info);
     }
 
-private function load_dependencies()
+    private function load_dependencies()
     {
         $files = array(
             'includes/class-database.php',
@@ -183,7 +184,6 @@ private function load_dependencies()
             $this->reports_admin = new ReservasReportsAdmin();
         }
 
-        // ✅ INICIALIZAR CLASE DE AGENCIAS
         if (class_exists('ReservasAgenciesAdmin')) {
             $this->agencies_admin = new ReservasAgenciesAdmin();
         }
@@ -910,15 +910,15 @@ function confirmacion_reserva_shortcode()
         });
 
         function goBackInicio() {
-    // Opción 1: Volver a la página de inicio del sitio
-    window.location.href = '/';
-    
-    // Opción 2: Si tienes una página específica de reservas, descomenta esta línea:
-    // window.location.href = '/reservas/';
-    
-    // Opción 3: Si quieres usar la URL base de WordPress dinámicamente:
-    // window.location.href = '<?php echo home_url('/'); ?>';
-}
+            // Opción 1: Volver a la página de inicio del sitio
+            window.location.href = '/';
+
+            // Opción 2: Si tienes una página específica de reservas, descomenta esta línea:
+            // window.location.href = '/reservas/';
+
+            // Opción 3: Si quieres usar la URL base de WordPress dinámicamente:
+            // window.location.href = '<?php echo home_url('/'); ?>';
+        }
 
         function loadReservationData() {
             try {
