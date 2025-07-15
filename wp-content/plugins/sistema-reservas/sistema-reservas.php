@@ -13,9 +13,6 @@ if (!defined('ABSPATH')) {
 define('RESERVAS_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('RESERVAS_PLUGIN_PATH', plugin_dir_path(__FILE__));
 
-
-
-
 class SistemaReservas
 {
     private $dashboard;
@@ -129,7 +126,7 @@ class SistemaReservas
         wp_send_json_success($debug_info);
     }
 
-    private function load_dependencies()
+private function load_dependencies()
     {
         $files = array(
             'includes/class-database.php',
@@ -140,8 +137,9 @@ class SistemaReservas
             'includes/class-discounts-admin.php',
             'includes/class-configuration-admin.php',
             'includes/class-reports-admin.php',
-            'includes/class-reservas-processor.php', // ✅ CON EMAILS
-            'includes/class-email-service.php',       // ✅ CLASE DE EMAILS CON RECORDATORIOS
+            'includes/class-agencies-admin.php',      // ✅ NUEVA CLASE DE AGENCIAS
+            'includes/class-reservas-processor.php',
+            'includes/class-email-service.php',
             'includes/class-frontend.php',
         );
 
@@ -154,8 +152,6 @@ class SistemaReservas
             }
         }
     }
-
-
 
     private function initialize_classes()
     {
@@ -177,7 +173,7 @@ class SistemaReservas
             $this->discounts_admin = new ReservasDiscountsAdmin();
         }
 
-        // ✅ INICIALIZAR CONFIGURACIÓN CON RECORDATORIOS
+        // Inicializar configuración con recordatorios
         if (class_exists('ReservasConfigurationAdmin')) {
             $this->configuration_admin = new ReservasConfigurationAdmin();
         }
@@ -187,12 +183,17 @@ class SistemaReservas
             $this->reports_admin = new ReservasReportsAdmin();
         }
 
+        // ✅ INICIALIZAR CLASE DE AGENCIAS
+        if (class_exists('ReservasAgenciesAdmin')) {
+            $this->agencies_admin = new ReservasAgenciesAdmin();
+        }
+
         // Inicializar procesador de reservas CON EMAILS
         if (class_exists('ReservasProcessor')) {
             new ReservasProcessor();
         }
 
-        // ✅ INICIALIZAR SERVICIO DE EMAILS CON RECORDATORIOS
+        // Inicializar servicio de emails con recordatorios
         if (class_exists('ReservasEmailService')) {
             new ReservasEmailService();
         }
@@ -421,6 +422,26 @@ class SistemaReservas
             error_log('✅ Columna recordatorio_enviado añadida a tabla de reservas');
         }
 
+        // ✅ NUEVO: Verificar si el campo agency_id existe
+        $agency_column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_reservas LIKE 'agency_id'");
+
+        if (empty($agency_column_exists)) {
+            // Añadir columna para vincular reservas con agencias
+            $wpdb->query("ALTER TABLE $table_reservas ADD COLUMN agency_id MEDIUMINT(9) NULL DEFAULT NULL");
+            $wpdb->query("ALTER TABLE $table_reservas ADD INDEX agency_id (agency_id)");
+            error_log('✅ Columna agency_id añadida a tabla de reservas');
+        }
+
+        // ✅ NUEVO: Verificar si el campo motivo_cancelacion existe
+        $cancel_column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_reservas LIKE 'motivo_cancelacion'");
+
+        if (empty($cancel_column_exists)) {
+            // Añadir columnas para cancelaciones
+            $wpdb->query("ALTER TABLE $table_reservas ADD COLUMN motivo_cancelacion TEXT NULL");
+            $wpdb->query("ALTER TABLE $table_reservas ADD COLUMN fecha_cancelacion DATETIME NULL");
+            error_log('✅ Columnas de cancelación añadidas a tabla de reservas');
+        }
+
         // Verificar y actualizar configuración si es necesario
         $table_configuration = $wpdb->prefix . 'reservas_configuration';
 
@@ -616,6 +637,607 @@ class SistemaReservas
     }
 }
 
+// ✅ SHORTCODE PARA PÁGINA DE CONFIRMACIÓN ACTUALIZADA - EXACTO AL DISEÑO
+add_shortcode('confirmacion_reserva', 'confirmacion_reserva_shortcode');
+
+function confirmacion_reserva_shortcode()
+{
+    ob_start();
+?>
+    <style>
+        .confirmacion-container {
+            margin: 50px auto;
+            padding: 0;
+            border-radius: 20px;
+        }
+
+        .success-banner {
+            background: #DB7461;
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+        }
+
+        .success-banner h1 {
+            background: #DB7461;
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            font-family: 'Duran-Regular';
+        }
+
+        .success-banner .divider {
+            width: 80px;
+            height: 4px;
+            background: #F4D03F;
+            margin: 20px auto;
+            border-radius: 2px;
+        }
+
+        .success-banner p {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 500;
+            opacity: 0.95;
+        }
+
+        .content-section {
+            background: #FFFFFF;
+            padding: 40px 30px;
+            text-align: center;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+        }
+
+        .thank-you-message {
+            margin-bottom: 40px;
+        }
+
+        .thank-you-message p {
+            font-size: 16px;
+            color: #2D2D2D;
+            line-height: 1.6;
+            margin: 0 0 10px 0;
+        }
+
+        .remember-text {
+            color: #2D2D2D;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+            font-family: 'Duran-Regular';
+        }
+
+
+        .boarding-message {
+            color: #2D2D2D;
+            font-size: 16px;
+            margin: 20px 0;
+            font-family: 'Duran-Regular';
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin: 40px 0;
+            justify-content: space-between;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 250px;
+            gap: 10px;
+        }
+
+        .arrival-info {
+            display: none;
+        }
+
+        .btn-view {
+            background: #F4D03F;
+            color: #2D2D2D;
+            border: 2px solid #F4D03F;
+        }
+
+        .btn-view:hover {
+            background: #F1C40F;
+            border-color: #F1C40F;
+            color: #2D2D2D;
+            text-decoration: none;
+        }
+
+        .btn-download {
+            background: transparent;
+            color: #2D2D2D;
+            border: 2px solid #F4D03F;
+        }
+
+        .btn-download:hover {
+            background: #F4D03F;
+            color: #2D2D2D;
+            text-decoration: none;
+        }
+
+        @media (max-width: 600px) {
+            .confirmacion-container {
+                margin: 20px;
+                max-width: none;
+            }
+
+            .success-banner {
+                padding: 30px 20px;
+            }
+
+            .success-banner h1 {
+                font-size: 28px;
+            }
+
+            .content-section {
+                padding: 30px 20px;
+            }
+
+            .btn {
+                min-width: 200px;
+            }
+        }
+
+        /* Loading y error states */
+        .loading-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .complete-btn {
+            background: #EFCF4B;
+            border: none;
+            padding: 15px 100px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #2E2D2C;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 44%;
+            font-family: 'Duran-Medium';
+            text-transform: uppercase;
+            border-radius: 10px;
+            letter-spacing: 1px;
+            margin: 0 auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .error-state {
+            color: #E74C3C;
+            font-weight: 600;
+        }
+
+        /* Ocultar botones inicialmente */
+        .action-buttons {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .action-buttons.loaded {
+            opacity: 1;
+        }
+
+        .back-btn {
+            color: black;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: none !important;
+            margin-bottom: 10px;
+        }
+    </style>
+
+    <div class="confirmacion-container container">
+        <!-- Banner principal -->
+        <button type="button" class="back-btn" onclick="goBackInicio()">
+            <img src="https://autobusmedinaazahara.com/wp-content/uploads/2025/07/Vector-15.svg" alt="">VOLVER AL INICIO
+        </button>
+        <div class="success-banner">
+            <h1>¡GRACIAS POR TU RESERVA!</h1>
+        </div>
+
+        <!-- Contenido principal -->
+        <div class="content-section">
+            <div class="thank-you-message">
+                <p>En <strong>Autocares Bravo</strong> estamos agradecidos por tu confianza para el viaje a las ruinas de <strong>Medina Azahara</strong>. Nos hace ilusión acompañarte: tú disfruta de la experiencia, nosotros cuidamos del trayecto.</p>
+            </div>
+
+            <div class="remember-text">
+                Recuerda presentarte en la parada 10 minutos antes de la salida.
+            </div>
+
+            <div class="arrival-info" id="arrival-info">
+                <span class="loading-state">📍 Cargando información del viaje...</span>
+            </div>
+
+            <div class="boarding-message">
+                ¡Nos vemos a bordo!
+            </div>
+
+            <!-- Botones de acción -->
+            <div class="action-buttons" id="action-buttons">
+                <button class="complete-btn" onclick="viewTicket()">
+                    VER COMPROBANTE
+                </button>
+                <button class="complete-btn" onclick="downloadTicket()">
+                    DESCARGAR COMPROBANTE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let reservationData = null;
+
+        // Cargar datos al iniciar la página
+        window.addEventListener('DOMContentLoaded', function() {
+            loadReservationData();
+        });
+
+        function goBackInicio() {
+    // Opción 1: Volver a la página de inicio del sitio
+    window.location.href = '/';
+    
+    // Opción 2: Si tienes una página específica de reservas, descomenta esta línea:
+    // window.location.href = '/reservas/';
+    
+    // Opción 3: Si quieres usar la URL base de WordPress dinámicamente:
+    // window.location.href = '<?php echo home_url('/'); ?>';
+}
+
+        function loadReservationData() {
+            try {
+                const confirmedData = sessionStorage.getItem('confirmedReservation');
+
+                if (confirmedData) {
+                    reservationData = JSON.parse(confirmedData);
+                    console.log('✅ Datos de confirmación cargados:', reservationData);
+
+                    updateArrivalInfo();
+                    enableActionButtons();
+
+                    // Limpiar sessionStorage después de cargar
+                    sessionStorage.removeItem('confirmedReservation');
+                } else {
+                    console.log('⚠️ No hay datos de confirmación en sessionStorage');
+                    showGenericInfo();
+                    enableActionButtons(); // Habilitar botones aunque no haya datos específicos
+                }
+            } catch (error) {
+                console.error('❌ Error cargando datos de confirmación:', error);
+                showErrorInfo();
+                enableActionButtons();
+            }
+        }
+
+        function updateArrivalInfo() {
+            if (!reservationData || !reservationData.detalles) {
+                showGenericInfo();
+                return;
+            }
+
+            const detalles = reservationData.detalles;
+            const fecha = detalles.fecha || 'Fecha no disponible';
+            const hora = detalles.hora || 'Hora no disponible';
+
+            // Formatear fecha si es posible
+            let fechaFormateada = fecha;
+            try {
+                const fechaObj = new Date(fecha + 'T00:00:00');
+                fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                // Capitalizar primera letra
+                fechaFormateada = fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1);
+            } catch (e) {
+                console.log('No se pudo formatear la fecha, usando formato original');
+            }
+
+            const arrivalText = `📍 ${fechaFormateada} a las ${hora}`;
+            document.getElementById('arrival-info').innerHTML = arrivalText;
+        }
+
+        function showGenericInfo() {
+            document.getElementById('arrival-info').innerHTML = '📍 Consulta tu email para ver los detalles del viaje';
+        }
+
+        function showErrorInfo() {
+            document.getElementById('arrival-info').innerHTML = '<span class="error-state">❌ Error cargando información del viaje</span>';
+        }
+
+        function enableActionButtons() {
+            const actionButtons = document.getElementById('action-buttons');
+            actionButtons.classList.add('loaded');
+        }
+
+        function viewTicket() {
+            if (!reservationData || !reservationData.localizador) {
+                alert('No se encontraron datos de la reserva. Por favor, revisa tu email para ver el comprobante.');
+                return;
+            }
+
+            // Mostrar modal de carga
+            showLoadingModal('Generando comprobante...');
+
+            // Solicitar PDF al servidor
+            generateAndViewPDF();
+        }
+
+        function downloadTicket() {
+            if (!reservationData || !reservationData.localizador) {
+                alert('No se encontraron datos de la reserva. Por favor, revisa tu email para descargar el comprobante.');
+                return;
+            }
+
+            // Mostrar modal de carga
+            showLoadingModal('Preparando descarga...');
+
+            // Solicitar PDF para descarga
+            generateAndDownloadPDF();
+        }
+
+        function generateAndViewPDF() {
+            fetch(ajaxurl || '/wp-admin/admin-ajax.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        action: 'generate_ticket_pdf_view',
+                        localizador: reservationData.localizador,
+                        nonce: '<?php echo wp_create_nonce('reservas_nonce'); ?>'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    hideLoadingModal();
+
+                    if (data.success && data.data.pdf_url) {
+                        // Abrir PDF en nueva ventana
+                        window.open(data.data.pdf_url, '_blank');
+                    } else {
+                        alert('Error generando el comprobante: ' + (data.data || 'Error desconocido'));
+                    }
+                })
+                .catch(error => {
+                    hideLoadingModal();
+                    console.error('Error:', error);
+                    alert('Error de conexión al generar el comprobante');
+                });
+        }
+
+        function generateAndDownloadPDF() {
+            fetch(ajaxurl || '/wp-admin/admin-ajax.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        action: 'generate_ticket_pdf_download',
+                        localizador: reservationData.localizador,
+                        nonce: '<?php echo wp_create_nonce('reservas_nonce'); ?>'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    hideLoadingModal();
+
+                    if (data.success && data.data.pdf_url) {
+                        // Crear link de descarga
+                        const link = document.createElement('a');
+                        link.href = data.data.pdf_url;
+                        link.download = `billete_${reservationData.localizador}.pdf`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    } else {
+                        alert('Error preparando la descarga: ' + (data.data || 'Error desconocido'));
+                    }
+                })
+                .catch(error => {
+                    hideLoadingModal();
+                    console.error('Error:', error);
+                    alert('Error de conexión al preparar la descarga');
+                });
+        }
+
+        function showLoadingModal(message) {
+            // Crear modal de carga si no existe
+            let modal = document.getElementById('loading-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'loading-modal';
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0,0,0,0.7);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 10000;
+                `;
+
+                const content = document.createElement('div');
+                content.style.cssText = `
+                    background: white;
+                    padding: 30px;
+                    border-radius: 10px;
+                    text-align: center;
+                    max-width: 300px;
+                `;
+
+                content.innerHTML = `
+                    <div style="font-size: 24px; margin-bottom: 15px;">⏳</div>
+                    <div id="loading-message" style="font-size: 16px; color: #333;">${message}</div>
+                `;
+
+                modal.appendChild(content);
+                document.body.appendChild(modal);
+            } else {
+                document.getElementById('loading-message').textContent = message;
+                modal.style.display = 'flex';
+            }
+        }
+
+        function hideLoadingModal() {
+            const modal = document.getElementById('loading-modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Variables globales para AJAX
+        const ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
+    </script>
+<?php
+    return ob_get_clean();
+}
+
+// ✅ AGREGAR NUEVAS FUNCIONES AJAX PARA MANEJAR PDF
+add_action('wp_ajax_generate_ticket_pdf_view', 'handle_pdf_view_request');
+add_action('wp_ajax_nopriv_generate_ticket_pdf_view', 'handle_pdf_view_request');
+
+add_action('wp_ajax_generate_ticket_pdf_download', 'handle_pdf_download_request');
+add_action('wp_ajax_nopriv_generate_ticket_pdf_download', 'handle_pdf_download_request');
+
+function handle_pdf_view_request()
+{
+    handle_pdf_request('view');
+}
+
+function handle_pdf_download_request()
+{
+    handle_pdf_request('download');
+}
+
+function handle_pdf_request($mode = 'view')
+{
+    // Verificar nonce
+    if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+        wp_send_json_error('Error de seguridad');
+        return;
+    }
+
+    $localizador = sanitize_text_field($_POST['localizador'] ?? '');
+
+    if (empty($localizador)) {
+        wp_send_json_error('Localizador no proporcionado');
+        return;
+    }
+
+    try {
+        // Buscar la reserva
+        global $wpdb;
+        $table_reservas = $wpdb->prefix . 'reservas_reservas';
+
+        $reserva = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_reservas WHERE localizador = %s",
+            $localizador
+        ));
+
+        if (!$reserva) {
+            wp_send_json_error('Reserva no encontrada');
+            return;
+        }
+
+        // Obtener datos del servicio
+        $table_servicios = $wpdb->prefix . 'reservas_servicios';
+        $servicio = $wpdb->get_row($wpdb->prepare(
+            "SELECT precio_adulto, precio_nino, precio_residente FROM $table_servicios WHERE id = %d",
+            $reserva->servicio_id
+        ));
+
+        // Preparar datos para el PDF
+        $reserva_array = (array) $reserva;
+        if ($servicio) {
+            $reserva_array['precio_adulto'] = $servicio->precio_adulto;
+            $reserva_array['precio_nino'] = $servicio->precio_nino;
+            $reserva_array['precio_residente'] = $servicio->precio_residente;
+        }
+
+        // Generar PDF
+        if (!class_exists('ReservasPDFGenerator')) {
+            require_once RESERVAS_PLUGIN_PATH . 'includes/class-pdf-generator.php';
+        }
+
+        $pdf_generator = new ReservasPDFGenerator();
+        $pdf_path = $pdf_generator->generate_ticket_pdf($reserva_array);
+
+        if (!$pdf_path || !file_exists($pdf_path)) {
+            wp_send_json_error('Error generando el PDF');
+            return;
+        }
+
+        // Crear URL público para el PDF
+        $upload_dir = wp_upload_dir();
+        $pdf_url = str_replace($upload_dir['path'], $upload_dir['url'], $pdf_path);
+
+        // Programar eliminación del archivo después de 1 hora
+        wp_schedule_single_event(time() + 3600, 'delete_temp_pdf', array($pdf_path));
+
+        wp_send_json_success(array(
+            'pdf_url' => $pdf_url,
+            'mode' => $mode,
+            'localizador' => $localizador
+        ));
+    } catch (Exception $e) {
+        error_log('Error generando PDF para confirmación: ' . $e->getMessage());
+        wp_send_json_error('Error interno generando el PDF: ' . $e->getMessage());
+    }
+}
+
+// Hook para eliminar PDFs temporales
+add_action('delete_temp_pdf', 'delete_temporary_pdf_file');
+
+function delete_temporary_pdf_file($pdf_path)
+{
+    if (file_exists($pdf_path)) {
+        unlink($pdf_path);
+        error_log('PDF temporal eliminado: ' . $pdf_path);
+    }
+}
+
 // ✅ SHORTCODES SIN CAMBIOS
 
 // Shortcode para uso en páginas de WordPress (alternativa)
@@ -682,289 +1304,6 @@ function reservas_login_shortcode()
             <p style="margin: 5px 0; font-size: 14px;"><strong>Contraseña:</strong> admin123</p>
         </div>
     </div>
-<?php
-    return ob_get_clean();
-}
-
-// ✅ SHORTCODE PARA PÁGINA DE CONFIRMACIÓN SIN CAMBIOS
-add_shortcode('confirmacion_reserva', 'confirmacion_reserva_shortcode');
-
-function confirmacion_reserva_shortcode()
-{
-    ob_start();
-?>
-    <style>
-        .confirmacion-container {
-            max-width: 800px;
-            margin: 50px auto;
-            padding: 30px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            text-align: center;
-        }
-
-        .success-header {
-            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-            color: white;
-            padding: 40px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
-        }
-
-        .success-header h1 {
-            margin: 0 0 10px 0;
-            font-size: 32px;
-            font-weight: bold;
-        }
-
-        .success-header p {
-            margin: 0;
-            font-size: 18px;
-            opacity: 0.9;
-        }
-
-        .checkmark {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: white;
-            color: #38a169;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 40px;
-            margin: 0 auto 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .details-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin: 30px 0;
-        }
-
-        .detail-card {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            border-left: 4px solid #38a169;
-        }
-
-        .detail-card h3 {
-            margin: 0 0 15px 0;
-            color: #2d3748;
-            font-size: 18px;
-        }
-
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 8px 0;
-            padding: 8px 0;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .detail-row:last-child {
-            border-bottom: none;
-        }
-
-        .detail-label {
-            color: #4a5568;
-            font-weight: 600;
-        }
-
-        .detail-value {
-            color: #2d3748;
-            font-weight: bold;
-        }
-
-        .localizador-box {
-            background: #fef5e7;
-            border: 2px solid #ed8936;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 30px 0;
-        }
-
-        .localizador-box h3 {
-            margin: 0 0 10px 0;
-            color: #c05621;
-        }
-
-        .localizador {
-            font-size: 24px;
-            font-weight: bold;
-            color: #c05621;
-            letter-spacing: 2px;
-        }
-
-        .actions {
-            margin: 40px 0;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 15px 30px;
-            margin: 10px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .btn-primary {
-            background: #3182ce;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #2c5282;
-            color: white;
-        }
-
-        .btn-secondary {
-            background: #e2e8f0;
-            color: #4a5568;
-        }
-
-        .btn-secondary:hover {
-            background: #cbd5e0;
-        }
-
-        .info-box {
-            background: #ebf8ff;
-            border: 1px solid #90cdf4;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 30px 0;
-        }
-
-        .info-box h4 {
-            margin: 0 0 10px 0;
-            color: #2c5282;
-        }
-
-        .info-box ul {
-            margin: 0;
-            padding-left: 20px;
-            text-align: left;
-        }
-
-        .info-box li {
-            margin: 5px 0;
-            color: #2d3748;
-        }
-    </style>
-
-    <div class="confirmacion-container">
-        <div class="success-header">
-            <div class="checkmark">✓</div>
-            <h1>¡RESERVA CONFIRMADA!</h1>
-            <p>Tu reserva ha sido procesada correctamente</p>
-        </div>
-
-        <div class="localizador-box">
-            <h3>📋 Tu Localizador de Reserva</h3>
-            <div class="localizador" id="reservation-localizador">Cargando...</div>
-            <p style="margin: 10px 0 0 0; color: #c05621; font-weight: 600;">
-                Guarda este código para futuras consultas
-            </p>
-        </div>
-
-        <div class="details-grid">
-            <div class="detail-card">
-                <h3>📅 Información del Viaje</h3>
-                <div class="detail-row">
-                    <span class="detail-label">Fecha:</span>
-                    <span class="detail-value" id="reservation-fecha">-</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Hora:</span>
-                    <span class="detail-value" id="reservation-hora">-</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Personas:</span>
-                    <span class="detail-value" id="reservation-personas">-</span>
-                </div>
-            </div>
-
-            <div class="detail-card">
-                <h3>💰 Información del Pago</h3>
-                <div class="detail-row">
-                    <span class="detail-label">Total:</span>
-                    <span class="detail-value" id="reservation-total" style="color: #38a169;">-</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Método:</span>
-                    <span class="detail-value">Procesamiento Directo</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Estado:</span>
-                    <span class="detail-value" style="color: #38a169;">✅ Confirmado</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="info-box">
-            <h4>📋 Información Importante</h4>
-            <ul>
-                <li><strong>Presenta tu localizador</strong> al subir al autobús</li>
-                <li><strong>Llega 15 minutos antes</strong> de la hora de salida</li>
-                <li><strong>Los residentes</strong> deben presentar documento acreditativo</li>
-                <li><strong>Los niños menores de 5 años</strong> viajan gratis sin ocupar plaza</li>
-                <li><strong>Guarda este localizador</strong> para futuras consultas</li>
-                <li><strong>Recibirás un recordatorio automático</strong> antes de tu viaje</li>
-            </ul>
-        </div>
-
-        <div class="actions">
-            <a href="/" class="btn btn-primary">🏠 Volver al Inicio</a>
-            <button class="btn btn-secondary" onclick="window.print()">🖨️ Imprimir Confirmación</button>
-        </div>
-
-        <div style="margin-top: 40px; padding: 20px; background: #f7fafc; border-radius: 8px;">
-            <p style="margin: 0; color: #4a5568;">
-                <strong>¿Necesitas ayuda?</strong><br>
-                Si tienes alguna duda sobre tu reserva, ponte en contacto con nosotros.<br>
-                <strong>¡Gracias por elegir nuestros servicios!</strong>
-            </p>
-        </div>
-    </div>
-
-    <script>
-        // Cargar datos de la reserva confirmada
-        window.addEventListener('DOMContentLoaded', function() {
-            try {
-                const confirmedData = sessionStorage.getItem('confirmedReservation');
-                if (confirmedData) {
-                    const data = JSON.parse(confirmedData);
-                    console.log('Datos de confirmación:', data);
-
-                    // Rellenar información
-                    document.getElementById('reservation-localizador').textContent = data.localizador || 'N/A';
-                    document.getElementById('reservation-fecha').textContent = data.detalles?.fecha || 'N/A';
-                    document.getElementById('reservation-hora').textContent = data.detalles?.hora || 'N/A';
-                    document.getElementById('reservation-personas').textContent = data.detalles?.personas || 'N/A';
-                    document.getElementById('reservation-total').textContent = (data.detalles?.precio_final || '0') + '€';
-
-                    // Limpiar sessionStorage después de mostrar
-                    sessionStorage.removeItem('confirmedReservation');
-                } else {
-                    // Si no hay datos, mostrar información genérica
-                    document.getElementById('reservation-localizador').textContent = 'CONFIRMADO';
-                    console.log('No hay datos de confirmación en sessionStorage');
-                }
-            } catch (error) {
-                console.error('Error cargando datos de confirmación:', error);
-                document.getElementById('reservation-localizador').textContent = 'ERROR';
-            }
-        });
-    </script>
 <?php
     return ob_get_clean();
 }

@@ -6,34 +6,25 @@ class ReservasAuth {
         add_action('wp_ajax_nopriv_reservas_login', array($this, 'handle_login'));
         add_action('wp_ajax_reservas_logout', array($this, 'handle_logout'));
         add_action('init', array($this, 'start_session'));
-        
-        // ✅ AGREGAR HOOK PARA CONFIGURAR HEADERS DE SESIÓN
         add_action('init', array($this, 'configure_session_security'));
     }
     
-public function start_session() {
-    // ✅ MEJORAR GESTIÓN DE SESIONES
-    if (!session_id() && !headers_sent()) {
-        // Configurar parámetros de sesión más seguros
-        ini_set('session.cookie_httponly', 1);
-        ini_set('session.cookie_secure', is_ssl() ? 1 : 0);
-        ini_set('session.cookie_samesite', 'Lax');
-        
-        session_start();
-        
-        // ✅ LOG PARA DEBUG
-        error_log('SESIÓN INICIADA: ' . session_id() . ' - IP: ' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+    public function start_session() {
+        if (!session_id() && !headers_sent()) {
+            ini_set('session.cookie_httponly', 1);
+            ini_set('session.cookie_secure', is_ssl() ? 1 : 0);
+            ini_set('session.cookie_samesite', 'Lax');
+            
+            session_start();
+            
+            error_log('SESIÓN INICIADA: ' . session_id() . ' - IP: ' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+        }
     }
-}
     
-    // ✅ NUEVA FUNCIÓN PARA CONFIGURAR SEGURIDAD DE SESIÓN
     public function configure_session_security() {
-        // Solo configurar en las páginas del sistema de reservas
         if (strpos($_SERVER['REQUEST_URI'], 'reservas-') !== false) {
-            // Permitir CORS para AJAX
             header('Access-Control-Allow-Credentials: true');
             
-            // Configurar headers de seguridad
             if (!headers_sent()) {
                 header('X-Content-Type-Options: nosniff');
                 header('X-Frame-Options: SAMEORIGIN');
@@ -42,7 +33,6 @@ public function start_session() {
     }
     
     public function handle_login() {
-        // ✅ VERIFICAR NONCE DE FORMA MÁS ROBUSTA
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
             error_log('RESERVAS AUTH: Nonce verification failed');
             wp_send_json_error('Error de seguridad - nonce inválido');
@@ -57,6 +47,43 @@ public function start_session() {
             return;
         }
         
+        // ✅ PRIMERO INTENTAR AUTENTICACIÓN COMO USUARIO ADMIN
+        $admin_result = $this->authenticate_admin($username, $password);
+        
+        if ($admin_result['success']) {
+            $this->create_session($admin_result['user']);
+            wp_send_json_success(array(
+                'redirect' => home_url('/reservas-admin/'),
+                'message' => 'Login exitoso como ' . $admin_result['user']['role']
+            ));
+            return;
+        }
+        
+        // ✅ SI NO ES ADMIN, INTENTAR AUTENTICACIÓN COMO AGENCIA
+        if (!class_exists('ReservasAgenciesAdmin')) {
+            require_once RESERVAS_PLUGIN_PATH . 'includes/class-agencies-admin.php';
+        }
+        
+        $agency_result = ReservasAgenciesAdmin::authenticate_agency($username, $password);
+        
+        if ($agency_result['success']) {
+            $this->create_session($agency_result['agency']);
+            wp_send_json_success(array(
+                'redirect' => home_url('/reservas-admin/'),
+                'message' => 'Login exitoso como agencia'
+            ));
+            return;
+        }
+        
+        // ✅ SI NINGUNA AUTENTICACIÓN FUNCIONA
+        error_log('RESERVAS AUTH: Login failed for user: ' . $username);
+        wp_send_json_error('Usuario o contraseña incorrectos');
+    }
+    
+    /**
+     * ✅ NUEVA FUNCIÓN: Autenticar usuario administrador
+     */
+    private function authenticate_admin($username, $password) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'reservas_users';
         
@@ -66,33 +93,37 @@ public function start_session() {
         ));
         
         if ($user && password_verify($password, $user->password)) {
-            // ✅ INICIAR SESIÓN DE FORMA MÁS ROBUSTA
-            if (!session_id()) {
-                $this->start_session();
-            }
-            
-            // ✅ REGENERAR ID DE SESIÓN POR SEGURIDAD
-            session_regenerate_id(true);
-            
-            $_SESSION['reservas_user'] = array(
-                'id' => $user->id,
-                'username' => $user->username,
-                'email' => $user->email,
-                'role' => $user->role,
-                'login_time' => time(),
-                'ip_address' => $this->get_client_ip() // Para validación adicional
+            return array(
+                'success' => true,
+                'user' => array(
+                    'id' => $user->id,
+                    'username' => $user->username,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'user_type' => 'admin'
+                )
             );
-            
-            error_log('RESERVAS AUTH: Login successful for user: ' . $username);
-            
-            wp_send_json_success(array(
-                'redirect' => home_url('/reservas-admin/'),
-                'message' => 'Login exitoso'
-            ));
-        } else {
-            error_log('RESERVAS AUTH: Login failed for user: ' . $username);
-            wp_send_json_error('Usuario o contraseña incorrectos');
         }
+        
+        return array('success' => false);
+    }
+    
+    /**
+     * ✅ NUEVA FUNCIÓN: Crear sesión unificada
+     */
+    private function create_session($user_data) {
+        if (!session_id()) {
+            $this->start_session();
+        }
+        
+        session_regenerate_id(true);
+        
+        $_SESSION['reservas_user'] = array_merge($user_data, array(
+            'login_time' => time(),
+            'ip_address' => $this->get_client_ip()
+        ));
+        
+        error_log('RESERVAS AUTH: Session created for user: ' . $user_data['username'] . ' (role: ' . $user_data['role'] . ')');
     }
     
     public function handle_logout() {
@@ -100,12 +131,10 @@ public function start_session() {
             session_start();
         }
         
-        // ✅ LIMPIAR DATOS DE SESIÓN ESPECÍFICOS
         if (isset($_SESSION['reservas_user'])) {
             unset($_SESSION['reservas_user']);
         }
         
-        // ✅ DESTRUIR SESIÓN COMPLETAMENTE
         session_destroy();
         
         wp_send_json_success(array(
@@ -118,17 +147,14 @@ public function start_session() {
             session_start();
         }
         
-        // ✅ VERIFICACIÓN MÁS ROBUSTA DE SESIÓN
         if (!isset($_SESSION['reservas_user'])) {
             return false;
         }
         
-        // ✅ VERIFICAR QUE LA SESIÓN NO HAYA EXPIRADO
         $login_time = $_SESSION['reservas_user']['login_time'] ?? 0;
         $session_duration = 86400; // 24 horas
         
         if ((time() - $login_time) > $session_duration) {
-            // Sesión expirada
             unset($_SESSION['reservas_user']);
             return false;
         }
@@ -163,38 +189,59 @@ public function start_session() {
         return $user_level >= $required_level;
     }
     
-public static function require_login() {
-    if (!self::is_logged_in()) {
-        // ✅ MANEJAR PETICIONES AJAX DE FORMA DIFERENTE
-        if (wp_doing_ajax()) {
-            // ✅ NO ENVIAR wp_send_json_error aquí, solo return false
-            return false;
+    public static function require_login() {
+        if (!self::is_logged_in()) {
+            if (wp_doing_ajax()) {
+                return false;
+            }
+            
+            wp_redirect(home_url('/reservas-login/'));
+            exit;
+        }
+        return true;
+    }
+    
+    public static function require_permission($required_role) {
+        if (!self::require_login()) {
+            if (wp_doing_ajax()) {
+                return false;
+            }
+            wp_die('Sesión expirada');
         }
         
-        wp_redirect(home_url('/reservas-login/'));
-        exit;
-    }
-    return true;
-}
-    
-public static function require_permission($required_role) {
-    if (!self::require_login()) {
-        if (wp_doing_ajax()) {
-            return false;
+        if (!self::has_permission($required_role)) {
+            if (wp_doing_ajax()) {
+                return false;
+            }
+            wp_die('No tienes permisos para acceder a esta página');
         }
-        wp_die('Sesión expirada');
+        return true;
     }
     
-    if (!self::has_permission($required_role)) {
-        if (wp_doing_ajax()) {
-            return false;
-        }
-        wp_die('No tienes permisos para acceder a esta página');
+    /**
+     * ✅ NUEVA FUNCIÓN: Verificar si el usuario actual es una agencia
+     */
+    public static function is_agency() {
+        $user = self::get_current_user();
+        return $user && $user['role'] === 'agencia';
     }
-    return true;
-}
     
-    // ✅ NUEVA FUNCIÓN PARA OBTENER IP DEL CLIENTE
+    /**
+     * ✅ NUEVA FUNCIÓN: Verificar si el usuario actual es administrador
+     */
+    public static function is_admin() {
+        $user = self::get_current_user();
+        return $user && in_array($user['role'], ['super_admin', 'admin']);
+    }
+    
+    /**
+     * ✅ NUEVA FUNCIÓN: Obtener ID de agencia si el usuario es agencia
+     */
+    public static function get_agency_id() {
+        $user = self::get_current_user();
+        return ($user && $user['role'] === 'agencia') ? $user['id'] : null;
+    }
+    
     private function get_client_ip() {
         $ip_keys = array('HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR');
         
@@ -213,7 +260,6 @@ public static function require_permission($required_role) {
         return $_SERVER['REMOTE_ADDR'] ?? 'unknown';
     }
     
-    // ✅ NUEVA FUNCIÓN PARA VALIDAR NONCE DE FORMA MÁS ROBUSTA
     public static function verify_ajax_nonce() {
         if (!isset($_POST['nonce'])) {
             error_log('RESERVAS AUTH: No nonce provided in AJAX request');
