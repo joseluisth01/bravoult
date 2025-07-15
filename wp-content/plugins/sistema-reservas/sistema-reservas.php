@@ -1306,6 +1306,8 @@ function reservas_login_shortcode()
     </div>
 <?php
     return ob_get_clean();
+
+    
 }
 
 // Inicializar el plugin

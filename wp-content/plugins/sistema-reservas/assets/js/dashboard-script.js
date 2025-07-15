@@ -3771,11 +3771,11 @@ function loadAgenciesSection() {
     
     // Cargar la lista de agencias
     jQuery.ajax({
-        url: reservas_ajax.ajax_url,
+        url: reservasAjax.ajax_url,
         type: 'POST',
         data: {
             action: 'get_agencies_list',
-            nonce: reservas_ajax.nonce
+            nonce: reservasAjax.nonce
         },
         success: function(response) {
             console.log('Respuesta del servidor:', response);
@@ -3791,6 +3791,16 @@ function loadAgenciesSection() {
             showErrorInMainContent('Error de conexión al cargar agencias');
         }
     });
+}
+
+function showErrorInMainContent(message) {
+    document.body.innerHTML = `
+        <div class="error-container" style="text-align: center; padding: 50px;">
+            <h2 style="color: #d63638;">Error</h2>
+            <p style="color: #d63638;">${message}</p>
+            <button class="btn-secondary" onclick="goBackToDashboard()">← Volver al Dashboard</button>
+        </div>
+    `;
 }
 
 /**
@@ -3810,6 +3820,9 @@ function renderAgenciesSection(agencies) {
                 </button>
                 <button class="btn-secondary" onclick="refreshAgenciesList()">
                     🔄 Actualizar Lista
+                </button>
+                <button class="btn-secondary" onclick="goBackToDashboard()">
+                    ← Volver al Dashboard
                 </button>
             </div>
             
@@ -3852,6 +3865,152 @@ function renderAgenciesSection(agencies) {
         
         ${renderCreateAgencyModal()}
         ${renderEditAgencyModal()}
+        
+        <style>
+        .agencies-management {
+            padding: 20px;
+        }
+        
+        .section-header h2 {
+            margin: 0 0 10px 0;
+            color: #23282d;
+        }
+        
+        .section-header p {
+            margin: 0 0 30px 0;
+            color: #666;
+        }
+        
+        .actions-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            align-items: center;
+        }
+        
+        .agencies-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #0073aa;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            color: #666;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        
+        .stat-card .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #0073aa;
+        }
+        
+        .agencies-table-container {
+            background: white;
+            border-radius: 8px;
+            overflow-x: auto;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .agencies-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .agencies-table th,
+        .agencies-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .agencies-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #23282d;
+        }
+        
+        .agencies-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-active {
+            background: #edfaed;
+            color: #00a32a;
+        }
+        
+        .status-inactive {
+            background: #fef7f7;
+            color: #d63638;
+        }
+        
+        .status-suspended {
+            background: #fff8e1;
+            color: #f57c00;
+        }
+        
+        .actions-cell {
+            white-space: nowrap;
+        }
+        
+        .btn-edit, .btn-toggle, .btn-delete {
+            padding: 6px 12px;
+            margin: 0 2px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-edit {
+            background: #0073aa;
+            color: white;
+        }
+        
+        .btn-toggle {
+            background: #f57c00;
+            color: white;
+        }
+        
+        .btn-delete {
+            background: #d63638;
+            color: white;
+        }
+        
+        .btn-edit:hover {
+            background: #005a87;
+        }
+        
+        .btn-toggle:hover {
+            background: #e65100;
+        }
+        
+        .btn-delete:hover {
+            background: #b32d36;
+        }
+        </style>
     `;
     
     // Insertar contenido en el dashboard principal
@@ -3973,6 +4132,7 @@ function renderCreateAgencyModal() {
     `;
 }
 
+
 /**
  * Renderizar modal de editar agencia
  */
@@ -4046,9 +4206,6 @@ function renderEditAgencyModal() {
     `;
 }
 
-/**
- * Mostrar modal de crear agencia
- */
 function showCreateAgencyModal() {
     jQuery('#createAgencyModal').show();
     jQuery('#createAgencyForm')[0].reset();
@@ -4075,12 +4232,12 @@ function editAgency(agencyId) {
     console.log('Editando agencia ID:', agencyId);
     
     jQuery.ajax({
-        url: reservas_ajax.ajax_url,
+        url: reservasAjax.ajax_url,
         type: 'POST',
         data: {
             action: 'get_agency_details',
             agency_id: agencyId,
-            nonce: reservas_ajax.nonce
+            nonce: reservasAjax.nonce
         },
         success: function(response) {
             if (response.success) {
@@ -4121,13 +4278,13 @@ function toggleAgencyStatus(agencyId, currentStatus) {
     
     if (confirm(`¿Estás seguro de que quieres ${statusText} esta agencia?`)) {
         jQuery.ajax({
-            url: reservas_ajax.ajax_url,
+            url: reservasAjax.ajax_url,
             type: 'POST',
             data: {
                 action: 'toggle_agency_status',
                 agency_id: agencyId,
                 new_status: newStatus,
-                nonce: reservas_ajax.nonce
+                nonce: reservasAjax.nonce
             },
             success: function(response) {
                 if (response.success) {
@@ -4150,12 +4307,12 @@ function toggleAgencyStatus(agencyId, currentStatus) {
 function deleteAgency(agencyId) {
     if (confirm('¿Estás seguro de que quieres eliminar esta agencia? Esta acción no se puede deshacer.')) {
         jQuery.ajax({
-            url: reservas_ajax.ajax_url,
+            url: reservasAjax.ajax_url,
             type: 'POST',
             data: {
                 action: 'delete_agency',
                 agency_id: agencyId,
-                nonce: reservas_ajax.nonce
+                nonce: reservasAjax.nonce
             },
             success: function(response) {
                 if (response.success) {
@@ -4188,12 +4345,12 @@ jQuery(document).on('submit', '#createAgencyForm', function(e) {
     const formData = jQuery(this).serialize();
     
     jQuery.ajax({
-        url: reservas_ajax.ajax_url,
+        url: reservasAjax.ajax_url,
         type: 'POST',
         data: {
             action: 'save_agency',
             ...Object.fromEntries(new URLSearchParams(formData)),
-            nonce: reservas_ajax.nonce
+            nonce: reservasAjax.nonce
         },
         success: function(response) {
             if (response.success) {
@@ -4219,12 +4376,12 @@ jQuery(document).on('submit', '#editAgencyForm', function(e) {
     const formData = jQuery(this).serialize();
     
     jQuery.ajax({
-        url: reservas_ajax.ajax_url,
+        url: reservasAjax.ajax_url,
         type: 'POST',
         data: {
             action: 'save_agency',
             ...Object.fromEntries(new URLSearchParams(formData)),
-            nonce: reservas_ajax.nonce
+            nonce: reservasAjax.nonce
         },
         success: function(response) {
             if (response.success) {
@@ -4270,4 +4427,12 @@ function formatDate(dateString) {
     } catch (e) {
         return dateString;
     }
+}
+
+function showLoadingInMainContent() {
+    jQuery('.dashboard-content').html('<div class="loading">Cargando gestión de agencias...</div>');
+}
+
+function showErrorInMainContent(message) {
+    jQuery('.dashboard-content').html(`<div class="error">${message}</div>`);
 }
