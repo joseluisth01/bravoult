@@ -4765,7 +4765,8 @@ function loadAgencyReservaRapida() {
                 showErrorInContent('Error cargando reserva rápida: ' + response.data);
             }
         },
-        error: function() {
+        error: function(xhr, status, error) {
+            console.error('Error AJAX:', error);
             showErrorInContent('Error de conexión cargando reserva rápida');
         }
     });
