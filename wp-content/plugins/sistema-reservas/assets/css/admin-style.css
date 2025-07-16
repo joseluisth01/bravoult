@@ -1845,6 +1845,10 @@ body {
     }
 }
 
+.form-group input, .form-group textarea{
+    width: 95% !important;
+}
+
 .action-btn[onclick*="loadReservaRapidaSection"]:hover {
     animation: pulse-success 1.5s ease-in-out infinite;
 }

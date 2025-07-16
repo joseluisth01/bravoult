@@ -849,6 +849,10 @@ color: black;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+.form-group input, .form-group textarea{
+    width: 95% !important;
+}
+
 .process-btn:hover {
     background: #F1C40F;
     transform: translateY(-2px);

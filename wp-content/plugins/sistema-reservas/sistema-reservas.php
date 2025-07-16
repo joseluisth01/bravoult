@@ -139,6 +139,7 @@ class SistemaReservas
             'includes/class-configuration-admin.php',
             'includes/class-reports-admin.php',
             'includes/class-agencies-admin.php',
+            'includes/class-agency-profile-admin.php',  // ✅ AÑADIR ESTA LÍNEA
             'includes/class-reservas-processor.php',
             'includes/class-email-service.php',
             'includes/class-frontend.php',
@@ -206,6 +207,10 @@ class SistemaReservas
         if (class_exists('ReservasReservaRapidaAdmin')) {
             new ReservasReservaRapidaAdmin();
         }
+
+        if (class_exists('ReservasAgencyProfileAdmin')) {
+        new ReservasAgencyProfileAdmin();
+    }
     }
 
     public function add_rewrite_rules()
@@ -1337,6 +1342,19 @@ function reservas_login_shortcode()
 <?php
     return ob_get_clean();
 }
+
+add_action('admin_init', function() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'reservas_agencies';
+    
+    // Verificar si el campo email_notificaciones existe
+    $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'email_notificaciones'");
+    
+    if (empty($column_exists)) {
+        $wpdb->query("ALTER TABLE $table_name ADD COLUMN email_notificaciones varchar(100) AFTER email");
+        error_log('✅ Columna email_notificaciones añadida a tabla de agencias');
+    }
+});
 
 // Inicializar el plugin
 new SistemaReservas();

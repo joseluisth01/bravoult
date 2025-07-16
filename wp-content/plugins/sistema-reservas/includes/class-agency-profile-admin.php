@@ -158,17 +158,23 @@ class ReservasAgencyProfileAdmin
                 return;
             }
 
-            // Preparar datos para actualizar
             $update_data = array(
-                'agency_name' => $agency_name,
-                'contact_person' => $contact_person,
-                'email' => $email,
-                'phone' => $phone,
-                'email_notificaciones' => $email_notificaciones,
-                'address' => $address,
-                'notes' => $notes,
-                'updated_at' => current_time('mysql')
-            );
+    'agency_name' => $agency_name,
+    'contact_person' => $contact_person,
+    'email' => $email,
+    'phone' => $phone,
+    'address' => $address,
+    'notes' => $notes,
+    'updated_at' => current_time('mysql')
+);
+
+global $wpdb;
+$table_name = $wpdb->prefix . 'reservas_agencies';
+$column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'email_notificaciones'");
+
+if (!empty($column_exists)) {
+    $update_data['email_notificaciones'] = $email_notificaciones;
+}
 
             // Actualizar en la base de datos
             $result = $wpdb->update(

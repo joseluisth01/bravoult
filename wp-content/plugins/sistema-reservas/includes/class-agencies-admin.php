@@ -27,7 +27,7 @@ class ReservasAgenciesAdmin
 
         // Hook para crear tabla
         add_action('init', array($this, 'maybe_create_table'));
-        add_action('init', array($this, 'maybe_update_existing_tables'));
+    add_action('init', array($this, 'maybe_update_existing_tables'));
     }
 
     /**
@@ -46,8 +46,7 @@ class ReservasAgenciesAdmin
             $this->create_agencies_table();
         }
     }
-
-    public function maybe_update_existing_tables() {
+public function maybe_update_existing_tables() {
     global $wpdb;
     $table_name = $wpdb->prefix . 'reservas_agencies';
     
