@@ -291,6 +291,31 @@ class SistemaReservas
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql_users);
 
+        $table_agencies = $wpdb->prefix . 'reservas_agencies';
+    $sql_agencies = "CREATE TABLE $table_agencies (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        agency_name varchar(100) NOT NULL,
+        contact_person varchar(100) NOT NULL,
+        email varchar(100) NOT NULL UNIQUE,
+        phone varchar(20),
+        address text,
+        username varchar(50) NOT NULL UNIQUE,
+        password varchar(255) NOT NULL,
+        commission_percentage decimal(5,2) DEFAULT 0.00,
+        max_credit_limit decimal(10,2) DEFAULT 0.00,
+        current_balance decimal(10,2) DEFAULT 0.00,
+        status enum('active', 'inactive', 'suspended') DEFAULT 'active',
+        notes text,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY username (username),
+        KEY email (email),
+        KEY status (status)
+    ) $charset_collate;";
+
+    dbDelta($sql_agencies);
+
         // Tabla de servicios
         $table_servicios = $wpdb->prefix . 'reservas_servicios';
         $sql_servicios = "CREATE TABLE $table_servicios (

@@ -4128,6 +4128,14 @@ function renderCreateAgencyModal() {
                     </div>
                 </form>
             </div>
+            <style>
+                .form-grid{
+                    display: grid
+;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 50px;
+                }
+            </style>
         </div>
     `;
 }
