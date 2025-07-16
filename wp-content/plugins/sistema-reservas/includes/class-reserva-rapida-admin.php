@@ -29,6 +29,9 @@ class ReservasReservaRapidaAdmin
 
         add_action('wp_ajax_calculate_price_rapida', array($this, 'calculate_price_rapida'));
         add_action('wp_ajax_nopriv_calculate_price_rapida', array($this, 'calculate_price_rapida'));
+
+        
+
     }
 
     /**
@@ -80,7 +83,7 @@ class ReservasReservaRapidaAdmin
     /**
      * ✅ NUEVO: Obtener formulario de reserva rápida para AGENCIAS
      */
-    public function get_agency_reserva_rapida_form()
+   public function get_agency_reserva_rapida_form()
 {
     error_log('=== GET AGENCY RESERVA RAPIDA FORM START ===');
     header('Content-Type: application/json');
@@ -105,28 +108,22 @@ class ReservasReservaRapidaAdmin
         $user = $_SESSION['reservas_user'];
         error_log('User data: ' . print_r($user, true));
 
-        // Solo agencias pueden usar esta función
         if ($user['role'] !== 'agencia') {
             error_log('❌ User role not allowed: ' . $user['role']);
             wp_send_json_error('Sin permisos para usar reserva rápida de agencias');
             return;
         }
 
-        // Verificar si hay servicios disponibles primero
+        // ✅ OBTENER SERVICIOS ANTES DE RENDERIZAR
         $servicios_disponibles = $this->get_upcoming_services();
         error_log('Servicios disponibles encontrados: ' . count($servicios_disponibles));
 
-        if (empty($servicios_disponibles)) {
-            error_log('⚠️ No hay servicios disponibles');
-        }
-
-        // Generar HTML del formulario para agencias
+        // ✅ GENERAR HTML CON SERVICIOS Y VARIABLES JAVASCRIPT
         ob_start();
         
-        // Asegurar que la sesión esté disponible para el template
-        if (!session_id()) {
-            session_start();
-        }
+        // Pasar variables al template
+        $ajax_url = admin_url('admin-ajax.php');
+        $nonce = wp_create_nonce('reservas_nonce');
         
         include RESERVAS_PLUGIN_PATH . 'templates/agency-reserva-rapida-form.php';
         $form_html = ob_get_clean();

@@ -349,9 +349,41 @@
 </div>
 
 <script>
+    const reservasAjax = {
+    ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
+    nonce: '<?php echo wp_create_nonce('reservas_nonce'); ?>'
+};
+
+// ✅ DATOS DE SERVICIOS DESDE PHP
+const serviciosDisponibles = <?php 
+    $servicios_organizados = array();
+    if (!empty($servicios_disponibles)) {
+        foreach ($servicios_disponibles as $servicio) {
+            if (!isset($servicios_organizados[$servicio->fecha])) {
+                $servicios_organizados[$servicio->fecha] = array();
+            }
+            $servicios_organizados[$servicio->fecha][] = array(
+                'id' => $servicio->id,
+                'hora' => substr($servicio->hora, 0, 5),
+                'plazas_disponibles' => $servicio->plazas_disponibles,
+                'precio_adulto' => $servicio->precio_adulto,
+                'precio_nino' => $servicio->precio_nino,
+                'precio_residente' => $servicio->precio_residente
+            );
+        }
+    }
+    echo json_encode($servicios_organizados);
+?>;
+
+console.log('=== VARIABLES INICIALIZADAS ===');
+console.log('AJAX URL:', reservasAjax.ajax_url);
+console.log('Nonce:', reservasAjax.nonce);
+console.log('Servicios disponibles:', serviciosDisponibles);
+
 document.addEventListener('DOMContentLoaded', function() {
     initializeAgencyReservaRapida();
 });
+
 
 function initializeAgencyReservaRapida() {
     console.log('=== INICIALIZANDO RESERVA RÁPIDA AGENCIA ===');
@@ -394,85 +426,27 @@ function initializeAgencyReservaRapida() {
 }
 
 function testAjaxConnection() {
-    console.log('=== TESTING AJAX CONNECTION ===');
-    
-    jQuery.ajax({
-        url: reservasAjax.ajax_url,
-        type: 'POST',
-        data: {
-            action: 'get_available_services_rapida',
-            nonce: reservasAjax.nonce
-        },
-        success: function(response) {
-            console.log('✅ AJAX Test exitoso');
-            console.log('Response completa:', response);
-        },
-        error: function(xhr, status, error) {
-            console.error('❌ AJAX Test falló');
-            console.error('Status:', status);
-            console.error('Error:', error);
-            console.error('Response text:', xhr.responseText);
-            console.error('Status code:', xhr.status);
-        }
-    });
+    console.log('=== AJAX CONNECTION TEST ===');
+    console.log('✅ Variables disponibles');
+    console.log('AJAX URL:', reservasAjax.ajax_url);
+    console.log('Nonce válido:', reservasAjax.nonce ? 'SÍ' : 'NO');
+    console.log('Servicios cargados:', Object.keys(serviciosDisponibles).length, 'fechas');
 }
 
 function loadAvailableServices() {
-    console.log('=== CARGANDO SERVICIOS DISPONIBLES ===');
+    console.log('=== CARGANDO SERVICIOS DISPONIBLES (DESDE PHP) ===');
     
     const serviceSelect = document.getElementById('service_id');
-    serviceSelect.innerHTML = '<option value="">Cargando servicios...</option>';
+    serviceSelect.innerHTML = '<option value="">Selecciona un servicio</option>';
     
-    // Verificar que tenemos las variables necesarias
-    if (typeof reservasAjax === 'undefined') {
-        console.error('❌ reservasAjax no está definido');
-        serviceSelect.innerHTML = '<option value="">Error: Variables AJAX no disponibles</option>';
+    if (!serviciosDisponibles || typeof serviciosDisponibles !== 'object') {
+        console.error('❌ No hay servicios disponibles');
+        serviceSelect.innerHTML = '<option value="">No hay servicios disponibles</option>';
+        showError('No hay servicios disponibles. Contacta con el administrador.');
         return;
     }
     
-    console.log('AJAX URL:', reservasAjax.ajax_url);
-    console.log('Nonce:', reservasAjax.nonce);
-    
-    jQuery.ajax({
-        url: reservasAjax.ajax_url,
-        type: 'POST',
-        data: {
-            action: 'get_available_services_rapida',
-            nonce: reservasAjax.nonce
-        },
-        timeout: 10000, // 10 segundos timeout
-        success: function(response) {
-            console.log('✅ Respuesta recibida:', response);
-            
-            if (response.success) {
-                populateServiceSelect(response.data);
-            } else {
-                console.error('❌ Error del servidor:', response.data);
-                showError('Error cargando servicios: ' + response.data);
-                serviceSelect.innerHTML = '<option value="">Error cargando servicios</option>';
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('❌ Error AJAX:', {
-                status: status,
-                error: error,
-                responseText: xhr.responseText,
-                statusCode: xhr.status
-            });
-            
-            let errorMessage = 'Error de conexión';
-            if (status === 'timeout') {
-                errorMessage = 'Tiempo de espera agotado';
-            } else if (xhr.status === 403) {
-                errorMessage = 'Sin permisos para cargar servicios';
-            } else if (xhr.status === 500) {
-                errorMessage = 'Error interno del servidor';
-            }
-            
-            showError(errorMessage);
-            serviceSelect.innerHTML = '<option value="">Error de conexión</option>';
-        }
-    });
+    populateServiceSelect(serviciosDisponibles);
 }
 
 function populateServiceSelect(serviciosData) {
