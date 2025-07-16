@@ -4781,3 +4781,992 @@ function showErrorInContent(message) {
         </div>
     `;
 }
+
+
+// Agregar al archivo: wp-content/plugins/sistema-reservas/assets/js/dashboard-script.js
+
+/**
+ * Función para cargar el perfil de la agencia
+ */
+function loadAgencyProfile() {
+    console.log('=== CARGANDO PERFIL DE AGENCIA ===');
+    
+    // Mostrar indicador de carga
+    showLoadingInMainContent();
+    
+    // Cargar datos del perfil
+    jQuery.ajax({
+        url: reservasAjax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'get_agency_profile',
+            nonce: reservasAjax.nonce
+        },
+        success: function(response) {
+            console.log('Respuesta del servidor:', response);
+            
+            if (response.success) {
+                renderAgencyProfile(response.data);
+            } else {
+                showErrorInMainContent('Error cargando perfil: ' + response.data);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error AJAX:', error);
+            showErrorInMainContent('Error de conexión al cargar perfil');
+        }
+    });
+}
+
+/**
+ * Renderizar la sección de perfil de agencia
+ */
+function renderAgencyProfile(agencyData) {
+    const content = `
+        <div class="agency-profile-management">
+            <div class="section-header">
+                <h2>👤 Mi Perfil</h2>
+                <p>Gestiona la información de tu agencia</p>
+            </div>
+            
+            <div class="profile-actions">
+                <button class="btn-primary" onclick="saveAgencyProfile()">
+                    💾 Guardar Cambios
+                </button>
+                <button class="btn-secondary" onclick="resetAgencyProfile()">
+                    🔄 Resetear Cambios
+                </button>
+                <button class="btn-secondary" onclick="goBackToDashboard()">
+                    ← Volver al Dashboard
+                </button>
+            </div>
+            
+            <div class="profile-form-container">
+                <form id="agency-profile-form" class="profile-form">
+                    
+                    <!-- Información Básica -->
+                    <div class="form-section">
+                        <h3>🏢 Información Básica</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="agency_name">Nombre de la Agencia *</label>
+                                <input type="text" id="agency_name" name="agency_name" 
+                                       value="${escapeHtml(agencyData.agency_name)}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="contact_person">Persona de Contacto *</label>
+                                <input type="text" id="contact_person" name="contact_person" 
+                                       value="${escapeHtml(agencyData.contact_person)}" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Información de Contacto -->
+                    <div class="form-section">
+                        <h3>📧 Información de Contacto</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="email">Email de Contacto *</label>
+                                <input type="email" id="email" name="email" 
+                                       value="${escapeHtml(agencyData.email)}" required>
+                                <small class="form-help">Email principal de la agencia</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Teléfono</label>
+                                <input type="tel" id="phone" name="phone" 
+                                       value="${escapeHtml(agencyData.phone || '')}" placeholder="957 123 456">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notificaciones -->
+                    <div class="form-section">
+                        <h3>🔔 Configuración de Notificaciones</h3>
+                        <div class="form-group">
+                            <label for="email_notificaciones">Email para Notificaciones de Compras</label>
+                            <input type="email" id="email_notificaciones" name="email_notificaciones" 
+                                   value="${escapeHtml(agencyData.email_notificaciones || '')}" 
+                                   placeholder="notificaciones@agencia.com">
+                            <small class="form-help">A este email llegarán las notificaciones de nuevas reservas realizadas por tu agencia. Si se deja vacío, se usará el email de contacto principal.</small>
+                        </div>
+                    </div>
+
+                    <!-- Dirección -->
+                    <div class="form-section">
+                        <h3>📍 Dirección</h3>
+                        <div class="form-group">
+                            <label for="address">Dirección Completa</label>
+                            <textarea id="address" name="address" rows="3" 
+                                      placeholder="Calle, número, código postal, ciudad...">${escapeHtml(agencyData.address || '')}</textarea>
+                        </div>
+                    </div>
+
+                    <!-- Notas -->
+                    <div class="form-section">
+                        <h3>📝 Notas Adicionales</h3>
+                        <div class="form-group">
+                            <label for="notes">Notas Internas</label>
+                            <textarea id="notes" name="notes" rows="4" 
+                                      placeholder="Información adicional sobre la agencia...">${escapeHtml(agencyData.notes || '')}</textarea>
+                            <small class="form-help">Estas notas son visibles solo para los administradores</small>
+                        </div>
+                    </div>
+
+                    <!-- Información de Solo Lectura -->
+                    <div class="form-section readonly-section">
+                        <h3>ℹ️ Información de la Cuenta</h3>
+                        <div class="readonly-grid">
+                            <div class="readonly-item">
+                                <label>Usuario de Acceso:</label>
+                                <span class="readonly-value">${escapeHtml(agencyData.username)}</span>
+                            </div>
+                            <div class="readonly-item">
+                                <label>Comisión:</label>
+                                <span class="readonly-value">${parseFloat(agencyData.commission_percentage).toFixed(1)}%</span>
+                            </div>
+                            <div class="readonly-item">
+                                <label>Límite de Crédito:</label>
+                                <span class="readonly-value">${parseFloat(agencyData.max_credit_limit).toFixed(2)}€</span>
+                            </div>
+                            <div class="readonly-item">
+                                <label>Balance Actual:</label>
+                                <span class="readonly-value">${parseFloat(agencyData.current_balance).toFixed(2)}€</span>
+                            </div>
+                            <div class="readonly-item">
+                                <label>Estado:</label>
+                                <span class="readonly-value status-${agencyData.status}">${getStatusText(agencyData.status)}</span>
+                            </div>
+                            <div class="readonly-item">
+                                <label>Fecha de Creación:</label>
+                                <span class="readonly-value">${formatDate(agencyData.created_at)}</span>
+                            </div>
+                        </div>
+                        <div class="readonly-note">
+                            <p><strong>Nota:</strong> Para cambios en usuario de acceso, comisión o límite de crédito, contacta con el administrador.</p>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+
+            <!-- Mensaje de estado -->
+            <div id="profile-messages" class="profile-messages"></div>
+        </div>
+        
+        <style>
+        .agency-profile-management {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .section-header h2 {
+            margin: 0 0 10px 0;
+            color: #23282d;
+        }
+        
+        .section-header p {
+            margin: 0 0 30px 0;
+            color: #666;
+        }
+        
+        .profile-actions {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            align-items: center;
+        }
+        
+        .profile-form-container {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .profile-form {
+            padding: 0;
+        }
+        
+        .form-section {
+            padding: 30px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .form-section:last-child {
+            border-bottom: none;
+        }
+        
+        .form-section h3 {
+            margin: 0 0 20px 0;
+            color: #0073aa;
+            font-size: 18px;
+            font-weight: 600;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #0073aa;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #23282d;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #0073aa;
+            box-shadow: 0 0 0 3px rgba(0, 115, 170, 0.1);
+        }
+        
+        .form-group input:required:invalid {
+            border-color: #dc3545;
+        }
+        
+        .form-group input:required:valid {
+            border-color: #28a745;
+        }
+        
+        .form-help {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        
+        .readonly-section {
+            background: #f8f9fa;
+        }
+        
+        .readonly-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .readonly-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            border-left: 4px solid #0073aa;
+        }
+        
+        .readonly-item label {
+            font-weight: 600;
+            color: #23282d;
+        }
+        
+        .readonly-value {
+            font-weight: 500;
+            color: #666;
+        }
+        
+        .readonly-value.status-active {
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .readonly-value.status-inactive {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        
+        .readonly-value.status-suspended {
+            color: #ffc107;
+            font-weight: 600;
+        }
+        
+        .readonly-note {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            color: #856404;
+        }
+        
+        .profile-messages {
+            margin-top: 20px;
+        }
+        
+        .message {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        @media (max-width: 768px) {
+            .agency-profile-management {
+                padding: 10px;
+            }
+            
+            .profile-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .profile-actions button {
+                width: 100%;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .readonly-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Animaciones */
+        .form-group input,
+        .form-group textarea {
+            transition: all 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 115, 170, 0.2);
+        }
+        
+        .readonly-item {
+            transition: background-color 0.3s ease;
+        }
+        
+        .readonly-item:hover {
+            background-color: #f8f9fa;
+        }
+        </style>
+    `;
+    
+    // Insertar contenido en el dashboard principal
+    jQuery('.dashboard-content').html(content);
+    
+    // Almacenar datos originales para reset
+    window.originalAgencyData = { ...agencyData };
+    
+    // Inicializar eventos
+    initializeProfileEvents();
+}
+
+function initializeProfileEvents() {
+    // Validación en tiempo real
+    jQuery('#agency_name, #contact_person, #email').on('input', function() {
+        validateRequiredField(this);
+    });
+    
+    // Validación de email
+    jQuery('#email, #email_notificaciones').on('blur', function() {
+        validateEmailField(this);
+    });
+    
+    // Validación de teléfono
+    jQuery('#phone').on('input', function() {
+        validatePhoneField(this);
+    });
+    
+    // Detectar cambios para mostrar indicador
+    jQuery('#agency-profile-form input, #agency-profile-form textarea').on('input', function() {
+        showUnsavedChangesIndicator();
+    });
+}
+
+/**
+ * Validar campo requerido
+ */
+function validateRequiredField(field) {
+    const value = field.value.trim();
+    
+    if (value.length === 0) {
+        field.style.borderColor = '#dc3545';
+        return false;
+    } else if (value.length < 2) {
+        field.style.borderColor = '#ffc107';
+        return false;
+    } else {
+        field.style.borderColor = '#28a745';
+        return true;
+    }
+}
+
+/**
+ * Validar campo de email
+ */
+function validateEmailField(field) {
+    const value = field.value.trim();
+    
+    if (value === '') {
+        field.style.borderColor = field.required ? '#dc3545' : '#ddd';
+        return !field.required;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (emailRegex.test(value)) {
+        field.style.borderColor = '#28a745';
+        return true;
+    } else {
+        field.style.borderColor = '#dc3545';
+        return false;
+    }
+}
+
+/**
+ * Validar campo de teléfono
+ */
+function validatePhoneField(field) {
+    const value = field.value.trim();
+    
+    if (value === '') {
+        field.style.borderColor = '#ddd';
+        return true;
+    }
+    
+    if (value.length >= 9) {
+        field.style.borderColor = '#28a745';
+        return true;
+    } else {
+        field.style.borderColor = '#ffc107';
+        return false;
+    }
+}
+
+/**
+ * Mostrar indicador de cambios no guardados
+ */
+function showUnsavedChangesIndicator() {
+    const messagesDiv = jQuery('#profile-messages');
+    messagesDiv.html(`
+        <div class="message info">
+            <strong>💡 Cambios detectados:</strong> Hay cambios sin guardar en el formulario.
+        </div>
+    `);
+}
+
+/**
+ * Guardar perfil de agencia
+ */
+function saveAgencyProfile() {
+    console.log('=== GUARDANDO PERFIL DE AGENCIA ===');
+    
+    // Validar formulario
+    if (!validateProfileForm()) {
+        return;
+    }
+    
+    // Mostrar indicador de carga
+    showProfileMessage('info', '⏳ Guardando cambios...');
+    
+    // Deshabilitar botón
+    const saveBtn = jQuery('button[onclick="saveAgencyProfile()"]');
+    const originalText = saveBtn.text();
+    saveBtn.prop('disabled', true).text('💾 Guardando...');
+    
+    // Recopilar datos del formulario
+    const formData = {
+        action: 'save_agency_profile',
+        agency_name: jQuery('#agency_name').val().trim(),
+        contact_person: jQuery('#contact_person').val().trim(),
+        email: jQuery('#email').val().trim(),
+        phone: jQuery('#phone').val().trim(),
+        email_notificaciones: jQuery('#email_notificaciones').val().trim(),
+        address: jQuery('#address').val().trim(),
+        notes: jQuery('#notes').val().trim(),
+        nonce: reservasAjax.nonce
+    };
+    
+    console.log('Datos a enviar:', formData);
+    
+    // Enviar datos
+    jQuery.ajax({
+        url: reservasAjax.ajax_url,
+        type: 'POST',
+        data: formData,
+        success: function(response) {
+            console.log('Respuesta:', response);
+            
+            // Rehabilitar botón
+            saveBtn.prop('disabled', false).text(originalText);
+            
+            if (response.success) {
+                showProfileMessage('success', '✅ ' + response.data);
+                
+                // Actualizar datos originales
+                window.originalAgencyData = { ...formData };
+                
+                // Actualizar datos de sesión si es necesario
+                updateSessionData();
+                
+            } else {
+                showProfileMessage('error', '❌ Error: ' + response.data);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error AJAX:', error);
+            
+            // Rehabilitar botón
+            saveBtn.prop('disabled', false).text(originalText);
+            
+            showProfileMessage('error', '❌ Error de conexión al guardar los cambios');
+        }
+    });
+}
+
+/**
+ * Validar formulario completo
+ */
+function validateProfileForm() {
+    let isValid = true;
+    const errors = [];
+    
+    // Validar nombre de agencia
+    const agencyName = jQuery('#agency_name').val().trim();
+    if (agencyName.length < 2) {
+        errors.push('El nombre de la agencia debe tener al menos 2 caracteres');
+        isValid = false;
+    }
+    
+    // Validar persona de contacto
+    const contactPerson = jQuery('#contact_person').val().trim();
+    if (contactPerson.length < 2) {
+        errors.push('La persona de contacto debe tener al menos 2 caracteres');
+        isValid = false;
+    }
+    
+    // Validar email principal
+    const email = jQuery('#email').val().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        errors.push('El email de contacto no es válido');
+        isValid = false;
+    }
+    
+    // Validar email de notificaciones si está presente
+    const emailNotifications = jQuery('#email_notificaciones').val().trim();
+    if (emailNotifications && !emailRegex.test(emailNotifications)) {
+        errors.push('El email de notificaciones no es válido');
+        isValid = false;
+    }
+    
+    // Validar teléfono si está presente
+    const phone = jQuery('#phone').val().trim();
+    if (phone && phone.length < 9) {
+        errors.push('El teléfono debe tener al menos 9 dígitos');
+        isValid = false;
+    }
+    
+    // Mostrar errores si los hay
+    if (!isValid) {
+        showProfileMessage('error', '❌ Errores de validación:<br>• ' + errors.join('<br>• '));
+    }
+    
+    return isValid;
+}
+
+/**
+ * Resetear cambios del perfil
+ */
+function resetAgencyProfile() {
+    if (confirm('¿Estás seguro de que quieres descartar todos los cambios?')) {
+        // Restaurar valores originales
+        if (window.originalAgencyData) {
+            jQuery('#agency_name').val(window.originalAgencyData.agency_name || '');
+            jQuery('#contact_person').val(window.originalAgencyData.contact_person || '');
+            jQuery('#email').val(window.originalAgencyData.email || '');
+            jQuery('#phone').val(window.originalAgencyData.phone || '');
+            jQuery('#email_notificaciones').val(window.originalAgencyData.email_notificaciones || '');
+            jQuery('#address').val(window.originalAgencyData.address || '');
+            jQuery('#notes').val(window.originalAgencyData.notes || '');
+            
+            // Limpiar mensajes
+            jQuery('#profile-messages').html('');
+            
+            // Resetear estilos de validación
+            jQuery('#agency-profile-form input, #agency-profile-form textarea').css('border-color', '#ddd');
+            
+            showProfileMessage('info', '🔄 Formulario reseteado a los valores originales');
+        }
+    }
+}
+
+/**
+ * Mostrar mensaje de perfil
+ */
+function showProfileMessage(type, message) {
+    const messagesDiv = jQuery('#profile-messages');
+    messagesDiv.html(`<div class="message ${type}">${message}</div>`);
+    
+    // Scroll suave hacia el mensaje
+    messagesDiv[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/**
+ * Actualizar datos de sesión
+ */
+function updateSessionData() {
+    // Actualizar datos de sesión para reflejar cambios en el header
+    jQuery.ajax({
+        url: reservasAjax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'refresh_session_data',
+            nonce: reservasAjax.nonce
+        },
+        success: function(response) {
+            if (response.success) {
+                console.log('✅ Datos de sesión actualizados');
+            }
+        }
+    });
+}
+
+/**
+ * Funciones auxiliares reutilizadas
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function getStatusText(status) {
+    const statusMap = {
+        'active': 'Activa',
+        'inactive': 'Inactiva', 
+        'suspended': 'Suspendida'
+    };
+    return statusMap[status] || status;
+}
+
+function formatDate(dateString) {
+    if (!dateString) return '-';
+    
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    } catch (e) {
+        return dateString;
+    }
+}
+
+function showLoadingInMainContent() {
+    jQuery('.dashboard-content').html('<div class="loading">Cargando Mi Perfil...</div>');
+}
+
+function showErrorInMainContent(message) {
+    jQuery('.dashboard-content').html(`<div class="error">${message}</div>`);
+}
+
+// Exponer función globalmente
+window.loadAgencyProfile = loadAgencyProfile;
+
+/**
+ * ACTUALIZACIÓN DEL DASHBOARD PRINCIPAL
+ * Agregar esta línea en el dashboard para agencias
+ */
+
+// BUSCAR en el archivo wp-content/plugins/sistema-reservas/includes/class-dashboard.php
+// la sección donde se muestran los botones de acción para agencias (línea ~180 aprox):
+
+/*
+<div class="action-buttons">
+    <button class="action-btn" onclick="alert('Próximamente: Gestión de reservas para agencias')">🎫 Mis Reservas</button>
+    <button class="action-btn" onclick="alert('Próximamente: Crear nueva reserva')">➕ Nueva Reserva</button>
+    <button class="action-btn" onclick="alert('Próximamente: Historial de comisiones')">💰 Comisiones</button>
+    <button class="action-btn" onclick="alert('Próximamente: Configuración de agencia')">⚙️ Mi Perfil</button>
+    <button class="action-btn" onclick="loadAgencyReservaRapida()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-left: 4px solid #155724;">⚡ Reserva Rápida</button>                        
+</div>
+*/
+
+// REEMPLAZAR el botón "Mi Perfil" con:
+// <button class="action-btn" onclick="loadAgencyProfile()">👤 Mi Perfil</button>
+
+// Ejemplo de cómo debería quedar la sección completa:
+const agencyDashboardButtons = `
+<div class="action-buttons">
+    <button class="action-btn" onclick="alert('Próximamente: Gestión de reservas para agencias')">🎫 Mis Reservas</button>
+    <button class="action-btn" onclick="alert('Próximamente: Crear nueva reserva')">➕ Nueva Reserva</button>
+    <button class="action-btn" onclick="alert('Próximamente: Historial de comisiones')">💰 Comisiones</button>
+    <button class="action-btn" onclick="loadAgencyProfile()">👤 Mi Perfil</button>
+    <button class="action-btn" onclick="loadAgencyReservaRapida()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-left: 4px solid #155724;">⚡ Reserva Rápida</button>                        
+</div>
+`;
+
+/**
+ * ACTUALIZACIÓN DEL SISTEMA PRINCIPAL
+ * Agregar la nueva clase al sistema
+ */
+
+// BUSCAR en el archivo wp-content/plugins/sistema-reservas/sistema-reservas.php
+// la función load_dependencies() (línea ~200 aprox):
+
+/*
+$files = array(
+    'includes/class-database.php',
+    'includes/class-auth.php',
+    'includes/class-admin.php',
+    'includes/class-dashboard.php',
+    'includes/class-calendar-admin.php',
+    'includes/class-discounts-admin.php',
+    'includes/class-configuration-admin.php',
+    'includes/class-reports-admin.php',
+    'includes/class-agencies-admin.php',
+    'includes/class-reservas-processor.php',
+    'includes/class-email-service.php',
+    'includes/class-frontend.php',
+    'includes/class-reserva-rapida-admin.php',
+);
+*/
+
+// AGREGAR la nueva clase:
+// 'includes/class-agency-profile-admin.php',
+
+// Y en la función initialize_classes() agregar:
+/*
+if (class_exists('ReservasAgencyProfileAdmin')) {
+    new ReservasAgencyProfileAdmin();
+}
+*/
+
+/**
+ * ESTILOS CSS ADICIONALES
+ * Agregar estos estilos en el archivo de CSS principal
+ */
+
+const additionalCSS = `
+/* Estilos para el formulario de perfil de agencia */
+.profile-form-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.form-section {
+    margin-bottom: 30px;
+}
+
+.form-section h3 {
+    border-bottom: 2px solid #0073aa;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.readonly-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.readonly-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.readonly-item {
+    background: white;
+    padding: 15px;
+    border-radius: 6px;
+    border-left: 4px solid #0073aa;
+}
+
+.profile-messages {
+    margin-top: 20px;
+}
+
+.message {
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+}
+
+.message.success {
+    background: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+
+.message.error {
+    background: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+
+.message.info {
+    background: #d1ecf1;
+    color: #0c5460;
+    border-left: 4px solid #17a2b8;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .readonly-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .profile-actions {
+        flex-direction: column;
+    }
+    
+    .profile-actions button {
+        width: 100%;
+    }
+}
+`;
+
+/**
+ * FUNCIÓN HELPER PARA VALIDACIÓN DE EMAILS
+ */
+function validateEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+}
+
+/**
+ * FUNCIÓN HELPER PARA FORMATO DE FECHAS
+ */
+function formatDateForProfile(dateString) {
+    if (!dateString) return '-';
+    
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    } catch (e) {
+        return dateString;
+    }
+}
+
+/**
+ * FUNCIÓN PARA MOSTRAR NOTIFICACIONES TEMPORALES
+ */
+function showTemporaryNotification(message, type = 'info', duration = 5000) {
+    const notification = document.createElement('div');
+    notification.className = `temporary-notification ${type}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : '#d1ecf1'};
+        color: ${type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#0c5460'};
+        padding: 15px 20px;
+        border-radius: 6px;
+        border-left: 4px solid ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8'};
+        z-index: 10000;
+        max-width: 300px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        animation: slideIn 0.3s ease-out;
+    `;
+    
+    notification.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span>${message}</span>
+            <button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; color: inherit; cursor: pointer; font-size: 18px; margin-left: 10px;">×</button>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-eliminar después del tiempo especificado
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 300);
+        }
+    }, duration);
+}
+
+// Agregar animaciones CSS para las notificaciones
+const animationCSS = `
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+`;
+
+// Agregar estilos al documento
+if (!document.getElementById('agency-profile-styles')) {
+    const style = document.createElement('style');
+    style.id = 'agency-profile-styles';
+    style.textContent = animationCSS;
+    document.head.appendChild(style);
+}

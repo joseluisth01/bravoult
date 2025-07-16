@@ -138,7 +138,7 @@ class SistemaReservas
             'includes/class-discounts-admin.php',
             'includes/class-configuration-admin.php',
             'includes/class-reports-admin.php',
-            'includes/class-agencies-admin.php',      // ✅ NUEVA CLASE DE AGENCIAS
+            'includes/class-agencies-admin.php',
             'includes/class-reservas-processor.php',
             'includes/class-email-service.php',
             'includes/class-frontend.php',

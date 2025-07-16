@@ -159,41 +159,41 @@ class ReservasAgenciesAdmin
     public function save_agency()
     {
         error_log('=== SAVE AGENCY AJAX REQUEST START ===');
-        header('Content-Type: application/json');
+    header('Content-Type: application/json');
 
-        try {
-            if (!session_id()) {
-                session_start();
-            }
+    try {
+        if (!session_id()) {
+            session_start();
+        }
 
-            if (!isset($_SESSION['reservas_user'])) {
-                wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
-                return;
-            }
+        if (!isset($_SESSION['reservas_user'])) {
+            wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
+            return;
+        }
 
-            $user = $_SESSION['reservas_user'];
-            if ($user['role'] !== 'super_admin') {
-                wp_send_json_error('Sin permisos para gestionar agencias');
-                return;
-            }
+        $user = $_SESSION['reservas_user'];
+        if ($user['role'] !== 'super_admin') {
+            wp_send_json_error('Sin permisos para gestionar agencias');
+            return;
+        }
 
-            global $wpdb;
-            $table_name = $wpdb->prefix . 'reservas_agencies';
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'reservas_agencies';
 
-            // Sanitizar datos
-            $agency_id = isset($_POST['agency_id']) ? intval($_POST['agency_id']) : 0;
-            $agency_name = sanitize_text_field($_POST['agency_name']);
-            $contact_person = sanitize_text_field($_POST['contact_person']);
-            $email = sanitize_email($_POST['email']);
-            $phone = sanitize_text_field($_POST['phone']);
-            $address = sanitize_textarea_field($_POST['address']);
-            $username = sanitize_text_field($_POST['username']);
-            $password = $_POST['password']; // Solo sanitizar si no está vacío
-            $commission_percentage = floatval($_POST['commission_percentage']);
-            $max_credit_limit = floatval($_POST['max_credit_limit']);
-            $status = sanitize_text_field($_POST['status']);
-            $notes = sanitize_textarea_field($_POST['notes']);
-            $email_notificaciones = sanitize_email($_POST['email_notificaciones']);
+        // Sanitizar datos
+        $agency_id = isset($_POST['agency_id']) ? intval($_POST['agency_id']) : 0;
+        $agency_name = sanitize_text_field($_POST['agency_name']);
+        $contact_person = sanitize_text_field($_POST['contact_person']);
+        $email = sanitize_email($_POST['email']);
+        $phone = sanitize_text_field($_POST['phone']);
+        $address = sanitize_textarea_field($_POST['address']);
+        $username = sanitize_text_field($_POST['username']);
+        $password = $_POST['password']; // Solo sanitizar si no está vacío
+        $commission_percentage = floatval($_POST['commission_percentage']);
+        $max_credit_limit = floatval($_POST['max_credit_limit']);
+        $status = sanitize_text_field($_POST['status']);
+        $notes = sanitize_textarea_field($_POST['notes']);
+        $email_notificaciones = sanitize_email($_POST['email_notificaciones']);
 
             // Validaciones
             if (empty($agency_name)) {
@@ -262,19 +262,20 @@ class ReservasAgenciesAdmin
             }
 
             // Preparar datos para insertar/actualizar
-            $data = array(
-                'agency_name' => $agency_name,
-                'contact_person' => $contact_person,
-                'email' => $email,
-                'phone' => $phone,
-                'address' => $address,
-                'username' => $username,
-                'commission_percentage' => $commission_percentage,
-                'max_credit_limit' => $max_credit_limit,
-                'status' => $status,
-                'notes' => $notes,
-                'email_notificaciones' => $email_notificaciones
-            );
+$data = array(
+    'agency_name' => $agency_name,
+    'contact_person' => $contact_person,
+    'email' => $email,
+    'phone' => $phone,
+    'address' => $address,
+    'username' => $username,
+    'commission_percentage' => $commission_percentage,
+    'max_credit_limit' => $max_credit_limit,
+    'status' => $status,
+    'notes' => $notes,
+    'email_notificaciones' => $email_notificaciones  // ✅ NUEVA LÍNEA
+);
+
 
             // Manejar contraseña
             if (!empty($password)) {
