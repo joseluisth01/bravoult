@@ -15,12 +15,12 @@ define('RESERVAS_PLUGIN_PATH', plugin_dir_path(__FILE__));
 
 class SistemaReservas
 {
-      private $dashboard;
+    private $dashboard;
     private $calendar_admin;
     private $discounts_admin;
     private $configuration_admin;
     private $reports_admin;
-    private $agencies_admin; 
+    private $agencies_admin;
 
     public function __construct()
     {
@@ -142,6 +142,7 @@ class SistemaReservas
             'includes/class-reservas-processor.php',
             'includes/class-email-service.php',
             'includes/class-frontend.php',
+            'includes/class-reserva-rapida-admin.php',
         );
 
         foreach ($files as $file) {
@@ -200,6 +201,10 @@ class SistemaReservas
 
         if (class_exists('ReservasFrontend')) {
             new ReservasFrontend();
+        }
+
+        if (class_exists('ReservasReservaRapidaAdmin')) {
+            new ReservasReservaRapidaAdmin();
         }
     }
 
@@ -292,7 +297,7 @@ class SistemaReservas
         dbDelta($sql_users);
 
         $table_agencies = $wpdb->prefix . 'reservas_agencies';
-    $sql_agencies = "CREATE TABLE $table_agencies (
+        $sql_agencies = "CREATE TABLE $table_agencies (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         agency_name varchar(100) NOT NULL,
         contact_person varchar(100) NOT NULL,
@@ -314,7 +319,7 @@ class SistemaReservas
         KEY status (status)
     ) $charset_collate;";
 
-    dbDelta($sql_agencies);
+        dbDelta($sql_agencies);
 
         // Tabla de servicios
         $table_servicios = $wpdb->prefix . 'reservas_servicios';
@@ -1331,8 +1336,6 @@ function reservas_login_shortcode()
     </div>
 <?php
     return ob_get_clean();
-
-    
 }
 
 // Inicializar el plugin

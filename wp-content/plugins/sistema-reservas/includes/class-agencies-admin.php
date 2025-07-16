@@ -27,6 +27,7 @@ class ReservasAgenciesAdmin
 
         // Hook para crear tabla
         add_action('init', array($this, 'maybe_create_table'));
+        add_action('init', array($this, 'maybe_update_existing_tables'));
     }
 
     /**
@@ -46,6 +47,19 @@ class ReservasAgenciesAdmin
         }
     }
 
+    public function maybe_update_existing_tables() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'reservas_agencies';
+    
+    // Verificar si el campo email_notificaciones existe
+    $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'email_notificaciones'");
+    
+    if (empty($column_exists)) {
+        $wpdb->query("ALTER TABLE $table_name ADD COLUMN email_notificaciones varchar(100) AFTER email");
+        error_log('✅ Columna email_notificaciones añadida a tabla de agencias');
+    }
+}
+
     /**
      * Crear tabla de agencias
      */
@@ -61,6 +75,7 @@ class ReservasAgenciesAdmin
             agency_name varchar(100) NOT NULL,
             contact_person varchar(100) NOT NULL,
             email varchar(100) NOT NULL UNIQUE,
+            email_notificaciones varchar(100),
             phone varchar(20),
             address text,
             username varchar(50) NOT NULL UNIQUE,
@@ -178,6 +193,7 @@ class ReservasAgenciesAdmin
             $max_credit_limit = floatval($_POST['max_credit_limit']);
             $status = sanitize_text_field($_POST['status']);
             $notes = sanitize_textarea_field($_POST['notes']);
+            $email_notificaciones = sanitize_email($_POST['email_notificaciones']);
 
             // Validaciones
             if (empty($agency_name)) {
@@ -208,6 +224,9 @@ class ReservasAgenciesAdmin
             if (!in_array($status, $valid_statuses)) {
                 wp_send_json_error('Estado no válido');
             }
+            if (!empty($email_notificaciones) && !is_email($email_notificaciones)) {
+    wp_send_json_error('El email de notificaciones no es válido');
+}
 
             // Verificar duplicados
             if ($agency_id > 0) {
@@ -253,7 +272,8 @@ class ReservasAgenciesAdmin
                 'commission_percentage' => $commission_percentage,
                 'max_credit_limit' => $max_credit_limit,
                 'status' => $status,
-                'notes' => $notes
+                'notes' => $notes,
+                'email_notificaciones' => $email_notificaciones
             );
 
             // Manejar contraseña

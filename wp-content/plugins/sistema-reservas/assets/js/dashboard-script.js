@@ -4444,3 +4444,289 @@ function showLoadingInMainContent() {
 function showErrorInMainContent(message) {
     jQuery('.dashboard-content').html(`<div class="error">${message}</div>`);
 }
+
+/**
+ * Función para cargar la sección de Reserva Rápida
+ */
+function loadReservaRapidaSection() {
+    console.log('=== CARGANDO RESERVA RÁPIDA PARA ADMIN ===');
+    
+    showLoadingInContent();
+    
+    jQuery.ajax({
+        url: reservasAjax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'get_reserva_rapida_form',
+            nonce: reservasAjax.nonce
+        },
+        success: function(response) {
+            if (response.success) {
+                jQuery('#dashboard-content').html(response.data);
+                // No necesitamos initializeReservaRapida() aquí porque se llama desde el template
+            } else {
+                showErrorInContent('Error cargando reserva rápida: ' + response.data);
+            }
+        },
+        error: function() {
+            showErrorInContent('Error de conexión cargando reserva rápida');
+        }
+    });
+}
+
+/**
+ * Función principal para procesar reserva rápida
+ */
+function processReservaRapida(callbackOnError) {
+    console.log('=== INICIANDO PROCESS RESERVA RÁPIDA ===');
+    
+    try {
+        // Recopilar datos del formulario
+        const formData = {
+            action: 'process_reserva_rapida',
+            nonce: reservasAjax.nonce,
+            // Datos del cliente
+            nombre: document.getElementById('nombre').value.trim(),
+            apellidos: document.getElementById('apellidos').value.trim(),
+            email: document.getElementById('email').value.trim(),
+            telefono: document.getElementById('telefono').value.trim(),
+            // Datos del servicio
+            service_id: document.getElementById('service_id').value,
+            // Datos de personas
+            adultos: parseInt(document.getElementById('adultos').value) || 0,
+            residentes: parseInt(document.getElementById('residentes').value) || 0,
+            ninos_5_12: parseInt(document.getElementById('ninos_5_12').value) || 0,
+            ninos_menores: parseInt(document.getElementById('ninos_menores').value) || 0
+        };
+        
+        console.log('Datos a enviar:', formData);
+        
+        // Validaciones del lado cliente
+        const validation = validateReservaRapidaData(formData);
+        if (!validation.valid) {
+            showError(validation.error);
+            if (callbackOnError) callbackOnError();
+            return;
+        }
+        
+        // Enviar solicitud AJAX
+        jQuery.ajax({
+            url: reservasAjax.ajax_url,
+            type: 'POST',
+            data: formData,
+            timeout: 30000, // 30 segundos timeout
+            success: function(response) {
+                console.log('Respuesta del servidor:', response);
+                
+                if (response.success) {
+                    handleReservaRapidaSuccess(response.data);
+                } else {
+                    showError('Error procesando reserva: ' + response.data);
+                    if (callbackOnError) callbackOnError();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error AJAX:', status, error);
+                
+                let errorMessage = 'Error de conexión';
+                if (status === 'timeout') {
+                    errorMessage = 'La solicitud tardó demasiado tiempo. Por favor, inténtalo de nuevo.';
+                } else if (xhr.responseJSON && xhr.responseJSON.data) {
+                    errorMessage = xhr.responseJSON.data;
+                }
+                
+                showError(errorMessage);
+                if (callbackOnError) callbackOnError();
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error en processReservaRapida:', error);
+        showError('Error interno: ' + error.message);
+        if (callbackOnError) callbackOnError();
+    }
+}
+
+/**
+ * Validar datos del formulario del lado cliente
+ */
+function validateReservaRapidaData(data) {
+    // Validar datos del cliente
+    if (!data.nombre || data.nombre.length < 2) {
+        return { valid: false, error: 'El nombre debe tener al menos 2 caracteres' };
+    }
+    
+    if (!data.apellidos || data.apellidos.length < 2) {
+        return { valid: false, error: 'Los apellidos deben tener al menos 2 caracteres' };
+    }
+    
+    if (!data.email || !isValidEmail(data.email)) {
+        return { valid: false, error: 'Email no válido' };
+    }
+    
+    if (!data.telefono || data.telefono.length < 9) {
+        return { valid: false, error: 'Teléfono debe tener al menos 9 dígitos' };
+    }
+    
+    // Validar servicio
+    if (!data.service_id) {
+        return { valid: false, error: 'Debe seleccionar un servicio' };
+    }
+    
+    // Validar personas
+    const totalPersonas = data.adultos + data.residentes + data.ninos_5_12;
+    
+    if (totalPersonas === 0) {
+        return { valid: false, error: 'Debe haber al menos una persona que ocupe plaza' };
+    }
+    
+    if (data.ninos_5_12 > 0 && (data.adultos + data.residentes) === 0) {
+        return { valid: false, error: 'Debe haber al menos un adulto si hay niños' };
+    }
+    
+    // Validar disponibilidad de plazas
+    const serviceSelect = document.getElementById('service_id');
+    const selectedOption = serviceSelect.selectedOptions[0];
+    if (selectedOption) {
+        const plazasDisponibles = parseInt(selectedOption.dataset.plazas);
+        if (totalPersonas > plazasDisponibles) {
+            return { 
+                valid: false, 
+                error: `Solo quedan ${plazasDisponibles} plazas disponibles, necesitas ${totalPersonas}` 
+            };
+        }
+    }
+    
+    return { valid: true };
+}
+
+/**
+ * Manejar respuesta exitosa de reserva rápida
+ */
+function handleReservaRapidaSuccess(data) {
+    console.log('=== RESERVA RÁPIDA EXITOSA ===');
+    console.log('Datos de respuesta:', data);
+    
+    // Mostrar mensaje de éxito con detalles
+    const successMessage = `
+        <div style="text-align: center; padding: 30px; background: #d4edda; border: 2px solid #28a745; border-radius: 12px; margin: 20px 0;">
+            <h3 style="color: #155724; margin: 0 0 15px 0; font-size: 24px;">
+                ✅ ¡RESERVA RÁPIDA PROCESADA EXITOSAMENTE!
+            </h3>
+            
+            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
+                <h4 style="color: #28a745; margin: 0 0 15px 0;">Detalles de la Reserva:</h4>
+                <div style="font-size: 16px; line-height: 1.6; color: #2d2d2d;">
+                    <strong>Localizador:</strong> <span style="font-family: monospace; background: #f8f9fa; padding: 4px 8px; border-radius: 4px; font-size: 18px; color: #28a745; font-weight: bold;">${data.localizador}</span><br>
+                    <strong>Cliente:</strong> ${document.getElementById('nombre').value} ${document.getElementById('apellidos').value}<br>
+                    <strong>Email:</strong> ${document.getElementById('email').value}<br>
+                    <strong>Fecha:</strong> ${formatDateForDisplay(data.detalles.fecha)}<br>
+                    <strong>Hora:</strong> ${data.detalles.hora}<br>
+                    <strong>Personas:</strong> ${data.detalles.personas}<br>
+                    <strong>Total:</strong> <span style="color: #28a745; font-weight: bold; font-size: 18px;">${data.detalles.precio_final}€</span><br>
+                    <strong>Procesado por:</strong> ${data.admin_user}
+                </div>
+            </div>
+            
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2196f3;">
+                <p style="margin: 0; color: #1976d2; font-weight: 600;">
+                    📧 Emails enviados automáticamente:
+                </p>
+                <ul style="margin: 10px 0 0 0; color: #1976d2; text-align: left; display: inline-block;">
+                    <li>Confirmación al cliente (con PDF adjunto)</li>
+                    <li>Notificación al super administrador</li>
+                </ul>
+            </div>
+            
+            <div style="margin-top: 25px;">
+                <button onclick="loadReportsSection()" style="background: #28a745; color: white; border: none; padding: 12px 25px; border-radius: 6px; margin-right: 10px; cursor: pointer; font-weight: 600;">
+                    📊 Ver en Informes
+                </button>
+                <button onclick="createNewReservaRapida()" style="background: #007bff; color: white; border: none; padding: 12px 25px; border-radius: 6px; margin-right: 10px; cursor: pointer; font-weight: 600;">
+                    ➕ Nueva Reserva Rápida
+                </button>
+                <button onclick="loadDashboardSection('dashboard')" style="background: #6c757d; color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                    🏠 Volver al Dashboard
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Mostrar el mensaje de éxito
+    document.getElementById('dashboard-content').innerHTML = successMessage;
+    
+    // Hacer scroll hacia arriba para ver el mensaje
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Log para debugging
+    console.log('✅ Reserva rápida completada exitosamente');
+    console.log('Localizador:', data.localizador);
+    console.log('Admin:', data.admin_user);
+}
+
+/**
+ * Crear nueva reserva rápida
+ */
+function createNewReservaRapida() {
+    loadReservaRapidaSection();
+}
+
+/**
+ * Función auxiliar para validar email
+ */
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
+/**
+ * Función auxiliar para formatear fecha
+ */
+function formatDateForDisplay(dateString) {
+    try {
+        const date = new Date(dateString + 'T00:00:00');
+        return date.toLocaleDateString('es-ES', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    } catch (error) {
+        return dateString;
+    }
+}
+
+/**
+ * Funciones auxiliares para mostrar mensajes (si no existen ya)
+ */
+if (typeof showError === 'undefined') {
+    function showError(message) {
+        const messagesDiv = document.getElementById('form-messages');
+        if (messagesDiv) {
+            messagesDiv.innerHTML = `<div class="error-message" style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #dc3545;">${message}</div>`;
+        } else {
+            console.error('Error:', message);
+            alert('Error: ' + message);
+        }
+    }
+}
+
+if (typeof showSuccess === 'undefined') {
+    function showSuccess(message) {
+        const messagesDiv = document.getElementById('form-messages');
+        if (messagesDiv) {
+            messagesDiv.innerHTML = `<div class="success-message" style="background: #d4edda; color: #155724; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #28a745;">${message}</div>`;
+        } else {
+            console.log('Success:', message);
+        }
+    }
+}
+
+if (typeof clearMessages === 'undefined') {
+    function clearMessages() {
+        const messagesDiv = document.getElementById('form-messages');
+        if (messagesDiv) {
+            messagesDiv.innerHTML = '';
+        }
+    }
+}
