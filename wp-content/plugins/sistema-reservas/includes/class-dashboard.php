@@ -265,8 +265,7 @@ class ReservasDashboard
                             <button class="action-btn" onclick="alert('Próximamente: Crear nueva reserva')">➕ Nueva Reserva</button>
                             <button class="action-btn" onclick="alert('Próximamente: Historial de comisiones')">💰 Comisiones</button>
                             <button class="action-btn" onclick="alert('Próximamente: Configuración de agencia')">⚙️ Mi Perfil</button>
-                            <button class="action-btn" onclick="loadReservaRapidaSection()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-left: 4px solid #155724;">⚡ Reserva Rápida</button>
-                        </div>
+<button class="action-btn" onclick="loadAgencyReservaRapida()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-left: 4px solid #155724;">⚡ Reserva Rápida</button>                        </div>
                     </div>
 
                 <?php else: ?>

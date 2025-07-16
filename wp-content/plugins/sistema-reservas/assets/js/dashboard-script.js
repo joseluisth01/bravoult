@@ -4730,3 +4730,53 @@ if (typeof clearMessages === 'undefined') {
         }
     }
 }
+
+/**
+ * Función específica para cargar Reserva Rápida en dashboard de agencias
+ */
+function loadAgencyReservaRapida() {
+    console.log('=== CARGANDO RESERVA RÁPIDA PARA AGENCIA ===');
+    
+    // Mostrar indicador de carga
+    document.body.innerHTML = `
+        <div class="loading-container" style="text-align: center; padding: 50px;">
+            <h2>⚡ Cargando Reserva Rápida...</h2>
+            <p>Preparando el formulario de reserva para agencias...</p>
+        </div>
+    `;
+    
+    // Cargar la sección de reserva rápida usando AJAX
+    jQuery.ajax({
+        url: reservasAjax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'get_agency_reserva_rapida_form',
+            nonce: reservasAjax.nonce
+        },
+        success: function(response) {
+            if (response.success) {
+                document.body.innerHTML = response.data;
+                
+                // Inicializar la reserva rápida si la función existe
+                if (typeof initializeAgencyReservaRapida === 'function') {
+                    initializeAgencyReservaRapida();
+                }
+            } else {
+                showErrorInContent('Error cargando reserva rápida: ' + response.data);
+            }
+        },
+        error: function() {
+            showErrorInContent('Error de conexión cargando reserva rápida');
+        }
+    });
+}
+
+function showErrorInContent(message) {
+    document.body.innerHTML = `
+        <div class="error-container" style="text-align: center; padding: 50px;">
+            <h2 style="color: #d63638;">Error</h2>
+            <p style="color: #d63638;">${message}</p>
+            <button class="btn-secondary" onclick="location.reload()">← Recargar Página</button>
+        </div>
+    `;
+}
