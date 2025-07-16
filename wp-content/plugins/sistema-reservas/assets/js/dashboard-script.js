@@ -2606,454 +2606,60 @@ function processCancelReservation() {
         });
 }
 
-
-
-// ✅ NUEVA FUNCIÓN: Reserva Rápida para Dashboard Admin
-// Agregar al archivo: wp-content/plugins/sistema-reservas/assets/js/dashboard-script.js
-
-function loadReservaRapidaSection() {
-    document.body.innerHTML = `
-        <div class="reserva-rapida-management">
-            <div class="reserva-rapida-header">
-                <h1>⚡ Reserva Rápida - Administración</h1>
-                <div class="reserva-rapida-actions">
-                    <button class="btn-secondary" onclick="goBackToDashboard()">← Volver al Dashboard</button>
-                </div>
-            </div>
-            
-            <!-- Contenedor principal con pasos -->
-            <div class="reserva-rapida-container">
-                
-                <!-- PASO 1: Selección de Fecha y Horario -->
-                <div class="step-card" id="step-1-admin">
-                    <h3>1. SELECCIONAR FECHA Y HORARIO</h3>
-                    <div class="calendar-container">
-                        <div class="calendar-header">
-                            <button type="button" id="admin-prev-month">‹</button>
-                            <span id="admin-current-month-year"></span>
-                            <button type="button" id="admin-next-month">›</button>
-                        </div>
-                        <div class="calendar-grid" id="admin-calendar-grid">
-                            <div class="loading">Cargando calendario...</div>
-                        </div>
-                        <div class="calendar-legend">
-                            <span class="legend-item">
-                                <span class="legend-color no-disponible"></span>
-                                No Disponible
-                            </span>
-                            <span class="legend-item">
-                                <span class="legend-color seleccion"></span>
-                                Selección
-                            </span>
-                            <span class="legend-item">
-                                <span class="legend-color oferta"></span>
-                                Con Oferta
-                            </span>
-                        </div>
-                        <div class="horarios-section" style="margin-top: 20px;">
-                            <label style="font-weight: bold; margin-bottom: 10px; display: block;">HORARIOS DISPONIBLES:</label>
-                            <select id="admin-horarios-select" disabled style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px;">
-                                <option value="">Selecciona primero una fecha</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- PASO 2: Selección de Personas -->
-                <div class="step-card" id="step-2-admin" style="display: none;">
-                    <h3>2. SELECCIONAR PERSONAS</h3>
-                    <div class="calendar-container">
-                        <div class="persons-grid">
-                            <div class="person-selector">
-                                <label>ADULTOS</label>
-                                <input type="number" id="admin-adultos" min="0" max="999" value="0" class="person-input">
-                            </div>
-                            <div class="person-selector">
-                                <label>RESIDENTES</label>
-                                <input type="number" id="admin-residentes" min="0" max="999" value="0" class="person-input">
-                            </div>
-                            <div class="person-selector">
-                                <label>NIÑOS (5-12 AÑOS)</label>
-                                <input type="number" id="admin-ninos-5-12" min="0" max="999" value="0" class="person-input">
-                            </div>
-                            <div class="person-selector">
-                                <label>NIÑOS (-5 AÑOS)</label>
-                                <input type="number" id="admin-ninos-menores" min="0" max="999" value="0" class="person-input">
-                            </div>
-                        </div>
-
-                        <div class="price-summary" style="margin-top: 20px;">
-                            <div class="price-row">
-                                <span>ADULTOS: <span id="admin-price-adultos">10€</span></span>
-                                <span>NIÑOS (5-12): <span id="admin-price-ninos">5€</span></span>
-                            </div>
-                            <div class="price-notes">
-                                <p>*NIÑOS (Menores de 5 años): 0€ (viajan gratis).</p>
-                                <p>*RESIDENTES en Córdoba: 50% de descuento.</p>
-                                <p>*En reservas de más de 10 personas se aplica DESCUENTO POR GRUPO.</p>
-                            </div>
-                        </div>
-
-                        <!-- Mensaje de descuento por grupo -->
-                        <div id="admin-discount-message" class="discount-message">
-                            <span id="admin-discount-text">Descuento del 15% por grupo numeroso</span>
-                        </div>
-
-                        <div class="total-price">
-                            <div class="discount-row" id="admin-discount-row" style="display: none;">
-                                <span class="discount">DESCUENTOS: <span id="admin-total-discount"></span></span>
-                            </div>
-                            <div class="total-row">
-                                <span class="total">TOTAL: <span id="admin-total-price">0€</span></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- PASO 3: Datos del Cliente -->
-                <div class="step-card" id="step-3-admin" style="display: none;">
-                    <h3>3. DATOS DEL CLIENTE</h3>
-                    <div class="calendar-container">
-                        <form id="admin-client-form">
-                            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                                <div class="form-group">
-                                    <label style="font-weight: bold; margin-bottom: 5px; display: block;">NOMBRE:</label>
-                                    <input type="text" name="nombre" placeholder="Nombre del cliente" required style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px;">
-                                </div>
-                                <div class="form-group">
-                                    <label style="font-weight: bold; margin-bottom: 5px; display: block;">APELLIDOS:</label>
-                                    <input type="text" name="apellidos" placeholder="Apellidos del cliente" required style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px;">
-                                </div>
-                            </div>
-                            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                                <div class="form-group">
-                                    <label style="font-weight: bold; margin-bottom: 5px; display: block;">EMAIL:</label>
-                                    <input type="email" name="email" placeholder="email@ejemplo.com" required style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px;">
-                                </div>
-                                <div class="form-group">
-                                    <label style="font-weight: bold; margin-bottom: 5px; display: block;">TELÉFONO:</label>
-                                    <input type="tel" name="telefono" placeholder="600 000 000" required style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px;">
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- PASO 4: Confirmación -->
-                <div class="step-card" id="step-4-admin" style="display: none;">
-                    <h3>4. CONFIRMACIÓN DE RESERVA</h3>
-                    <div class="calendar-container">
-                        <div class="confirmation-summary" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                            <h4 style="margin-top: 0; color: #0073aa;">📋 Resumen de la Reserva</h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                                <div>
-                                    <p><strong>Fecha:</strong> <span id="confirm-fecha">-</span></p>
-                                    <p><strong>Hora:</strong> <span id="confirm-hora">-</span></p>
-                                    <p><strong>Total personas:</strong> <span id="confirm-personas">-</span></p>
-                                </div>
-                                <div>
-                                    <p><strong>Cliente:</strong> <span id="confirm-cliente">-</span></p>
-                                    <p><strong>Email:</strong> <span id="confirm-email">-</span></p>
-                                    <p><strong>Total:</strong> <span id="confirm-total" style="color: #28a745; font-weight: bold;">-</span></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Navegación entre pasos -->
-                <div class="step-navigation" style="display: flex; justify-content: space-between; margin-top: 30px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <button type="button" id="admin-btn-anterior" class="btn-secondary" onclick="adminPreviousStep()" style="display: none;">← Anterior</button>
-                    <div class="step-indicator" style="flex: 1; text-align: center;">
-                        <span id="admin-step-text">Paso 1 de 4: Seleccionar fecha y horario</span>
-                    </div>
-                    <button type="button" id="admin-btn-siguiente" class="btn-primary" onclick="adminNextStep()" disabled>Siguiente →</button>
-                    <button type="button" id="admin-btn-confirmar" class="btn-primary" onclick="adminConfirmReservation()" style="display: none;">✅ CONFIRMAR RESERVA</button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Agregar estilos específicos -->
-        <style>
-        .reserva-rapida-management {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            padding: 20px;
-            background: #f1f1f1;
-            min-height: 100vh;
-        }
-
-        .reserva-rapida-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .reserva-rapida-header h1 {
-            margin: 0;
-            color: #23282d;
-        }
-
-        .reserva-rapida-container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .step-card {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            margin-bottom: 20px;
-        }
-
-        .step-card h3 {
-            background: #EFCF4B;
-            margin: 0;
-            padding: 20px;
-            text-align: center;
-            font-weight: bold;
-            font-size: 18px;
-            color: #333;
-        }
-
-        .calendar-container {
-            padding: 20px;
-        }
-
-        .calendar-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .calendar-header button {
-            background: #0073aa;
-            color: white;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            font-size: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .calendar-header span {
-            font-size: 20px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 2px;
-            margin-bottom: 20px;
-        }
-
-        .calendar-day-header {
-            background: #666;
-            color: white;
-            padding: 10px;
-            text-align: center;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        .calendar-day {
-            background: white;
-            min-height: 50px;
-            padding: 8px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            position: relative;
-            transition: all 0.3s;
-            border: 1px solid #ddd;
-        }
-
-        .calendar-day:hover {
-            background: #f8f9fa;
-        }
-
-        .calendar-day.other-month {
-            background: #E5E5E5;
-            color: #999;
-            cursor: not-allowed;
-        }
-
-        .calendar-day.no-disponible {
-            background: #E5E5E5;
-            color: #999;
-            cursor: not-allowed;
-        }
-
-        .calendar-day.disponible {
-            background: white;
-            cursor: pointer;
-        }
-
-        .calendar-day.selected {
-            background: #E74C3C !important;
-            color: white;
-        }
-
-        .calendar-day.oferta {
-            background: #F4D03F;
-            color: #333;
-        }
-
-        .calendar-legend {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 14px;
-        }
-
-        .legend-color {
-            width: 20px;
-            height: 20px;
-            border-radius: 4px;
-        }
-
-        .legend-color.no-disponible {
-            background: #E5E5E5;
-        }
-
-        .legend-color.seleccion {
-            background: #E74C3C;
-        }
-
-        .legend-color.oferta {
-            background: #F4D03F;
-        }
-
-        .persons-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .person-selector {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .person-selector label {
-            font-weight: bold;
-            color: #333;
-            font-size: 14px;
-        }
-
-        .person-input {
-            width: 60px;
-            padding: 8px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            text-align: center;
-            font-weight: bold;
-        }
-
-        .price-summary {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-        }
-
-        .price-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            font-weight: bold;
-        }
-
-        .price-notes {
-            margin: 15px 0;
-        }
-
-        .price-notes p {
-            margin: 5px 0;
-            font-size: 13px;
-            color: #666;
-        }
-
-        .total-price {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 2px solid #ddd;
-        }
-
-        .discount-message {
-            background: #871727;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 15px;
-            font-size: 12px;
-            font-weight: bold;
-            text-align: center;
-            margin: 10px 0;
-            display: none;
-        }
-
-        .discount-message.show {
-            display: block;
-        }
-
-        .step-navigation {
-            position: sticky;
-            bottom: 0;
-            z-index: 100;
-        }
-
-        .step-indicator {
-            font-weight: bold;
-            color: #0073aa;
-        }
-
-        @media (max-width: 768px) {
-            .reserva-rapida-management {
-                padding: 10px;
-            }
-            
-            .persons-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .form-row {
-                grid-template-columns: 1fr !important;
-            }
-        }
-        </style>
-    `;
-
-    // Inicializar la reserva rápida
-    initAdminQuickReservation();
+function showLoadingInContent() {
+    const targetElement = document.querySelector('.dashboard-content') || document.getElementById('dashboard-content');
+    
+    if (targetElement) {
+        targetElement.innerHTML = '<div class="loading">Cargando reserva rápida...</div>';
+    } else {
+        console.log('Loading reserva rápida...');
+    }
 }
+
+function showErrorInContent(message) {
+    const targetElement = document.querySelector('.dashboard-content') || document.getElementById('dashboard-content');
+    
+    if (targetElement) {
+        targetElement.innerHTML = `<div class="error">${message}</div>`;
+    } else {
+        alert('Error: ' + message);
+    }
+}
+
+function loadAdminReservaRapida() {
+    console.log('=== CARGANDO RESERVA RÁPIDA PARA ADMIN ===');
+    
+    showLoadingInContent();
+    
+    jQuery.ajax({
+        url: reservasAjax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'get_reserva_rapida_form',
+            nonce: reservasAjax.nonce
+        },
+        success: function(response) {
+            if (response.success) {
+                // Usar dashboard-content si existe, sino usar body
+                const targetElement = document.querySelector('.dashboard-content') || document.body;
+                targetElement.innerHTML = response.data;
+                
+                // Inicializar la reserva rápida si la función existe
+                if (typeof initializeReservaRapida === 'function') {
+                    initializeReservaRapida();
+                }
+            } else {
+                showErrorInContent('Error cargando reserva rápida: ' + response.data);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error AJAX:', error);
+            showErrorInContent('Error de conexión cargando reserva rápida');
+        }
+    });
+}
+
+
 
 // Variables globales para reserva rápida admin
 let adminCurrentDate = new Date();
@@ -4448,7 +4054,7 @@ function showErrorInMainContent(message) {
 /**
  * Función para cargar la sección de Reserva Rápida
  */
-function loadReservaRapidaSection() {
+function loadAdvancedReservaRapida() {
     console.log('=== CARGANDO RESERVA RÁPIDA PARA ADMIN ===');
     
     showLoadingInContent();
@@ -5506,168 +5112,7 @@ function showErrorInMainContent(message) {
 // Exponer función globalmente
 window.loadAgencyProfile = loadAgencyProfile;
 
-/**
- * ACTUALIZACIÓN DEL DASHBOARD PRINCIPAL
- * Agregar esta línea en el dashboard para agencias
- */
 
-// BUSCAR en el archivo wp-content/plugins/sistema-reservas/includes/class-dashboard.php
-// la sección donde se muestran los botones de acción para agencias (línea ~180 aprox):
-
-/*
-<div class="action-buttons">
-    <button class="action-btn" onclick="alert('Próximamente: Gestión de reservas para agencias')">🎫 Mis Reservas</button>
-    <button class="action-btn" onclick="alert('Próximamente: Crear nueva reserva')">➕ Nueva Reserva</button>
-    <button class="action-btn" onclick="alert('Próximamente: Historial de comisiones')">💰 Comisiones</button>
-    <button class="action-btn" onclick="alert('Próximamente: Configuración de agencia')">⚙️ Mi Perfil</button>
-    <button class="action-btn" onclick="loadAgencyReservaRapida()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-left: 4px solid #155724;">⚡ Reserva Rápida</button>                        
-</div>
-*/
-
-// REEMPLAZAR el botón "Mi Perfil" con:
-// <button class="action-btn" onclick="loadAgencyProfile()">👤 Mi Perfil</button>
-
-// Ejemplo de cómo debería quedar la sección completa:
-const agencyDashboardButtons = `
-<div class="action-buttons">
-    <button class="action-btn" onclick="alert('Próximamente: Gestión de reservas para agencias')">🎫 Mis Reservas</button>
-    <button class="action-btn" onclick="alert('Próximamente: Crear nueva reserva')">➕ Nueva Reserva</button>
-    <button class="action-btn" onclick="alert('Próximamente: Historial de comisiones')">💰 Comisiones</button>
-    <button class="action-btn" onclick="loadAgencyProfile()">👤 Mi Perfil</button>
-    <button class="action-btn" onclick="loadAgencyReservaRapida()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-left: 4px solid #155724;">⚡ Reserva Rápida</button>                        
-</div>
-`;
-
-/**
- * ACTUALIZACIÓN DEL SISTEMA PRINCIPAL
- * Agregar la nueva clase al sistema
- */
-
-// BUSCAR en el archivo wp-content/plugins/sistema-reservas/sistema-reservas.php
-// la función load_dependencies() (línea ~200 aprox):
-
-/*
-$files = array(
-    'includes/class-database.php',
-    'includes/class-auth.php',
-    'includes/class-admin.php',
-    'includes/class-dashboard.php',
-    'includes/class-calendar-admin.php',
-    'includes/class-discounts-admin.php',
-    'includes/class-configuration-admin.php',
-    'includes/class-reports-admin.php',
-    'includes/class-agencies-admin.php',
-    'includes/class-reservas-processor.php',
-    'includes/class-email-service.php',
-    'includes/class-frontend.php',
-    'includes/class-reserva-rapida-admin.php',
-);
-*/
-
-// AGREGAR la nueva clase:
-// 'includes/class-agency-profile-admin.php',
-
-// Y en la función initialize_classes() agregar:
-/*
-if (class_exists('ReservasAgencyProfileAdmin')) {
-    new ReservasAgencyProfileAdmin();
-}
-*/
-
-/**
- * ESTILOS CSS ADICIONALES
- * Agregar estos estilos en el archivo de CSS principal
- */
-
-const additionalCSS = `
-/* Estilos para el formulario de perfil de agencia */
-.profile-form-container {
-    max-width: 1000px;
-    margin: 0 auto;
-}
-
-.form-section {
-    margin-bottom: 30px;
-}
-
-.form-section h3 {
-    border-bottom: 2px solid #0073aa;
-    padding-bottom: 10px;
-    margin-bottom: 20px;
-}
-
-.form-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
-}
-
-.readonly-section {
-    background: #f8f9fa;
-    border-radius: 8px;
-    padding: 20px;
-}
-
-.readonly-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 15px;
-}
-
-.readonly-item {
-    background: white;
-    padding: 15px;
-    border-radius: 6px;
-    border-left: 4px solid #0073aa;
-}
-
-.profile-messages {
-    margin-top: 20px;
-}
-
-.message {
-    padding: 15px;
-    border-radius: 6px;
-    margin-bottom: 10px;
-}
-
-.message.success {
-    background: #d4edda;
-    color: #155724;
-    border-left: 4px solid #28a745;
-}
-
-.message.error {
-    background: #f8d7da;
-    color: #721c24;
-    border-left: 4px solid #dc3545;
-}
-
-.message.info {
-    background: #d1ecf1;
-    color: #0c5460;
-    border-left: 4px solid #17a2b8;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-    .form-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .readonly-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .profile-actions {
-        flex-direction: column;
-    }
-    
-    .profile-actions button {
-        width: 100%;
-    }
-}
-`;
 
 /**
  * FUNCIÓN HELPER PARA VALIDACIÓN DE EMAILS

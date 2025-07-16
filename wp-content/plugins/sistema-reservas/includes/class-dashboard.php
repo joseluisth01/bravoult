@@ -309,7 +309,7 @@ class ReservasDashboard
                                 <button class="action-btn" onclick="loadDiscountsConfigSection()">💰 Configurar Descuentos</button>
                                 <button class="action-btn" onclick="loadConfigurationSection()">⚙️ Configuración</button>
                                 <button class="action-btn" onclick="loadReportsSection()">📊 Informes y Reservas</button>
-                                <button class="action-btn" onclick="loadReservaRapidaSection()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-left: 4px solid #155724;">⚡ Reserva Rápida</button>
+                                <button class="action-btn" onclick="loadAdminReservaRapida()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-left: 4px solid #155724;">⚡ Reserva Rápida</button>
                                 <button class="action-btn" onclick="loadAgenciesSection()">🏢 Gestionar Agencias</button>
                             </div>
                         </div>
@@ -319,7 +319,7 @@ class ReservasDashboard
                             <div class="action-buttons">
                                 <button class="action-btn" onclick="loadCalendarSection()">📅 Gestionar Calendario</button>
                                 <button class="action-btn" onclick="loadReportsSection()">📊 Informes y Reservas</button>
-                                <button class="action-btn" onclick="loadReservaRapidaSection()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-left: 4px solid #155724;">⚡ Reserva Rápida</button>
+                                <button class="action-btn" onclick="loadAdminReservaRapida()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-left: 4px solid #155724;">⚡ Reserva Rápida</button>
                                 <button class="action-btn" onclick="alert('Función en desarrollo')">📈 Ver Estadísticas</button>
                             </div>
                         </div>
