@@ -209,8 +209,15 @@ class SistemaReservas
         }
 
         if (class_exists('ReservasAgencyProfileAdmin')) {
-        new ReservasAgencyProfileAdmin();
-    }
+            new ReservasAgencyProfileAdmin();
+        }
+        if (class_exists('ReservasAgencyProfileAdmin')) {
+            new ReservasAgencyProfileAdmin();
+        }
+
+        if (class_exists('ReservasReservaRapidaAdmin')) {
+            new ReservasReservaRapidaAdmin();
+        }
     }
 
     public function add_rewrite_rules()
@@ -1343,13 +1350,13 @@ function reservas_login_shortcode()
     return ob_get_clean();
 }
 
-add_action('admin_init', function() {
+add_action('admin_init', function () {
     global $wpdb;
     $table_name = $wpdb->prefix . 'reservas_agencies';
-    
+
     // Verificar si el campo email_notificaciones existe
     $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'email_notificaciones'");
-    
+
     if (empty($column_exists)) {
         $wpdb->query("ALTER TABLE $table_name ADD COLUMN email_notificaciones varchar(100) AFTER email");
         error_log('✅ Columna email_notificaciones añadida a tabla de agencias');

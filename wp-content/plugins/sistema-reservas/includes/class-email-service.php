@@ -1029,4 +1029,259 @@ class ReservasEmailService
     </body>
     </html>";
     }
+
+
+    /**
+ * Enviar email de notificación cuando una agencia hace una reserva rápida
+ */
+public static function send_agency_reservation_notification($reserva_data, $agency_user)
+{
+    $config = self::get_email_config();
+
+    // Email al super_admin
+    $superadmin_email = ReservasConfigurationAdmin::get_config('email_reservas', get_option('admin_email'));
+    $subject = "Reserva Rápida realizada por Agencia - " . $reserva_data['localizador'];
+
+    $message = self::build_agency_reservation_notification_template($reserva_data, $agency_user);
+
+    $headers = array(
+        'Content-Type: text/html; charset=UTF-8',
+        'From: ' . $config['nombre_remitente'] . ' <' . $config['email_remitente'] . '>'
+    );
+
+    $sent = wp_mail($superadmin_email, $subject, $message, $headers);
+
+    if ($sent) {
+        error_log("✅ Email enviado al super_admin sobre reserva de agencia");
+        return array('success' => true, 'message' => 'Email enviado al super_admin');
+    } else {
+        error_log("❌ Error enviando email al super_admin sobre reserva de agencia");
+        return array('success' => false, 'message' => 'Error enviando email al super_admin');
+    }
 }
+
+/**
+ * Enviar email a la propia agencia sobre su reserva
+ */
+public static function send_agency_self_notification($reserva_data, $agency_user)
+{
+    $config = self::get_email_config();
+
+    // Obtener email de notificaciones de la agencia
+    $agency_email = $agency_user['email_notificaciones'] ?? $agency_user['email'];
+    
+    if (empty($agency_email)) {
+        error_log("❌ No hay email de notificaciones configurado para la agencia");
+        return array('success' => false, 'message' => 'Email de agencia no configurado');
+    }
+
+    $subject = "Confirmación de Reserva Rápida - " . $reserva_data['localizador'] . " - " . $agency_user['agency_name'];
+
+    $message = self::build_agency_self_notification_template($reserva_data, $agency_user);
+
+    $headers = array(
+        'Content-Type: text/html; charset=UTF-8',
+        'From: ' . $config['nombre_remitente'] . ' <' . $config['email_remitente'] . '>'
+    );
+
+    $sent = wp_mail($agency_email, $subject, $message, $headers);
+
+    if ($sent) {
+        error_log("✅ Email enviado a la agencia sobre su propia reserva");
+        return array('success' => true, 'message' => 'Email enviado a la agencia');
+    } else {
+        error_log("❌ Error enviando email a la agencia");
+        return array('success' => false, 'message' => 'Error enviando email a la agencia');
+    }
+}
+
+/**
+ * Template para notificar al super_admin sobre reserva de agencia
+ */
+private static function build_agency_reservation_notification_template($reserva, $agency_user)
+{
+    $fecha_formateada = date('d/m/Y', strtotime($reserva['fecha']));
+    $fecha_creacion = date('d/m/Y H:i', strtotime($reserva['created_at'] ?? 'now'));
+
+    $personas_detalle = "";
+    if ($reserva['adultos'] > 0) $personas_detalle .= "Adultos: " . $reserva['adultos'] . "<br>";
+    if ($reserva['residentes'] > 0) $personas_detalle .= "Residentes: " . $reserva['residentes'] . "<br>";
+    if ($reserva['ninos_5_12'] > 0) $personas_detalle .= "Niños (5-12 años): " . $reserva['ninos_5_12'] . "<br>";
+    if ($reserva['ninos_menores'] > 0) $personas_detalle .= "Niños menores (gratis): " . $reserva['ninos_menores'] . "<br>";
+
+    return "
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset='UTF-8'>
+        <title>Reserva de Agencia - Sistema Medina Azahara</title>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        </style>
+    </head>
+    <body style='font-family: \"Inter\", -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.6; color: #2D2D2D; max-width: 700px; margin: 0 auto; padding: 0; background: #FAFAFA;'>
+        
+        <!-- Header -->
+        <div style='background: linear-gradient(135deg, #0073aa 0%, #005177 100%); color: #FFFFFF; text-align: center; padding: 50px 30px;'>
+            <h1 style='margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;'>RESERVA RÁPIDA DE AGENCIA</h1>
+            <div style='width: 60px; height: 3px; background: #EFCF4B; margin: 20px auto; border-radius: 2px;'></div>
+            <p style='margin: 0; font-size: 18px; font-weight: 500; opacity: 0.95;'>Una agencia ha procesado una nueva reserva</p>
+        </div>
+
+        <!-- Información de la Agencia -->
+        <div style='background: #E8F4F8; padding: 30px; border-bottom: 1px solid #E0E0E0;'>
+            <h2 style='margin: 0 0 15px 0; font-size: 18px; font-weight: 700; color: #0073aa; text-align: center;'>🏢 INFORMACIÓN DE LA AGENCIA</h2>
+            
+            <div style='background: #FFFFFF; padding: 25px; border-radius: 8px; border: 2px solid #0073aa;'>
+                <div style='display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;'>
+                    <div style='flex: 1; min-width: 200px;'>
+                        <p style='margin: 8px 0; color: #2D2D2D; font-size: 16px;'><strong style='color: #0073aa;'>Agencia:</strong> " . esc_html($agency_user['agency_name']) . "</p>
+                        <p style='margin: 8px 0; color: #2D2D2D; font-size: 16px;'><strong style='color: #0073aa;'>Usuario:</strong> " . esc_html($agency_user['username']) . "</p>
+                    </div>
+                    <div style='flex: 1; min-width: 200px; text-align: right;'>
+                        <p style='margin: 8px 0; color: #2D2D2D; font-size: 16px;'><strong style='color: #0073aa;'>Email:</strong> " . esc_html($agency_user['email']) . "</p>
+                        <p style='margin: 8px 0; color: #2D2D2D; font-size: 16px;'><strong style='color: #0073aa;'>Comisión:</strong> " . number_format($agency_user['commission_percentage'], 1) . "%</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Localizador destacado -->
+        <div style='background: #EFCF4B; padding: 30px; text-align: center; border-bottom: 1px solid #E0E0E0;'>
+            <h2 style='margin: 0 0 10px 0; font-size: 16px; font-weight: 600; color: #2D2D2D; text-transform: uppercase; letter-spacing: 1px;'>LOCALIZADOR DE RESERVA</h2>
+            <div style='font-size: 28px; font-weight: 700; color: #871727; letter-spacing: 3px; font-family: monospace; margin: 10px 0;'>" . $reserva['localizador'] . "</div>
+            <p style='margin: 0; font-size: 14px; color: #2D2D2D; font-weight: 500;'>Reserva procesada por agencia</p>
+        </div>
+
+        <!-- Información de la reserva -->
+        <div style='padding: 40px 30px; border-bottom: 1px solid #E0E0E0;'>
+            <h3 style='margin: 0 0 25px 0; font-size: 20px; font-weight: 700; color: #871727; text-align: center;'>Información de la Reserva</h3>
+            
+            <table style='width: 100%; border-collapse: collapse; background: #FFFFFF; border: 2px solid #EFCF4B; border-radius: 8px; overflow: hidden;'>
+                <tr>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; font-weight: 600; color: #2D2D2D;'>Fecha del servicio:</td>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; text-align: right; font-weight: 700; color: #871727;'>" . $fecha_formateada . " a las " . substr($reserva['hora'], 0, 5) . "</td>
+                </tr>
+                <tr>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; font-weight: 600; color: #2D2D2D;'>Total personas:</td>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; text-align: right; font-weight: 700; color: #871727; font-size: 18px;'>" . $reserva['total_personas'] . " plazas ocupadas</td>
+                </tr>
+                <tr style='background: #0073aa;'>
+                    <td style='padding: 20px 25px; font-size: 20px; font-weight: 700; color: #FFFFFF;'>TOTAL PROCESADO:</td>
+                    <td style='padding: 20px 25px; text-align: right; font-size: 24px; font-weight: 700; color: #FFFFFF;'>" . number_format($reserva['precio_final'], 2) . "€</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Datos del cliente -->
+        <div style='padding: 40px 30px; background: #F8F9FA; border-bottom: 1px solid #E0E0E0;'>
+            <h3 style='margin: 0 0 25px 0; font-size: 20px; font-weight: 700; color: #871727; text-align: center;'>Datos del Cliente</h3>
+            
+            <div style='background: #FFFFFF; padding: 25px; border-radius: 8px; border: 1px solid #E0E0E0;'>
+                <p style='margin: 8px 0; color: #2D2D2D; font-size: 16px;'><strong style='color: #871727;'>Cliente:</strong> " . $reserva['nombre'] . " " . $reserva['apellidos'] . "</p>
+                <p style='margin: 8px 0; color: #2D2D2D; font-size: 16px;'><strong style='color: #871727;'>Email:</strong> " . $reserva['email'] . "</p>
+                <p style='margin: 8px 0; color: #2D2D2D; font-size: 16px;'><strong style='color: #871727;'>Teléfono:</strong> " . $reserva['telefono'] . "</p>
+            </div>
+        </div>
+
+        <!-- Información importante -->
+        <div style='padding: 40px 30px; background: #FFFFFF;'>
+            <div style='background: #E8F4F8; padding: 30px; border-radius: 8px; border-left: 4px solid #0073aa;'>
+                <ul style='margin: 0; padding-left: 25px; color: #2D2D2D; line-height: 1.8; font-size: 16px;'>
+                    <li style='margin: 12px 0;'><strong style='color: #0073aa;'>Reserva procesada por:</strong> " . esc_html($agency_user['agency_name']) . "</li>
+                    <li style='margin: 12px 0;'><strong style='color: #0073aa;'>Estado:</strong> Confirmada automáticamente</li>
+                    <li style='margin: 12px 0;'><strong style='color: #0073aa;'>Emails enviados:</strong> Cliente y agencia notificados</li>
+                    <li style='margin: 12px 0;'><strong style='color: #0073aa;'>Comisión agencia:</strong> " . number_format($agency_user['commission_percentage'], 1) . "%</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div style='text-align: center; padding: 40px 30px; background: #2D2D2D; color: #FFFFFF;'>
+            <p style='margin: 0; color: #0073aa; font-weight: 600; font-size: 16px;'>
+                Sistema de Reservas - Medina Azahara
+            </p>
+        </div>
+    </body>
+    </html>";
+}
+
+/**
+ * Template para notificar a la agencia sobre su propia reserva
+ */
+private static function build_agency_self_notification_template($reserva, $agency_user)
+{
+    $fecha_formateada = date('d/m/Y', strtotime($reserva['fecha']));
+    $fecha_creacion = date('d/m/Y H:i', strtotime($reserva['created_at'] ?? 'now'));
+
+    return "
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset='UTF-8'>
+        <title>Confirmación Reserva Rápida - " . esc_html($agency_user['agency_name']) . "</title>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        </style>
+    </head>
+    <body style='font-family: \"Inter\", -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.6; color: #2D2D2D; max-width: 600px; margin: 0 auto; padding: 0; background: #FAFAFA;'>
+        
+        <!-- Header -->
+        <div style='background: linear-gradient(135deg, #0073aa 0%, #005177 100%); color: #FFFFFF; text-align: center; padding: 50px 30px;'>
+            <h1 style='margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;'>RESERVA PROCESADA</h1>
+            <div style='width: 60px; height: 3px; background: #EFCF4B; margin: 20px auto; border-radius: 2px;'></div>
+            <p style='margin: 0; font-size: 18px; font-weight: 500; opacity: 0.95;'>" . esc_html($agency_user['agency_name']) . "</p>
+        </div>
+
+        <!-- Localizador -->
+        <div style='background: #EFCF4B; padding: 30px; text-align: center; border-bottom: 1px solid #E0E0E0;'>
+            <h2 style='margin: 0 0 10px 0; font-size: 16px; font-weight: 600; color: #2D2D2D; text-transform: uppercase; letter-spacing: 1px;'>LOCALIZADOR</h2>
+            <div style='font-size: 28px; font-weight: 700; color: #871727; letter-spacing: 3px; font-family: monospace; margin: 10px 0;'>" . $reserva['localizador'] . "</div>
+            <p style='margin: 0; font-size: 14px; color: #2D2D2D; font-weight: 500;'>Reserva confirmada</p>
+        </div>
+
+        <!-- Resumen -->
+        <div style='padding: 40px 30px; background: #FFFFFF;'>
+            <h3 style='margin: 0 0 25px 0; font-size: 20px; font-weight: 700; color: #0073aa; text-align: center;'>Resumen de la Operación</h3>
+            
+            <table style='width: 100%; border-collapse: collapse; background: #FFFFFF; border: 2px solid #0073aa; border-radius: 8px; overflow: hidden;'>
+                <tr>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; font-weight: 600; color: #2D2D2D;'>Cliente:</td>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; text-align: right; color: #666666;'>" . $reserva['nombre'] . " " . $reserva['apellidos'] . "</td>
+                </tr>
+                <tr>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; font-weight: 600; color: #2D2D2D;'>Fecha servicio:</td>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; text-align: right; font-weight: 700; color: #0073aa;'>" . $fecha_formateada . " - " . substr($reserva['hora'], 0, 5) . "</td>
+                </tr>
+                <tr>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; font-weight: 600; color: #2D2D2D;'>Total personas:</td>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; text-align: right; font-weight: 700; color: #0073aa;'>" . $reserva['total_personas'] . "</td>
+                </tr>
+                <tr style='background: #0073aa;'>
+                    <td style='padding: 20px 25px; font-size: 20px; font-weight: 700; color: #FFFFFF;'>TOTAL:</td>
+                    <td style='padding: 20px 25px; text-align: right; font-size: 24px; font-weight: 700; color: #FFFFFF;'>" . number_format($reserva['precio_final'], 2) . "€</td>
+                </tr>
+            </table>
+
+            <div style='background: #E8F4F8; padding: 25px; border-radius: 8px; margin-top: 25px; border-left: 4px solid #0073aa;'>
+                <h4 style='margin: 0 0 15px 0; color: #0073aa;'>✅ Acciones Completadas:</h4>
+                <ul style='margin: 0; padding-left: 20px; color: #2D2D2D;'>
+                    <li>Reserva confirmada automáticamente</li>
+                    <li>Email enviado al cliente con billete PDF</li>
+                    <li>Plazas actualizadas en el sistema</li>
+                    <li>Administración notificada</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div style='text-align: center; padding: 40px 30px; background: #2D2D2D; color: #FFFFFF;'>
+            <p style='margin: 0; color: #0073aa; font-weight: 600; font-size: 16px;'>
+                Gracias por usar nuestro sistema
+            </p>
+        </div>
+    </body>
+    </html>";
+}
+}
+

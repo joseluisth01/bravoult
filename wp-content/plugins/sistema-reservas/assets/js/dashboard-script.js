@@ -4773,13 +4773,13 @@ function loadAgencyReservaRapida() {
 }
 
 function showErrorInContent(message) {
-    document.body.innerHTML = `
-        <div class="error-container" style="text-align: center; padding: 50px;">
-            <h2 style="color: #d63638;">Error</h2>
-            <p style="color: #d63638;">${message}</p>
-            <button class="btn-secondary" onclick="location.reload()">← Recargar Página</button>
-        </div>
-    `;
+   document.body.innerHTML = `
+       <div class="error-container" style="text-align: center; padding: 50px;">
+           <h2 style="color: #d63638;">Error</h2>
+           <p style="color: #d63638;">${message}</p>
+           <button class="btn-secondary" onclick="location.reload()">← Recargar Página</button>
+       </div>
+   `;
 }
 
 

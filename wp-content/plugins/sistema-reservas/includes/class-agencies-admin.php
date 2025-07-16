@@ -27,7 +27,7 @@ class ReservasAgenciesAdmin
 
         // Hook para crear tabla
         add_action('init', array($this, 'maybe_create_table'));
-    add_action('init', array($this, 'maybe_update_existing_tables'));
+        add_action('init', array($this, 'maybe_update_existing_tables'));
     }
 
     /**
@@ -46,18 +46,19 @@ class ReservasAgenciesAdmin
             $this->create_agencies_table();
         }
     }
-public function maybe_update_existing_tables() {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'reservas_agencies';
-    
-    // Verificar si el campo email_notificaciones existe
-    $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'email_notificaciones'");
-    
-    if (empty($column_exists)) {
-        $wpdb->query("ALTER TABLE $table_name ADD COLUMN email_notificaciones varchar(100) AFTER email");
-        error_log('✅ Columna email_notificaciones añadida a tabla de agencias');
+    public function maybe_update_existing_tables()
+    {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'reservas_agencies';
+
+        // Verificar si el campo email_notificaciones existe
+        $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'email_notificaciones'");
+
+        if (empty($column_exists)) {
+            $wpdb->query("ALTER TABLE $table_name ADD COLUMN email_notificaciones varchar(100) AFTER email");
+            error_log('✅ Columna email_notificaciones añadida a tabla de agencias');
+        }
     }
-}
 
     /**
      * Crear tabla de agencias
@@ -145,7 +146,6 @@ public function maybe_update_existing_tables() {
 
             error_log('✅ Found ' . count($agencies) . ' agencies');
             die(json_encode(['success' => true, 'data' => $agencies]));
-
         } catch (Exception $e) {
             error_log('❌ AGENCIES LIST EXCEPTION: ' . $e->getMessage());
             die(json_encode(['success' => false, 'data' => 'Server error: ' . $e->getMessage()]));
@@ -158,41 +158,41 @@ public function maybe_update_existing_tables() {
     public function save_agency()
     {
         error_log('=== SAVE AGENCY AJAX REQUEST START ===');
-    header('Content-Type: application/json');
+        header('Content-Type: application/json');
 
-    try {
-        if (!session_id()) {
-            session_start();
-        }
+        try {
+            if (!session_id()) {
+                session_start();
+            }
 
-        if (!isset($_SESSION['reservas_user'])) {
-            wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
-            return;
-        }
+            if (!isset($_SESSION['reservas_user'])) {
+                wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
+                return;
+            }
 
-        $user = $_SESSION['reservas_user'];
-        if ($user['role'] !== 'super_admin') {
-            wp_send_json_error('Sin permisos para gestionar agencias');
-            return;
-        }
+            $user = $_SESSION['reservas_user'];
+            if ($user['role'] !== 'super_admin') {
+                wp_send_json_error('Sin permisos para gestionar agencias');
+                return;
+            }
 
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'reservas_agencies';
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'reservas_agencies';
 
-        // Sanitizar datos
-        $agency_id = isset($_POST['agency_id']) ? intval($_POST['agency_id']) : 0;
-        $agency_name = sanitize_text_field($_POST['agency_name']);
-        $contact_person = sanitize_text_field($_POST['contact_person']);
-        $email = sanitize_email($_POST['email']);
-        $phone = sanitize_text_field($_POST['phone']);
-        $address = sanitize_textarea_field($_POST['address']);
-        $username = sanitize_text_field($_POST['username']);
-        $password = $_POST['password']; // Solo sanitizar si no está vacío
-        $commission_percentage = floatval($_POST['commission_percentage']);
-        $max_credit_limit = floatval($_POST['max_credit_limit']);
-        $status = sanitize_text_field($_POST['status']);
-        $notes = sanitize_textarea_field($_POST['notes']);
-        $email_notificaciones = sanitize_email($_POST['email_notificaciones']);
+            // Sanitizar datos
+            $agency_id = isset($_POST['agency_id']) ? intval($_POST['agency_id']) : 0;
+            $agency_name = sanitize_text_field($_POST['agency_name']);
+            $contact_person = sanitize_text_field($_POST['contact_person']);
+            $email = sanitize_email($_POST['email']);
+            $phone = sanitize_text_field($_POST['phone']);
+            $address = sanitize_textarea_field($_POST['address']);
+            $username = sanitize_text_field($_POST['username']);
+            $password = $_POST['password']; // Solo sanitizar si no está vacío
+            $commission_percentage = floatval($_POST['commission_percentage']);
+            $max_credit_limit = floatval($_POST['max_credit_limit']);
+            $status = sanitize_text_field($_POST['status']);
+            $notes = sanitize_textarea_field($_POST['notes']);
+            $email_notificaciones = sanitize_email($_POST['email_notificaciones']);
 
             // Validaciones
             if (empty($agency_name)) {
@@ -224,20 +224,22 @@ public function maybe_update_existing_tables() {
                 wp_send_json_error('Estado no válido');
             }
             if (!empty($email_notificaciones) && !is_email($email_notificaciones)) {
-    wp_send_json_error('El email de notificaciones no es válido');
-}
+                wp_send_json_error('El email de notificaciones no es válido');
+            }
 
             // Verificar duplicados
             if ($agency_id > 0) {
                 // Actualización - verificar que no existan duplicados excluyendo el registro actual
                 $existing_email = $wpdb->get_var($wpdb->prepare(
                     "SELECT COUNT(*) FROM $table_name WHERE email = %s AND id != %d",
-                    $email, $agency_id
+                    $email,
+                    $agency_id
                 ));
 
                 $existing_username = $wpdb->get_var($wpdb->prepare(
                     "SELECT COUNT(*) FROM $table_name WHERE username = %s AND id != %d",
-                    $username, $agency_id
+                    $username,
+                    $agency_id
                 ));
             } else {
                 // Creación - verificar que no existan duplicados
@@ -261,19 +263,19 @@ public function maybe_update_existing_tables() {
             }
 
             // Preparar datos para insertar/actualizar
-$data = array(
-    'agency_name' => $agency_name,
-    'contact_person' => $contact_person,
-    'email' => $email,
-    'phone' => $phone,
-    'address' => $address,
-    'username' => $username,
-    'commission_percentage' => $commission_percentage,
-    'max_credit_limit' => $max_credit_limit,
-    'status' => $status,
-    'notes' => $notes,
-    'email_notificaciones' => $email_notificaciones  // ✅ NUEVA LÍNEA
-);
+            $data = array(
+                'agency_name' => $agency_name,
+                'contact_person' => $contact_person,
+                'email' => $email,
+                'phone' => $phone,
+                'address' => $address,
+                'username' => $username,
+                'commission_percentage' => $commission_percentage,
+                'max_credit_limit' => $max_credit_limit,
+                'status' => $status,
+                'notes' => $notes,
+                'email_notificaciones' => $email_notificaciones  // ✅ NUEVA LÍNEA
+            );
 
 
             // Manejar contraseña
@@ -306,7 +308,6 @@ $data = array(
                     wp_send_json_error('Error al crear la agencia: ' . $wpdb->last_error);
                 }
             }
-
         } catch (Exception $e) {
             error_log('❌ SAVE AGENCY EXCEPTION: ' . $e->getMessage());
             wp_send_json_error('Server error: ' . $e->getMessage());
@@ -480,7 +481,6 @@ $data = array(
     public static function get_agency_info($agency_id)
     {
         global $wpdb;
-
         $table_name = $wpdb->prefix . 'reservas_agencies';
 
         return $wpdb->get_row($wpdb->prepare(

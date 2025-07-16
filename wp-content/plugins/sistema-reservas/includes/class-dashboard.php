@@ -89,7 +89,7 @@ class ReservasDashboard
                     <p><strong>Contraseña inicial:</strong> admin123</p>
                     <p><em>Cambia estas credenciales después del primer acceso</em></p>
                 </div>
-                
+
                 <div class="info-box" style="margin-top: 20px; background: #e8f4f8; border-left: 4px solid #0073aa;">
                     <h4>Acceso para Agencias</h4>
                     <p>Si eres una agencia, utiliza las credenciales que te proporcionó el administrador.</p>
@@ -134,14 +134,12 @@ class ReservasDashboard
                 } else {
                     echo '.loading { text-align: center; padding: 40px; color: #666; }';
                 }
-                ?>
-                <?php
-                $reports_css = RESERVAS_PLUGIN_PATH . 'assets/css/admin-style.css';
-                if (file_exists($reports_css)) {
-                    include_once $reports_css;
-                }
-                ?>
-                .loading {
+                ?><?php
+                    $reports_css = RESERVAS_PLUGIN_PATH . 'assets/css/admin-style.css';
+                    if (file_exists($reports_css)) {
+                        include_once $reports_css;
+                    }
+                    ?>.loading {
                     text-align: center;
                     padding: 40px;
                     color: #666;
@@ -265,7 +263,8 @@ class ReservasDashboard
                             <button class="action-btn" onclick="alert('Próximamente: Crear nueva reserva')">➕ Nueva Reserva</button>
                             <button class="action-btn" onclick="alert('Próximamente: Historial de comisiones')">💰 Comisiones</button>
                             <button class="action-btn" onclick="loadAgencyProfile()">👤 Mi Perfil</button>
-<button class="action-btn" onclick="loadAgencyReservaRapida()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-left: 4px solid #155724;">⚡ Reserva Rápida</button>                        </div>
+                            <button class="action-btn" onclick="loadAgencyReservaRapida()" style="background: linear-gradient(135deg, #0073aa 0%, #005177 100%); border-left: 4px solid #003f5c;">⚡ Reserva Rápida</button>
+                        </div>
                     </div>
 
                 <?php else: ?>
@@ -332,7 +331,7 @@ class ReservasDashboard
         </body>
 
         </html>
-    <?php
+<?php
     }
 
     private function get_reservas_today()

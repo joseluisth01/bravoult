@@ -81,85 +81,151 @@ class ReservasReservaRapidaAdmin
      * ✅ NUEVO: Obtener formulario de reserva rápida para AGENCIAS
      */
     public function get_agency_reserva_rapida_form()
-    {
-        error_log('=== GET AGENCY RESERVA RAPIDA FORM START ===');
-        header('Content-Type: application/json');
+{
+    error_log('=== GET AGENCY RESERVA RAPIDA FORM START ===');
+    header('Content-Type: application/json');
 
-        try {
-            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-                wp_send_json_error('Error de seguridad');
-                return;
-            }
-
-            if (!session_id()) {
-                session_start();
-            }
-
-            if (!isset($_SESSION['reservas_user'])) {
-                wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
-                return;
-            }
-
-            $user = $_SESSION['reservas_user'];
-
-            // Solo agencias pueden usar esta función
-            if ($user['role'] !== 'agencia') {
-                wp_send_json_error('Sin permisos para usar reserva rápida de agencias');
-                return;
-            }
-
-            // Obtener servicios disponibles para los próximos 30 días
-            $servicios_disponibles = $this->get_upcoming_services();
-
-            // Generar HTML del formulario para agencias
-            ob_start();
-            include RESERVAS_PLUGIN_PATH . 'templates/agency-reserva-rapida-form.php';
-            $form_html = ob_get_clean();
-
-            wp_send_json_success($form_html);
-        } catch (Exception $e) {
-            error_log('❌ AGENCY RESERVA RAPIDA FORM EXCEPTION: ' . $e->getMessage());
-            wp_send_json_error('Error del servidor: ' . $e->getMessage());
+    try {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+            error_log('❌ Nonce verification failed');
+            wp_send_json_error('Error de seguridad');
+            return;
         }
+
+        if (!session_id()) {
+            session_start();
+        }
+
+        if (!isset($_SESSION['reservas_user'])) {
+            error_log('❌ No session found');
+            wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
+            return;
+        }
+
+        $user = $_SESSION['reservas_user'];
+        error_log('User data: ' . print_r($user, true));
+
+        // Solo agencias pueden usar esta función
+        if ($user['role'] !== 'agencia') {
+            error_log('❌ User role not allowed: ' . $user['role']);
+            wp_send_json_error('Sin permisos para usar reserva rápida de agencias');
+            return;
+        }
+
+        // Verificar si hay servicios disponibles primero
+        $servicios_disponibles = $this->get_upcoming_services();
+        error_log('Servicios disponibles encontrados: ' . count($servicios_disponibles));
+
+        if (empty($servicios_disponibles)) {
+            error_log('⚠️ No hay servicios disponibles');
+        }
+
+        // Generar HTML del formulario para agencias
+        ob_start();
+        
+        // Asegurar que la sesión esté disponible para el template
+        if (!session_id()) {
+            session_start();
+        }
+        
+        include RESERVAS_PLUGIN_PATH . 'templates/agency-reserva-rapida-form.php';
+        $form_html = ob_get_clean();
+
+        if (empty($form_html)) {
+            error_log('❌ Form HTML is empty');
+            wp_send_json_error('Error generando formulario');
+            return;
+        }
+
+        error_log('✅ Form HTML generated successfully');
+        wp_send_json_success($form_html);
+
+    } catch (Exception $e) {
+        error_log('❌ AGENCY RESERVA RAPIDA FORM EXCEPTION: ' . $e->getMessage());
+        wp_send_json_error('Error del servidor: ' . $e->getMessage());
     }
+}
 
     /**
      * Obtener servicios disponibles para los próximos días
      */
     private function get_upcoming_services()
-    {
-        global $wpdb;
+{
+    global $wpdb;
+    $table_servicios = $wpdb->prefix . 'reservas_servicios';
 
-        $table_servicios = $wpdb->prefix . 'reservas_servicios';
-
-        $fecha_inicio = date('Y-m-d');
-        $fecha_fin = date('Y-m-d', strtotime('+30 days'));
-
-        $servicios = $wpdb->get_results($wpdb->prepare(
-            "SELECT id, fecha, hora, plazas_disponibles, precio_adulto, precio_nino, precio_residente
-             FROM $table_servicios 
-             WHERE fecha BETWEEN %s AND %s 
-             AND status = 'active'
-             AND plazas_disponibles > 0
-             ORDER BY fecha, hora",
-            $fecha_inicio,
-            $fecha_fin
-        ));
-
-        return $servicios;
+    // Obtener fecha actual y configuración de días de anticipación
+    $today = date('Y-m-d');
+    
+    // Obtener días de anticipación mínima desde configuración
+    $dias_anticipacion = 1; // Por defecto
+    if (class_exists('ReservasConfigurationAdmin')) {
+        $dias_anticipacion = intval(ReservasConfigurationAdmin::get_config('dias_anticipacion_minima', '1'));
     }
+    
+    $fecha_inicio = date('Y-m-d', strtotime("+{$dias_anticipacion} days"));
+    $fecha_fin = date('Y-m-d', strtotime('+60 days')); // Extender a 60 días
+
+    error_log("Buscando servicios desde {$fecha_inicio} hasta {$fecha_fin}");
+
+    $servicios = $wpdb->get_results($wpdb->prepare(
+        "SELECT id, fecha, hora, plazas_disponibles, precio_adulto, precio_nino, precio_residente, plazas_totales
+         FROM $table_servicios 
+         WHERE fecha BETWEEN %s AND %s 
+         AND status = 'active'
+         AND plazas_disponibles > 0
+         ORDER BY fecha ASC, hora ASC",
+        $fecha_inicio,
+        $fecha_fin
+    ));
+
+    error_log("Query ejecutada: " . $wpdb->last_query);
+    error_log("Servicios encontrados: " . count($servicios));
+    
+    if ($wpdb->last_error) {
+        error_log("Error en query: " . $wpdb->last_error);
+    }
+
+    return $servicios;
+}
 
     /**
      * Obtener servicios disponibles vía AJAX
      */
     public function get_available_services_rapida()
-    {
-        if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-            wp_send_json_error('Error de seguridad');
-            return;
-        }
+{
+    error_log('=== GET_AVAILABLE_SERVICES_RAPIDA CALLED ===');
+    
+    if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+        error_log('❌ Nonce verification failed');
+        wp_send_json_error('Error de seguridad');
+        return;
+    }
 
+    // Verificar sesión
+    if (!session_id()) {
+        session_start();
+    }
+
+    if (!isset($_SESSION['reservas_user'])) {
+        error_log('❌ No session user found');
+        wp_send_json_error('Sesión expirada');
+        return;
+    }
+
+    $user = $_SESSION['reservas_user'];
+    error_log('Usuario actual: ' . print_r($user, true));
+
+    // Verificar permisos
+    if (!in_array($user['role'], ['super_admin', 'admin', 'agencia'])) {
+        error_log('❌ User role not allowed: ' . $user['role']);
+        wp_send_json_error('Sin permisos para acceder a servicios');
+        return;
+    }
+
+    try {
         $servicios = $this->get_upcoming_services();
+        error_log('Servicios obtenidos: ' . count($servicios));
 
         // Organizar por fecha
         $servicios_organizados = array();
@@ -178,8 +244,14 @@ class ReservasReservaRapidaAdmin
             );
         }
 
+        error_log('Servicios organizados: ' . print_r($servicios_organizados, true));
         wp_send_json_success($servicios_organizados);
+
+    } catch (Exception $e) {
+        error_log('❌ Exception in get_available_services_rapida: ' . $e->getMessage());
+        wp_send_json_error('Error obteniendo servicios: ' . $e->getMessage());
     }
+}
 
     /**
      * Calcular precio para reserva rápida
@@ -687,73 +759,97 @@ class ReservasReservaRapidaAdmin
         $wpdb->delete($table_reservas, array('id' => $reservation_id));
     }
 
-    /**
-     * ✅ ACTUALIZADO: Enviar emails de confirmación (diferente para admin/agency)
-     */
-    private function send_confirmation_emails($reservation_id, $user, $user_type)
-    {
-        error_log('=== ENVIANDO EMAILS DE RESERVA RAPIDA (' . strtoupper($user_type) . ') ===');
+ /**
+ * ✅ ACTUALIZADO: Enviar emails de confirmación (diferente para admin/agency)
+ */
+private function send_confirmation_emails($reservation_id, $user, $user_type)
+{
+    error_log('=== ENVIANDO EMAILS DE RESERVA RAPIDA (' . strtoupper($user_type) . ') ===');
 
-        if (!class_exists('ReservasEmailService')) {
-            require_once RESERVAS_PLUGIN_PATH . 'includes/class-email-service.php';
-        }
+    if (!class_exists('ReservasEmailService')) {
+        require_once RESERVAS_PLUGIN_PATH . 'includes/class-email-service.php';
+    }
 
-        // Obtener datos de la reserva
-        global $wpdb;
-        $table_reservas = $wpdb->prefix . 'reservas_reservas';
+    // Obtener datos de la reserva
+    global $wpdb;
+    $table_reservas = $wpdb->prefix . 'reservas_reservas';
 
-        $reserva = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $table_reservas WHERE id = %d",
-            $reservation_id
-        ));
+    $reserva = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM $table_reservas WHERE id = %d",
+        $reservation_id
+    ));
 
-        if (!$reserva) {
-            error_log('❌ No se encontró la reserva para enviar emails');
-            return;
-        }
+    if (!$reserva) {
+        error_log('❌ No se encontró la reserva para enviar emails');
+        return;
+    }
 
-        // Obtener datos del servicio para precios
-        $table_servicios = $wpdb->prefix . 'reservas_servicios';
-        $servicio = $wpdb->get_row($wpdb->prepare(
-            "SELECT precio_adulto, precio_nino, precio_residente FROM $table_servicios WHERE id = %d",
-            $reserva->servicio_id
-        ));
+    // Obtener datos del servicio para precios
+    $table_servicios = $wpdb->prefix . 'reservas_servicios';
+    $servicio = $wpdb->get_row($wpdb->prepare(
+        "SELECT precio_adulto, precio_nino, precio_residente FROM $table_servicios WHERE id = %d",
+        $reserva->servicio_id
+    ));
 
-        // Preparar datos para emails
-        $reserva_array = (array) $reserva;
-        if ($servicio) {
-            $reserva_array['precio_adulto'] = $servicio->precio_adulto;
-            $reserva_array['precio_nino'] = $servicio->precio_nino;
-            $reserva_array['precio_residente'] = $servicio->precio_residente;
-        }
+    // Preparar datos para emails
+    $reserva_array = (array) $reserva;
+    if ($servicio) {
+        $reserva_array['precio_adulto'] = $servicio->precio_adulto;
+        $reserva_array['precio_nino'] = $servicio->precio_nino;
+        $reserva_array['precio_residente'] = $servicio->precio_residente;
+    }
 
-        // 1. Email al cliente (siempre)
-        $customer_result = ReservasEmailService::send_customer_confirmation($reserva_array);
-        if ($customer_result['success']) {
-            error_log('✅ Email enviado al cliente correctamente');
+    // 1. Email al cliente (siempre)
+    $customer_result = ReservasEmailService::send_customer_confirmation($reserva_array);
+    if ($customer_result['success']) {
+        error_log('✅ Email enviado al cliente correctamente');
+    } else {
+        error_log('❌ Error enviando email al cliente: ' . $customer_result['message']);
+    }
+
+    // 2. Emails específicos según tipo de usuario
+    if ($user_type === 'admin') {
+        // Para administradores: email al super_admin
+        $admin_result = ReservasEmailService::send_admin_agency_reservation_notification($reserva_array, $user);
+        if ($admin_result['success']) {
+            error_log('✅ Email enviado al super_admin correctamente');
         } else {
-            error_log('❌ Error enviando email al cliente: ' . $customer_result['message']);
+            error_log('❌ Error enviando email al super_admin: ' . $admin_result['message']);
+        }
+    } elseif ($user_type === 'agency') {
+        // Para agencias: obtener datos completos de la agencia
+        if (!class_exists('ReservasAgenciesAdmin')) {
+            require_once RESERVAS_PLUGIN_PATH . 'includes/class-agencies-admin.php';
         }
 
-        // 2. Email diferente según tipo de usuario
-        if ($user_type === 'admin') {
-            // Para administradores: email al super_admin
-            $admin_result = ReservasEmailService::send_admin_agency_reservation_notification($reserva_array, $user);
-            if ($admin_result['success']) {
-                error_log('✅ Email enviado al super_admin correctamente');
+        $agency_data = ReservasAgenciesAdmin::get_agency_info($user['id']);
+        
+        if ($agency_data) {
+            // Convertir objeto a array y añadir datos de sesión
+            $agency_array = (array) $agency_data;
+            $agency_array['agency_name'] = $agency_array['agency_name'] ?? $user['agency_name'];
+            $agency_array['commission_percentage'] = $agency_array['commission_percentage'] ?? $user['commission_percentage'];
+
+            // Email al super_admin sobre reserva de agencia
+            $super_admin_result = ReservasEmailService::send_agency_reservation_notification($reserva_array, $agency_array);
+            if ($super_admin_result['success']) {
+                error_log('✅ Email enviado al super_admin sobre agencia');
             } else {
-                error_log('❌ Error enviando email al super_admin: ' . $admin_result['message']);
+                error_log('❌ Error enviando email al super_admin sobre agencia: ' . $super_admin_result['message']);
             }
-        } elseif ($user_type === 'agency') {
-            // Para agencias: email al email de reservas
-            $agency_result = ReservasEmailService::send_admin_notification($reserva_array);
-            if ($agency_result['success']) {
-                error_log('✅ Email enviado al email de reservas correctamente');
+
+            // Email a la propia agencia
+            $agency_self_result = ReservasEmailService::send_agency_self_notification($reserva_array, $agency_array);
+            if ($agency_self_result['success']) {
+                error_log('✅ Email enviado a la agencia');
             } else {
-                error_log('❌ Error enviando email al email de reservas: ' . $agency_result['message']);
+                error_log('❌ Error enviando email a la agencia: ' . $agency_self_result['message']);
             }
+        } else {
+            error_log('❌ No se pudieron obtener datos completos de la agencia');
         }
     }
+}
 
     /**
      * Generar localizador único

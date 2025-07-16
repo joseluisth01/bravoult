@@ -10,7 +10,7 @@
         }
 
         .section-header {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            background: linear-gradient(135deg, #0073aa 0%, #005177 100%);
             color: white;
             padding: 25px;
             border-radius: 8px;
@@ -31,17 +31,32 @@
             opacity: 0.9;
         }
 
+        .agency-info {
+            background: #E8F4F8;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border-left: 4px solid #0073aa;
+        }
+
+        .agency-info h3 {
+            margin: 0 0 15px 0;
+            color: #0073aa;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
         .form-section {
             background: #F8F9FA;
             padding: 25px;
             border-radius: 8px;
             margin-bottom: 25px;
-            border-left: 4px solid #28a745;
+            border-left: 4px solid #0073aa;
         }
 
         .form-section h3 {
             margin: 0 0 20px 0;
-            color: #28a745;
+            color: #0073aa;
             font-size: 18px;
             font-weight: 600;
         }
@@ -76,8 +91,8 @@
         .form-group input:focus,
         .form-group select:focus {
             outline: none;
-            border-color: #28a745;
-            box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+            border-color: #0073aa;
+            box-shadow: 0 0 0 3px rgba(0, 115, 170, 0.1);
         }
 
         .personas-grid {
@@ -107,12 +122,12 @@
         }
 
         .price-row.total {
-            border-top: 2px solid #28a745;
+            border-top: 2px solid #0073aa;
             padding-top: 15px;
             margin-top: 15px;
             font-weight: 700;
             font-size: 20px;
-            color: #28a745;
+            color: #0073aa;
         }
 
         .discount-row {
@@ -139,12 +154,12 @@
         }
 
         .btn-primary {
-            background: #28a745;
+            background: #0073aa;
             color: white;
         }
 
         .btn-primary:hover {
-            background: #218838;
+            background: #005a87;
             transform: translateY(-2px);
         }
 
@@ -216,10 +231,29 @@
 
     <div class="section-header">
         <h2>⚡ RESERVA RÁPIDA</h2>
-        <p>Proceso de reserva inmediata para administradores</p>
+        <p>Sistema de reserva inmediata para agencias</p>
     </div>
 
-    <form id="reserva-rapida-form">
+    <!-- Información de la Agencia -->
+    <div class="agency-info">
+        <h3>🏢 Tu Agencia</h3>
+        <div class="form-grid">
+            <div>
+                <strong>Agencia:</strong> <?php echo esc_html($_SESSION['reservas_user']['agency_name'] ?? 'No disponible'); ?>
+            </div>
+            <div>
+                <strong>Usuario:</strong> <?php echo esc_html($_SESSION['reservas_user']['username'] ?? 'No disponible'); ?>
+            </div>
+            <div>
+                <strong>Email:</strong> <?php echo esc_html($_SESSION['reservas_user']['email'] ?? 'No disponible'); ?>
+            </div>
+            <div>
+                <strong>Comisión:</strong> <?php echo number_format($_SESSION['reservas_user']['commission_percentage'] ?? 0, 1); ?>%
+            </div>
+        </div>
+    </div>
+
+    <form id="agency-reserva-rapida-form">
         <!-- Sección de Cliente -->
         <div class="form-section">
             <h3>👤 Datos del Cliente</h3>
@@ -282,7 +316,7 @@
 
             <!-- Resumen de Precios -->
             <div id="price-summary" class="price-summary" style="display: none;">
-                <h4 style="margin: 0 0 15px 0; color: #28a745;">💰 Resumen de Precios</h4>
+                <h4 style="margin: 0 0 15px 0; color: #0073aa;">💰 Resumen de Precios</h4>
                 <div class="price-row">
                     <span>Precio base:</span>
                     <span id="precio-base">0.00€</span>
@@ -301,7 +335,7 @@
 
         <!-- Botones de Acción -->
         <div class="action-buttons">
-            <button type="button" class="btn btn-secondary" onclick="cancelReservaRapida()">
+            <button type="button" class="btn btn-secondary" onclick="cancelAgencyReservaRapida()">
                 ❌ Cancelar
             </button>
             <button type="submit" class="btn btn-primary" id="submit-btn" disabled>
@@ -316,14 +350,35 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    initializeReservaRapida();
+    initializeAgencyReservaRapida();
 });
 
-function initializeReservaRapida() {
-    console.log('=== INICIALIZANDO RESERVA RÁPIDA ===');
+function initializeAgencyReservaRapida() {
+    console.log('=== INICIALIZANDO RESERVA RÁPIDA AGENCIA ===');
+    
+    // Debug completo del entorno
+    console.log('Window location:', window.location.href);
+    console.log('reservasAjax disponible:', typeof reservasAjax !== 'undefined');
+    
+    if (typeof reservasAjax !== 'undefined') {
+        console.log('reservasAjax.ajax_url:', reservasAjax.ajax_url);
+        console.log('reservasAjax.nonce:', reservasAjax.nonce);
+    } else {
+        console.error('❌ reservasAjax NO ESTÁ DEFINIDO - Este es el problema principal');
+        showError('Error de configuración: Variables AJAX no disponibles. Recarga la página.');
+        return;
+    }
+    
+    console.log('jQuery disponible:', typeof jQuery !== 'undefined');
+    console.log('Service select encontrado:', document.getElementById('service_id') !== null);
+    
+    // Test de conectividad inmediato
+    testAjaxConnection();
     
     // Cargar servicios disponibles
-    loadAvailableServices();
+    setTimeout(() => {
+        loadAvailableServices();
+    }, 500);
     
     // Event listeners
     document.getElementById('service_id').addEventListener('change', handleServiceChange);
@@ -335,12 +390,11 @@ function initializeReservaRapida() {
     });
     
     // Event listener para el formulario
-    document.getElementById('reserva-rapida-form').addEventListener('submit', handleFormSubmit);
+    document.getElementById('agency-reserva-rapida-form').addEventListener('submit', handleFormSubmit);
 }
 
-function loadAvailableServices() {
-    const serviceSelect = document.getElementById('service_id');
-    serviceSelect.innerHTML = '<option value="">Cargando servicios...</option>';
+function testAjaxConnection() {
+    console.log('=== TESTING AJAX CONNECTION ===');
     
     jQuery.ajax({
         url: reservasAjax.ajax_url,
@@ -350,50 +404,151 @@ function loadAvailableServices() {
             nonce: reservasAjax.nonce
         },
         success: function(response) {
+            console.log('✅ AJAX Test exitoso');
+            console.log('Response completa:', response);
+        },
+        error: function(xhr, status, error) {
+            console.error('❌ AJAX Test falló');
+            console.error('Status:', status);
+            console.error('Error:', error);
+            console.error('Response text:', xhr.responseText);
+            console.error('Status code:', xhr.status);
+        }
+    });
+}
+
+function loadAvailableServices() {
+    console.log('=== CARGANDO SERVICIOS DISPONIBLES ===');
+    
+    const serviceSelect = document.getElementById('service_id');
+    serviceSelect.innerHTML = '<option value="">Cargando servicios...</option>';
+    
+    // Verificar que tenemos las variables necesarias
+    if (typeof reservasAjax === 'undefined') {
+        console.error('❌ reservasAjax no está definido');
+        serviceSelect.innerHTML = '<option value="">Error: Variables AJAX no disponibles</option>';
+        return;
+    }
+    
+    console.log('AJAX URL:', reservasAjax.ajax_url);
+    console.log('Nonce:', reservasAjax.nonce);
+    
+    jQuery.ajax({
+        url: reservasAjax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'get_available_services_rapida',
+            nonce: reservasAjax.nonce
+        },
+        timeout: 10000, // 10 segundos timeout
+        success: function(response) {
+            console.log('✅ Respuesta recibida:', response);
+            
             if (response.success) {
                 populateServiceSelect(response.data);
             } else {
+                console.error('❌ Error del servidor:', response.data);
                 showError('Error cargando servicios: ' + response.data);
+                serviceSelect.innerHTML = '<option value="">Error cargando servicios</option>';
             }
         },
-        error: function() {
-            showError('Error de conexión cargando servicios');
+        error: function(xhr, status, error) {
+            console.error('❌ Error AJAX:', {
+                status: status,
+                error: error,
+                responseText: xhr.responseText,
+                statusCode: xhr.status
+            });
+            
+            let errorMessage = 'Error de conexión';
+            if (status === 'timeout') {
+                errorMessage = 'Tiempo de espera agotado';
+            } else if (xhr.status === 403) {
+                errorMessage = 'Sin permisos para cargar servicios';
+            } else if (xhr.status === 500) {
+                errorMessage = 'Error interno del servidor';
+            }
+            
+            showError(errorMessage);
+            serviceSelect.innerHTML = '<option value="">Error de conexión</option>';
         }
     });
 }
 
 function populateServiceSelect(serviciosData) {
+    console.log('=== POBLANDO SELECT DE SERVICIOS ===');
+    console.log('Datos recibidos:', serviciosData);
+    
     const serviceSelect = document.getElementById('service_id');
     serviceSelect.innerHTML = '<option value="">Selecciona un servicio</option>';
     
-    if (Object.keys(serviciosData).length === 0) {
-        serviceSelect.innerHTML = '<option value="">No hay servicios disponibles</option>';
+    if (!serviciosData || typeof serviciosData !== 'object') {
+        console.error('❌ Datos de servicios inválidos:', serviciosData);
+        serviceSelect.innerHTML = '<option value="">Error: Datos inválidos</option>';
         return;
     }
     
-    Object.keys(serviciosData).forEach(fecha => {
-        const fechaObj = new Date(fecha + 'T00:00:00');
-        const fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
+    const fechas = Object.keys(serviciosData);
+    console.log('Fechas disponibles:', fechas);
+    
+    if (fechas.length === 0) {
+        serviceSelect.innerHTML = '<option value="">No hay servicios disponibles en los próximos días</option>';
+        showError('No hay servicios disponibles. Contacta con el administrador.');
+        return;
+    }
+    
+    // Ordenar fechas
+    fechas.sort();
+    
+    fechas.forEach(fecha => {
+        const serviciosDia = serviciosData[fecha];
         
-        serviciosData[fecha].forEach(servicio => {
-            const option = document.createElement('option');
-            option.value = servicio.id;
-            option.textContent = `${fechaFormateada} - ${servicio.hora} (${servicio.plazas_disponibles} plazas)`;
-            option.dataset.fecha = fecha;
-            option.dataset.hora = servicio.hora;
-            option.dataset.plazas = servicio.plazas_disponibles;
-            option.dataset.precioAdulto = servicio.precio_adulto;
-            option.dataset.precioNino = servicio.precio_nino;
-            option.dataset.precioResidente = servicio.precio_residente;
+        if (!Array.isArray(serviciosDia) || serviciosDia.length === 0) {
+            console.warn('⚠️ No hay servicios para la fecha:', fecha);
+            return;
+        }
+        
+        try {
+            const fechaObj = new Date(fecha + 'T00:00:00');
+            const fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
             
-            serviceSelect.appendChild(option);
-        });
+            // Capitalizar primera letra
+            const fechaCapitalizada = fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1);
+            
+            serviciosDia.forEach(servicio => {
+                const option = document.createElement('option');
+                option.value = servicio.id;
+                option.textContent = `${fechaCapitalizada} - ${servicio.hora} (${servicio.plazas_disponibles} plazas disponibles)`;
+                
+                // Añadir datos como atributos
+                option.dataset.fecha = fecha;
+                option.dataset.hora = servicio.hora;
+                option.dataset.plazas = servicio.plazas_disponibles;
+                option.dataset.precioAdulto = servicio.precio_adulto;
+                option.dataset.precioNino = servicio.precio_nino;
+                option.dataset.precioResidente = servicio.precio_residente;
+                
+                serviceSelect.appendChild(option);
+                
+                console.log(`✅ Añadido servicio: ${fechaCapitalizada} - ${servicio.hora}`);
+            });
+            
+        } catch (error) {
+            console.error('❌ Error procesando fecha:', fecha, error);
+        }
     });
+    
+    console.log(`✅ Total opciones añadidas: ${serviceSelect.options.length - 1}`);
+    
+    if (serviceSelect.options.length === 1) {
+        serviceSelect.innerHTML = '<option value="">No se pudieron cargar los servicios</option>';
+        showError('No se encontraron servicios disponibles.');
+    }
 }
 
 function handleServiceChange() {
@@ -563,33 +718,230 @@ function handleFormSubmit(e) {
     
     clearMessages();
     
-    // Procesar reserva
-    processReservaRapida(function() {
+    // Procesar reserva usando función específica para agencias
+    processAgencyReservaRapida(function() {
         // Restaurar botón en caso de error
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
     });
 }
 
-function cancelReservaRapida() {
+function processAgencyReservaRapida(callbackOnError) {
+    console.log('=== INICIANDO PROCESS AGENCIA RESERVA RÁPIDA ===');
+    
+    try {
+        // Recopilar datos del formulario
+        const formData = {
+            action: 'process_agency_reserva_rapida',
+            nonce: reservasAjax.nonce,
+            // Datos del cliente
+            nombre: document.getElementById('nombre').value.trim(),
+            apellidos: document.getElementById('apellidos').value.trim(),
+            email: document.getElementById('email').value.trim(),
+            telefono: document.getElementById('telefono').value.trim(),
+            // Datos del servicio
+            service_id: document.getElementById('service_id').value,
+            // Datos de personas
+            adultos: parseInt(document.getElementById('adultos').value) || 0,
+            residentes: parseInt(document.getElementById('residentes').value) || 0,
+            ninos_5_12: parseInt(document.getElementById('ninos_5_12').value) || 0,
+            ninos_menores: parseInt(document.getElementById('ninos_menores').value) || 0
+        };
+        
+        console.log('Datos a enviar:', formData);
+        
+        // Validaciones del lado cliente
+        const validation = validateAgencyReservaRapidaData(formData);
+        if (!validation.valid) {
+            showError(validation.error);
+            if (callbackOnError) callbackOnError();
+            return;
+        }
+        
+        // Enviar solicitud AJAX
+        jQuery.ajax({
+            url: reservasAjax.ajax_url,
+            type: 'POST',
+            data: formData,
+            timeout: 30000,
+            success: function(response) {
+                console.log('Respuesta del servidor:', response);
+                
+                if (response.success) {
+                    handleAgencyReservaRapidaSuccess(response.data);
+                } else {
+                    showError('Error procesando reserva: ' + response.data);
+                    if (callbackOnError) callbackOnError();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error AJAX:', status, error);
+                
+                let errorMessage = 'Error de conexión';
+                if (status === 'timeout') {
+                    errorMessage = 'La solicitud tardó demasiado tiempo. Por favor, inténtalo de nuevo.';
+                } else if (xhr.responseJSON && xhr.responseJSON.data) {
+                    errorMessage = xhr.responseJSON.data;
+                }
+                
+                showError(errorMessage);
+                if (callbackOnError) callbackOnError();
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error en processAgencyReservaRapida:', error);
+        showError('Error interno: ' + error.message);
+        if (callbackOnError) callbackOnError();
+    }
+}
+
+function validateAgencyReservaRapidaData(data) {
+    // Validar datos del cliente
+    if (!data.nombre || data.nombre.length < 2) {
+        return { valid: false, error: 'El nombre debe tener al menos 2 caracteres' };
+    }
+    
+    if (!data.apellidos || data.apellidos.length < 2) {
+        return { valid: false, error: 'Los apellidos deben tener al menos 2 caracteres' };
+    }
+    
+    if (!data.email || !isValidEmail(data.email)) {
+        return { valid: false, error: 'Email no válido' };
+    }
+    
+    if (!data.telefono || data.telefono.length < 9) {
+        return { valid: false, error: 'Teléfono debe tener al menos 9 dígitos' };
+    }
+    
+    // Validar servicio
+    if (!data.service_id) {
+        return { valid: false, error: 'Debe seleccionar un servicio' };
+    }
+    
+    // Validar personas
+    const totalPersonas = data.adultos + data.residentes + data.ninos_5_12;
+    
+    if (totalPersonas === 0) {
+        return { valid: false, error: 'Debe haber al menos una persona que ocupe plaza' };
+    }
+    
+    if (data.ninos_5_12 > 0 && (data.adultos + data.residentes) === 0) {
+        return { valid: false, error: 'Debe haber al menos un adulto si hay niños' };
+    }
+    
+    return { valid: true };
+}
+
+function handleAgencyReservaRapidaSuccess(data) {
+    console.log('=== RESERVA RÁPIDA AGENCIA EXITOSA ===');
+    console.log('Datos de respuesta:', data);
+    
+    // Mostrar mensaje de éxito con detalles
+    const successMessage = `
+        <div style="text-align: center; padding: 30px; background: #d4edda; border: 2px solid #28a745; border-radius: 12px; margin: 20px 0;">
+            <h3 style="color: #155724; margin: 0 0 15px 0; font-size: 24px;">
+                ✅ ¡RESERVA RÁPIDA PROCESADA EXITOSAMENTE!
+            </h3>
+            
+            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;">
+                <h4 style="color: #28a745; margin: 0 0 15px 0;">Detalles de la Reserva:</h4>
+                <div style="font-size: 16px; line-height: 1.6; color: #2d2d2d;">
+                    <strong>Localizador:</strong> <span style="font-family: monospace; background: #f8f9fa; padding: 4px 8px; border-radius: 4px; font-size: 18px; color: #28a745; font-weight: bold;">${data.localizador}</span><br>
+                    <strong>Cliente:</strong> ${document.getElementById('nombre').value} ${document.getElementById('apellidos').value}<br>
+                    <strong>Email:</strong> ${document.getElementById('email').value}<br>
+                    <strong>Fecha:</strong> ${formatDateForDisplay(data.detalles.fecha)}<br>
+                    <strong>Hora:</strong> ${data.detalles.hora}<br>
+                    <strong>Personas:</strong> ${data.detalles.personas}<br>
+                    <strong>Total:</strong> <span style="color: #28a745; font-weight: bold; font-size: 18px;">${data.detalles.precio_final}€</span><br>
+                    <strong>Agencia:</strong> ${data.admin_user}
+                </div>
+            </div>
+            
+            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2196f3;">
+                <p style="margin: 0; color: #1976d2; font-weight: 600;">
+                    📧 Emails enviados automáticamente:
+                </p>
+                <ul style="margin: 10px 0 0 0; color: #1976d2; text-align: left; display: inline-block;">
+                    <li>Confirmación al cliente (con PDF adjunto)</li>
+                    <li>Notificación al administrador del sistema</li>
+                    <li>Confirmación a tu agencia</li>
+                </ul>
+            </div>
+            
+            <div style="margin-top: 25px;">
+                <button onclick="createNewAgencyReservaRapida()" style="background: #0073aa; color: white; border: none; padding: 12px 25px; border-radius: 6px; margin-right: 10px; cursor: pointer; font-weight: 600;">
+                    ➕ Nueva Reserva Rápida
+                </button>
+                <button onclick="goBackToDashboard()" style="background: #6c757d; color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                    🏠 Volver al Dashboard
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Mostrar el mensaje de éxito
+    document.getElementById('form-messages').innerHTML = successMessage;
+    
+    // Hacer scroll hacia el mensaje
+    document.getElementById('form-messages').scrollIntoView({ behavior: 'smooth' });
+    
+    // Log para debugging
+    console.log('✅ Reserva rápida de agencia completada exitosamente');
+    console.log('Localizador:', data.localizador);
+    console.log('Agencia:', data.admin_user);
+}
+
+function createNewAgencyReservaRapida() {
+    // Recargar el formulario
+    location.reload();
+}
+
+function cancelAgencyReservaRapida() {
     if (confirm('¿Estás seguro de que quieres cancelar? Se perderán todos los datos introducidos.')) {
         // Volver al dashboard
-        loadDashboardSection('dashboard');
+        goBackToDashboard();
     }
+}
+
+function goBackToDashboard() {
+    // Recargar la página para volver al dashboard
+    location.reload();
 }
 
 function showError(message) {
     const messagesDiv = document.getElementById('form-messages');
     messagesDiv.innerHTML = `<div class="error-message">${message}</div>`;
+    messagesDiv.scrollIntoView({ behavior: 'smooth' });
 }
 
 function showSuccess(message) {
     const messagesDiv = document.getElementById('form-messages');
     messagesDiv.innerHTML = `<div class="success-message">${message}</div>`;
+    messagesDiv.scrollIntoView({ behavior: 'smooth' });
 }
 
 function clearMessages() {
     document.getElementById('form-messages').innerHTML = '';
+}
+
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
+function formatDateForDisplay(dateString) {
+    try {
+        const date = new Date(dateString + 'T00:00:00');
+        return date.toLocaleDateString('es-ES', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    } catch (error) {
+        return dateString;
+    }
 }
 
 // Event listeners para validación en tiempo real
