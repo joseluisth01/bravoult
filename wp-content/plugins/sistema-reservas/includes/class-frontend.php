@@ -164,13 +164,13 @@ class ReservasFrontend
                             </div>
 
                             <div class="total-price">
-    <div class="discount-row" id="discount-row" style="display: none;">
-        <span class="discount">DESCUENTOS: <span id="total-discount"></span></span>
-    </div>
-    <div class="total-row">
-        <span class="total">TOTAL: <span id="total-price">0€</span></span>
-    </div>
-</div>
+                                <div class="discount-row" id="discount-row" style="display: none;">
+                                    <span class="discount">DESCUENTOS: <span id="total-discount"></span></span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total">TOTAL: <span id="total-price">0€</span></span>
+                                </div>
+                            </div>
                         </div>
 
                     </div>
@@ -368,8 +368,8 @@ class ReservasFrontend
         <div id="reservas-detalles" class="container reservas-details-container">
             <br><br>
             <button type="button" class="back-btn" onclick="goBackToBooking()">
-                    <img src="https://autobusmedinaazahara.com/wp-content/uploads/2025/07/Vector-15.svg" alt="">VOLVER A MODIFICAR RESERVA
-                </button>
+                <img src="https://autobusmedinaazahara.com/wp-content/uploads/2025/07/Vector-15.svg" alt="">VOLVER A MODIFICAR RESERVA
+            </button>
             <!-- Detalles de la reserva -->
             <div class="details-summary">
                 <h2>DETALLES DE LA RESERVA</h2>
@@ -530,7 +530,7 @@ class ReservasFrontend
                 jQuery("#fecha-ida").text(fechaFormateada);
                 jQuery("#hora-ida").text(data.hora_ida || "-");
                 jQuery("#fecha-vuelta").text(fechaFormateada);
-                jQuery("#hora-vuelta").text("13:30");
+                jQuery("#hora-vuelta").text(data.hora_vuelta || "-");
 
                 jQuery("#num-adultos").text(data.adultos || 0);
                 jQuery("#num-residentes").text(data.residentes || 0);

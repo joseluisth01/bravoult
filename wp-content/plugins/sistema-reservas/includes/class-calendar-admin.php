@@ -152,6 +152,7 @@ class ReservasCalendarAdmin
 
         $fecha = sanitize_text_field($_POST['fecha']);
         $hora = sanitize_text_field($_POST['hora']);
+        $hora_vuelta = sanitize_text_field($_POST['hora_vuelta']);
         $plazas_totales = intval($_POST['plazas_totales']);
         $precio_adulto = floatval($_POST['precio_adulto']);
         $precio_nino = floatval($_POST['precio_nino']);
@@ -192,6 +193,7 @@ class ReservasCalendarAdmin
         $data = array(
             'fecha' => $fecha,
             'hora' => $hora,
+            'hora_vuelta' => $hora_vuelta,
             'plazas_totales' => $plazas_totales,
             'plazas_disponibles' => $plazas_totales,
             'precio_adulto' => $precio_adulto,
@@ -272,9 +274,9 @@ class ReservasCalendarAdmin
         $service_id = intval($_POST['service_id']);
 
         $servicio = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $table_name WHERE id = %d",
-            $service_id
-        ));
+        "SELECT * FROM $table_name WHERE id = %d",
+        $service_id
+    ));
 
         if ($servicio) {
             wp_send_json_success($servicio);

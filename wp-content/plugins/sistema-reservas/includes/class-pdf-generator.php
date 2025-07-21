@@ -22,62 +22,63 @@ class ReservasPDFGenerator
     /**
      * ✅ FUNCIÓN MEJORADA PARA CARGAR TCPDF
      */
-private function load_tcpdf() {
-    error_log('=== INTENTANDO CARGAR TCPDF ===');
-    
-    // ✅ Verificar si ya está disponible
-    if (class_exists('TCPDF')) {
-        error_log('✅ TCPDF ya estaba disponible');
-        return;
-    }
-    
-    // ✅ Rutas posibles para TCPDF
-    $possible_paths = array(
-        RESERVAS_PLUGIN_PATH . 'vendor/autoload.php',
-        RESERVAS_PLUGIN_PATH . 'vendor/tecnickcom/tcpdf/tcpdf.php',
-        RESERVAS_PLUGIN_PATH . 'vendor/tcpdf/tcpdf.php'
-    );
-    
-    foreach ($possible_paths as $path) {
-        error_log("Verificando: $path");
-        if (file_exists($path)) {
-            error_log("✅ Encontrado: $path");
-            try {
-                require_once($path);
-                if (class_exists('TCPDF')) {
-                    error_log('✅ TCPDF cargado desde: ' . $path);
-                    return;
-                }
-            } catch (Exception $e) {
-                error_log("Error cargando $path: " . $e->getMessage());
-            }
-        } else {
-            error_log("❌ No existe: $path");
+    private function load_tcpdf()
+    {
+        error_log('=== INTENTANDO CARGAR TCPDF ===');
+
+        // ✅ Verificar si ya está disponible
+        if (class_exists('TCPDF')) {
+            error_log('✅ TCPDF ya estaba disponible');
+            return;
         }
-    }
-    
-    // ✅ Si no encuentra nada, listar contenido del directorio vendor
-    $vendor_dir = RESERVAS_PLUGIN_PATH . 'vendor/';
-    if (is_dir($vendor_dir)) {
-        error_log('Contenido de vendor:');
-        $files = scandir($vendor_dir);
-        foreach ($files as $file) {
-            if ($file != '.' && $file != '..') {
-                error_log("  - $file");
-                if (is_dir($vendor_dir . $file)) {
-                    $subfiles = scandir($vendor_dir . $file);
-                    foreach ($subfiles as $subfile) {
-                        if ($subfile != '.' && $subfile != '..') {
-                            error_log("    - $file/$subfile");
+
+        // ✅ Rutas posibles para TCPDF
+        $possible_paths = array(
+            RESERVAS_PLUGIN_PATH . 'vendor/autoload.php',
+            RESERVAS_PLUGIN_PATH . 'vendor/tecnickcom/tcpdf/tcpdf.php',
+            RESERVAS_PLUGIN_PATH . 'vendor/tcpdf/tcpdf.php'
+        );
+
+        foreach ($possible_paths as $path) {
+            error_log("Verificando: $path");
+            if (file_exists($path)) {
+                error_log("✅ Encontrado: $path");
+                try {
+                    require_once($path);
+                    if (class_exists('TCPDF')) {
+                        error_log('✅ TCPDF cargado desde: ' . $path);
+                        return;
+                    }
+                } catch (Exception $e) {
+                    error_log("Error cargando $path: " . $e->getMessage());
+                }
+            } else {
+                error_log("❌ No existe: $path");
+            }
+        }
+
+        // ✅ Si no encuentra nada, listar contenido del directorio vendor
+        $vendor_dir = RESERVAS_PLUGIN_PATH . 'vendor/';
+        if (is_dir($vendor_dir)) {
+            error_log('Contenido de vendor:');
+            $files = scandir($vendor_dir);
+            foreach ($files as $file) {
+                if ($file != '.' && $file != '..') {
+                    error_log("  - $file");
+                    if (is_dir($vendor_dir . $file)) {
+                        $subfiles = scandir($vendor_dir . $file);
+                        foreach ($subfiles as $subfile) {
+                            if ($subfile != '.' && $subfile != '..') {
+                                error_log("    - $file/$subfile");
+                            }
                         }
                     }
                 }
             }
         }
+
+        throw new Exception('TCPDF no se pudo cargar desde ninguna ubicación');
     }
-    
-    throw new Exception('TCPDF no se pudo cargar desde ninguna ubicación');
-}
 
     /**
      * Generar PDF del billete
@@ -151,22 +152,23 @@ private function load_tcpdf() {
     /**
      * Generar el contenido del billete
      */
-private function generate_ticket_content($pdf) {
-    // Configurar fuente por defecto
-    $pdf->SetFont('helvetica', '', 9);
-    
-    // ========== SECCIÓN PRINCIPAL DEL BILLETE ==========
-    $this->generate_main_ticket_section($pdf);
-    
-    // ========== SECCIÓN DEL TALÓN (DESPRENDIBLE) ==========
-    $this->generate_stub_section($pdf);
-    
-    // ========== CONDICIONES DE COMPRA ==========
-    $this->generate_conditions_section($pdf);
-    
-    // ✅ AÑADIR CÓDIGO DE BARRAS AL FINAL
-    $this->generate_simple_barcode($pdf, 245);
-}
+    private function generate_ticket_content($pdf)
+    {
+        // Configurar fuente por defecto
+        $pdf->SetFont('helvetica', '', 9);
+
+        // ========== SECCIÓN PRINCIPAL DEL BILLETE ==========
+        $this->generate_main_ticket_section($pdf);
+
+        // ========== SECCIÓN DEL TALÓN (DESPRENDIBLE) ==========
+        $this->generate_stub_section($pdf);
+
+        // ========== CONDICIONES DE COMPRA ==========
+        $this->generate_conditions_section($pdf);
+
+        // ✅ AÑADIR CÓDIGO DE BARRAS AL FINAL
+        $this->generate_simple_barcode($pdf, 245);
+    }
 
 
 
@@ -175,159 +177,166 @@ private function generate_ticket_content($pdf) {
     /**
      * Sección principal del billete
      */
-    private function generate_main_ticket_section($pdf) {
-    $y_start = 15;
-    
-    // TABLA DE PRODUCTOS Y PRECIOS (PARTE SUPERIOR)
-    $pdf->SetFont('helvetica', 'B', 9);
-    $pdf->SetXY(15, $y_start);
-    
-    // Headers de la tabla
-    $pdf->Cell(15, 6, 'Unidades', 1, 0, 'C', false);
-    $pdf->Cell(80, 6, 'Plazas:', 1, 0, 'L', false);
-    $pdf->Cell(25, 6, 'Precio:', 1, 0, 'C', false);
-    $pdf->Cell(25, 6, 'Total:', 1, 1, 'C', false);
-    
-    $pdf->SetFont('helvetica', '', 9);
-    
-    // Línea de adultos
-    if ($this->reserva_data['adultos'] > 0) {
-        $precio_adulto = $this->get_precio_adulto();
-        $total_adultos = $this->reserva_data['adultos'] * $precio_adulto;
-        
+    private function generate_main_ticket_section($pdf)
+    {
+        $y_start = 15;
+
+        // TABLA DE PRODUCTOS Y PRECIOS (PARTE SUPERIOR)
+        $pdf->SetFont('helvetica', 'B', 9);
+        $pdf->SetXY(15, $y_start);
+
+        // Headers de la tabla
+        $pdf->Cell(15, 6, 'Unidades', 1, 0, 'C', false);
+        $pdf->Cell(80, 6, 'Plazas:', 1, 0, 'L', false);
+        $pdf->Cell(25, 6, 'Precio:', 1, 0, 'C', false);
+        $pdf->Cell(25, 6, 'Total:', 1, 1, 'C', false);
+
+        $pdf->SetFont('helvetica', '', 9);
+
+        // Línea de adultos
+        if ($this->reserva_data['adultos'] > 0) {
+            $precio_adulto = $this->get_precio_adulto();
+            $total_adultos = $this->reserva_data['adultos'] * $precio_adulto;
+
+            $pdf->SetX(15);
+            $pdf->Cell(15, 5, $this->reserva_data['adultos'], 1, 0, 'C');
+            $pdf->Cell(80, 5, 'Adultos', 1, 0, 'L');
+            $pdf->Cell(25, 5, number_format($precio_adulto, 2) . ' €', 1, 0, 'C');
+            $pdf->Cell(25, 5, number_format($total_adultos, 2) . ' €', 1, 1, 'C');
+        }
+
+        // Línea de residentes
+        if ($this->reserva_data['residentes'] > 0) {
+            $precio_residente = $this->get_precio_residente();
+            $total_residentes = $this->reserva_data['residentes'] * $precio_residente;
+
+            $pdf->SetX(15);
+            $pdf->Cell(15, 5, $this->reserva_data['residentes'], 1, 0, 'C');
+            $pdf->Cell(80, 5, 'Residentes', 1, 0, 'L');
+            $pdf->Cell(25, 5, number_format($precio_residente, 2) . ' €', 1, 0, 'C');
+            $pdf->Cell(25, 5, number_format($total_residentes, 2) . ' €', 1, 1, 'C');
+        }
+
+        // Línea de niños (5-12)
+        if ($this->reserva_data['ninos_5_12'] > 0) {
+            $precio_nino = $this->get_precio_nino();
+            $total_ninos = $this->reserva_data['ninos_5_12'] * $precio_nino;
+
+            $pdf->SetX(15);
+            $pdf->Cell(15, 5, $this->reserva_data['ninos_5_12'], 1, 0, 'C');
+            $pdf->Cell(80, 5, 'Niños (5 a 12 años) (5-12 a.)', 1, 0, 'L');
+            $pdf->Cell(25, 5, number_format($precio_nino, 2) . ' €', 1, 0, 'C');
+            $pdf->Cell(25, 5, number_format($total_ninos, 2) . ' €', 1, 1, 'C');
+        }
+
+        // Línea de niños menores (gratis) - si existen
+        if (isset($this->reserva_data['ninos_menores']) && $this->reserva_data['ninos_menores'] > 0) {
+            $pdf->SetX(15);
+            $pdf->Cell(15, 5, $this->reserva_data['ninos_menores'], 1, 0, 'C');
+            $pdf->Cell(80, 5, 'Niños (menores 5 años)', 1, 0, 'L');
+            $pdf->Cell(25, 5, '0,00 €', 1, 0, 'C');
+            $pdf->Cell(25, 5, '0,00 €', 1, 1, 'C');
+        }
+
+        // FILA DEL TOTAL
+        $pdf->SetFont('helvetica', 'B', 11);
+        $pdf->SetX(95);
+        $pdf->Cell(50, 8, number_format($this->reserva_data['precio_final'], 2) . ' €', 1, 1, 'C');
+
+        $y_current = $pdf->GetY() + 5;
+
+        // TÍTULO DEL PRODUCTO
+        $pdf->SetFont('helvetica', 'B', 12);
+        $pdf->SetXY(15, $y_current);
+        $pdf->Cell(0, 6, 'TAQ BUS Madinat Al-Zahra + Lanzadera (' . substr($this->reserva_data['hora'], 0, 5) . ' hrs)', 0, 1, 'L');
+
+        $y_current = $pdf->GetY() + 3;
+
+        // INFORMACIÓN DEL SERVICIO EN DOS COLUMNAS
+        $pdf->SetFont('helvetica', 'B', 9);
+        $pdf->SetXY(15, $y_current);
+        $pdf->Cell(30, 5, 'Fecha Visita:', 0, 0, 'L');
+        $pdf->SetFont('helvetica', '', 9);
+        $pdf->Cell(40, 5, $this->format_date($this->reserva_data['fecha']), 0, 0, 'L');
+
+        // Localizador en la esquina superior derecha
+        $pdf->SetFont('helvetica', 'B', 9);
+        $pdf->SetXY(120, $y_current);
+        $pdf->Cell(30, 5, 'Localizador/Localizer:', 0, 1, 'L');
+        $pdf->SetFont('helvetica', 'B', 12);
+        $pdf->SetX(150);
+        $pdf->Cell(30, 5, $this->reserva_data['localizador'], 0, 1, 'L');
+
+        $pdf->SetFont('helvetica', 'B', 9);
         $pdf->SetX(15);
-        $pdf->Cell(15, 5, $this->reserva_data['adultos'], 1, 0, 'C');
-        $pdf->Cell(80, 5, 'Adultos', 1, 0, 'L');
-        $pdf->Cell(25, 5, number_format($precio_adulto, 2) . ' €', 1, 0, 'C');
-        $pdf->Cell(25, 5, number_format($total_adultos, 2) . ' €', 1, 1, 'C');
-    }
-    
-    // Línea de residentes
-    if ($this->reserva_data['residentes'] > 0) {
-        $precio_residente = $this->get_precio_residente();
-        $total_residentes = $this->reserva_data['residentes'] * $precio_residente;
-        
+        $pdf->Cell(30, 5, 'Hora de Salida:', 0, 0, 'L');
+        $pdf->SetFont('helvetica', '', 9);
+        $pdf->Cell(40, 5, substr($this->reserva_data['hora'], 0, 5) . ' hrs', 0, 1, 'L');
+
+        $pdf->SetFont('helvetica', 'B', 9);
         $pdf->SetX(15);
-        $pdf->Cell(15, 5, $this->reserva_data['residentes'], 1, 0, 'C');
-        $pdf->Cell(80, 5, 'Residentes', 1, 0, 'L');
-        $pdf->Cell(25, 5, number_format($precio_residente, 2) . ' €', 1, 0, 'C');
-        $pdf->Cell(25, 5, number_format($total_residentes, 2) . ' €', 1, 1, 'C');
-    }
-    
-    // Línea de niños (5-12)
-    if ($this->reserva_data['ninos_5_12'] > 0) {
-        $precio_nino = $this->get_precio_nino();
-        $total_ninos = $this->reserva_data['ninos_5_12'] * $precio_nino;
-        
+        $pdf->Cell(30, 5, 'Hora de Vuelta:', 0, 0, 'L');
+        $pdf->SetFont('helvetica', '', 9);
+        $pdf->Cell(40, 5, substr($this->reserva_data['hora_vuelta'], 0, 5) . ' hrs', 0, 1, 'L');
+
+        $pdf->SetFont('helvetica', 'B', 9);
         $pdf->SetX(15);
-        $pdf->Cell(15, 5, $this->reserva_data['ninos_5_12'], 1, 0, 'C');
-        $pdf->Cell(80, 5, 'Niños (5 a 12 años) (5-12 a.)', 1, 0, 'L');
-        $pdf->Cell(25, 5, number_format($precio_nino, 2) . ' €', 1, 0, 'C');
-        $pdf->Cell(25, 5, number_format($total_ninos, 2) . ' €', 1, 1, 'C');
-    }
-    
-    // Línea de niños menores (gratis) - si existen
-    if (isset($this->reserva_data['ninos_menores']) && $this->reserva_data['ninos_menores'] > 0) {
+        $pdf->Cell(30, 5, 'Idioma:', 0, 0, 'L');
+        $pdf->SetFont('helvetica', '', 9);
+        $pdf->Cell(40, 5, 'Español', 0, 1, 'L');
+
+        $pdf->SetFont('helvetica', 'B', 9);
         $pdf->SetX(15);
-        $pdf->Cell(15, 5, $this->reserva_data['ninos_menores'], 1, 0, 'C');
-        $pdf->Cell(80, 5, 'Niños (menores 5 años)', 1, 0, 'L');
-        $pdf->Cell(25, 5, '0,00 €', 1, 0, 'C');
-        $pdf->Cell(25, 5, '0,00 €', 1, 1, 'C');
+        $pdf->Cell(30, 5, 'Producto:', 0, 0, 'L');
+        $pdf->SetFont('helvetica', '', 9);
+        $pdf->MultiCell(80, 5, 'TAQ BUS Madinat Al-Zahra + Lanzadera (' . substr($this->reserva_data['hora'], 0, 5) . ' hrs)', 0, 'L');
+
+        $y_current = $pdf->GetY() + 3;
+
+        // FECHA DE COMPRA
+        $pdf->SetFont('helvetica', 'B', 9);
+        $pdf->SetXY(15, $y_current);
+        $pdf->Cell(30, 5, 'Fecha Compra:', 0, 0, 'L');
+        $pdf->SetFont('helvetica', '', 9);
+        $pdf->Cell(40, 5, $this->format_date($this->reserva_data['created_at'] ?? date('Y-m-d')), 0, 1, 'L');
+
+        $y_current = $pdf->GetY() + 5;
+
+        // PUNTO DE ENCUENTRO
+        $pdf->SetFont('helvetica', 'B', 9);
+        $pdf->SetXY(15, $y_current);
+        $pdf->Cell(35, 5, 'Punto de Encuentro:', 0, 1, 'L');
+
+        $pdf->SetFont('helvetica', '', 8);
+        $pdf->SetX(15);
+        $pdf->Cell(0, 4, '1-Paseo de la Victoria (glorieta Hospital Cruz Roja)', 0, 1, 'L');
+        $pdf->SetX(15);
+        $pdf->Cell(0, 4, '2-Paseo de la Victoria (frente Mercado Victoria)', 0, 1, 'L');
+
+        $y_current = $pdf->GetY() + 3;
+
+        // CLIENTE/AGENTE
+        $pdf->SetFont('helvetica', 'B', 9);
+        $pdf->SetXY(15, $y_current);
+        $pdf->Cell(25, 5, 'Cliente/Agente:', 0, 0, 'L');
+        $pdf->SetFont('helvetica', '', 8);
+        $pdf->Cell(0, 5, 'TAQUILLA BRAVO BUS - FRANCISCO BRAVO', 0, 1, 'L');
+
+        $y_current = $pdf->GetY() + 3;
+
+        // ORGANIZA
+        $pdf->SetFont('helvetica', 'B', 9);
+        $pdf->SetXY(15, $y_current);
+        $pdf->Cell(20, 5, 'Organiza:', 0, 1, 'L');
+
+        $pdf->SetFont('helvetica', 'B', 9);
+        $pdf->SetX(15);
+        $pdf->Cell(0, 4, 'AUTOCARES BRAVO PALACIOS,S.L.', 0, 1, 'L');
+
+        $pdf->SetFont('helvetica', '', 7);
+        $pdf->SetX(15);
+        $pdf->Cell(0, 4, 'INGENIERO BARBUDO, S/N - CORDOBA - CIF: B14485817 - Teléfono: 957429034', 0, 1, 'L');
     }
-    
-    // FILA DEL TOTAL
-    $pdf->SetFont('helvetica', 'B', 11);
-    $pdf->SetX(95);
-    $pdf->Cell(50, 8, number_format($this->reserva_data['precio_final'], 2) . ' €', 1, 1, 'C');
-    
-    $y_current = $pdf->GetY() + 5;
-    
-    // TÍTULO DEL PRODUCTO
-    $pdf->SetFont('helvetica', 'B', 12);
-    $pdf->SetXY(15, $y_current);
-    $pdf->Cell(0, 6, 'TAQ BUS Madinat Al-Zahra + Lanzadera (' . substr($this->reserva_data['hora'], 0, 5) . ' hrs)', 0, 1, 'L');
-    
-    $y_current = $pdf->GetY() + 3;
-    
-    // INFORMACIÓN DEL SERVICIO EN DOS COLUMNAS
-    $pdf->SetFont('helvetica', 'B', 9);
-    $pdf->SetXY(15, $y_current);
-    $pdf->Cell(30, 5, 'Fecha Visita:', 0, 0, 'L');
-    $pdf->SetFont('helvetica', '', 9);
-    $pdf->Cell(40, 5, $this->format_date($this->reserva_data['fecha']), 0, 0, 'L');
-    
-    // Localizador en la esquina superior derecha
-    $pdf->SetFont('helvetica', 'B', 9);
-    $pdf->SetXY(120, $y_current);
-    $pdf->Cell(30, 5, 'Localizador/Localizer:', 0, 1, 'L');
-    $pdf->SetFont('helvetica', 'B', 12);
-    $pdf->SetX(150);
-    $pdf->Cell(30, 5, $this->reserva_data['localizador'], 0, 1, 'L');
-    
-    $pdf->SetFont('helvetica', 'B', 9);
-    $pdf->SetX(15);
-    $pdf->Cell(30, 5, 'Hora de Salida:', 0, 0, 'L');
-    $pdf->SetFont('helvetica', '', 9);
-    $pdf->Cell(40, 5, substr($this->reserva_data['hora'], 0, 5) . ' hrs', 0, 1, 'L');
-    
-    $pdf->SetFont('helvetica', 'B', 9);
-    $pdf->SetX(15);
-    $pdf->Cell(30, 5, 'Idioma:', 0, 0, 'L');
-    $pdf->SetFont('helvetica', '', 9);
-    $pdf->Cell(40, 5, 'Español', 0, 1, 'L');
-    
-    $pdf->SetFont('helvetica', 'B', 9);
-    $pdf->SetX(15);
-    $pdf->Cell(30, 5, 'Producto:', 0, 0, 'L');
-    $pdf->SetFont('helvetica', '', 9);
-    $pdf->MultiCell(80, 5, 'TAQ BUS Madinat Al-Zahra + Lanzadera (' . substr($this->reserva_data['hora'], 0, 5) . ' hrs)', 0, 'L');
-    
-    $y_current = $pdf->GetY() + 3;
-    
-    // FECHA DE COMPRA
-    $pdf->SetFont('helvetica', 'B', 9);
-    $pdf->SetXY(15, $y_current);
-    $pdf->Cell(30, 5, 'Fecha Compra:', 0, 0, 'L');
-    $pdf->SetFont('helvetica', '', 9);
-    $pdf->Cell(40, 5, $this->format_date($this->reserva_data['created_at'] ?? date('Y-m-d')), 0, 1, 'L');
-    
-    $y_current = $pdf->GetY() + 5;
-    
-    // PUNTO DE ENCUENTRO
-    $pdf->SetFont('helvetica', 'B', 9);
-    $pdf->SetXY(15, $y_current);
-    $pdf->Cell(35, 5, 'Punto de Encuentro:', 0, 1, 'L');
-    
-    $pdf->SetFont('helvetica', '', 8);
-    $pdf->SetX(15);
-    $pdf->Cell(0, 4, '1-Paseo de la Victoria (glorieta Hospital Cruz Roja)', 0, 1, 'L');
-    $pdf->SetX(15);
-    $pdf->Cell(0, 4, '2-Paseo de la Victoria (frente Mercado Victoria)', 0, 1, 'L');
-    
-    $y_current = $pdf->GetY() + 3;
-    
-    // CLIENTE/AGENTE
-    $pdf->SetFont('helvetica', 'B', 9);
-    $pdf->SetXY(15, $y_current);
-    $pdf->Cell(25, 5, 'Cliente/Agente:', 0, 0, 'L');
-    $pdf->SetFont('helvetica', '', 8);
-    $pdf->Cell(0, 5, 'TAQUILLA BRAVO BUS - FRANCISCO BRAVO', 0, 1, 'L');
-    
-    $y_current = $pdf->GetY() + 3;
-    
-    // ORGANIZA
-    $pdf->SetFont('helvetica', 'B', 9);
-    $pdf->SetXY(15, $y_current);
-    $pdf->Cell(20, 5, 'Organiza:', 0, 1, 'L');
-    
-    $pdf->SetFont('helvetica', 'B', 9);
-    $pdf->SetX(15);
-    $pdf->Cell(0, 4, 'AUTOCARES BRAVO PALACIOS,S.L.', 0, 1, 'L');
-    
-    $pdf->SetFont('helvetica', '', 7);
-    $pdf->SetX(15);
-    $pdf->Cell(0, 4, 'INGENIERO BARBUDO, S/N - CORDOBA - CIF: B14485817 - Teléfono: 957429034', 0, 1, 'L');
-}
 
     /**
      * Sección del talón (parte desprendible)
@@ -360,7 +369,7 @@ private function generate_ticket_content($pdf) {
         $pdf->Cell(25, 4, 'Producto:', 0, 0, 'L');
         $pdf->SetFont('helvetica', '', 7);
         $pdf->SetX(152);
-        $pdf->MultiCell(40, 3, 'TAQ BUS Madinat Al-Zahra + Lanzadera (' . substr($this->reserva_data['hora'], 0, 5) . ' hrs)', 0, 'L');
+        $pdf->MultiCell(40, 3, 'TAQ BUS Madinat Al-Zahra + Lanzadera (' . substr($this->reserva_data['hora'], 0, 5) . ' / ' . substr($this->reserva_data['hora_vuelta'], 0, 5) . ' hrs)', 0, 'L');
 
         $pdf->SetFont('helvetica', 'B', 8);
         $pdf->SetXY(127, $y_start + 30);
@@ -397,9 +406,9 @@ private function generate_ticket_content($pdf) {
 
 
         // ✅ AÑADIR AL FINAL DE generate_stub_section(), después de la información de la empresa:
-$pdf->SetFont('helvetica', '', 7);
-$pdf->SetXY(127, $y_start + 63);
-$pdf->Cell(66, 3, 'Código: ' . $this->reserva_data['localizador'] . date('Ymd', strtotime($this->reserva_data['fecha'])), 0, 1, 'C');
+        $pdf->SetFont('helvetica', '', 7);
+        $pdf->SetXY(127, $y_start + 63);
+        $pdf->Cell(66, 3, 'Código: ' . $this->reserva_data['localizador'] . date('Ymd', strtotime($this->reserva_data['fecha'])), 0, 1, 'C');
     }
 
     /**
@@ -424,37 +433,38 @@ $pdf->Cell(66, 3, 'Código: ' . $this->reserva_data['localizador'] . date('Ymd',
         $pdf->Cell(0, 3, 'Mantenga la integridad de toda la hoja, sin cortar ninguna de las zonas impresas.', 0, 1, 'C');
     }
 
-/**
- * Generar código de barras simple en el pie del billete
- */
-private function generate_simple_barcode($pdf, $y_start) {
-    // Generar código único basado en el localizador
-    $barcode_data = $this->reserva_data['localizador'] . date('Ymd', strtotime($this->reserva_data['fecha']));
-    
-    // Posicionar código de barras
-    $pdf->SetXY(15, $y_start);
-    
-    // ✅ USAR write1DBarcode de TCPDF
-    $style = array(
-        'border' => false,
-        'hpadding' => 0,
-        'vpadding' => 0,
-        'fgcolor' => array(0,0,0),
-        'bgcolor' => false,
-        'text' => true,
-        'font' => 'helvetica',
-        'fontsize' => 8,
-        'stretchtext' => 4
-    );
-    
-    // Generar código de barras CODE 39 (soporta letras y números)
-    $pdf->write1DBarcode($barcode_data, 'C39', 15, $y_start, 120, 15, 0.4, $style, 'N');
-    
-    // Total a la derecha del código de barras
-    $pdf->SetFont('helvetica', 'B', 12);
-    $pdf->SetXY(150, $y_start + 5);
-    $pdf->Cell(40, 6, 'Total: ' . number_format($this->reserva_data['precio_final'], 2) . ' €', 0, 1, 'R');
-}
+    /**
+     * Generar código de barras simple en el pie del billete
+     */
+    private function generate_simple_barcode($pdf, $y_start)
+    {
+        // Generar código único basado en el localizador
+        $barcode_data = $this->reserva_data['localizador'] . date('Ymd', strtotime($this->reserva_data['fecha']));
+
+        // Posicionar código de barras
+        $pdf->SetXY(15, $y_start);
+
+        // ✅ USAR write1DBarcode de TCPDF
+        $style = array(
+            'border' => false,
+            'hpadding' => 0,
+            'vpadding' => 0,
+            'fgcolor' => array(0, 0, 0),
+            'bgcolor' => false,
+            'text' => true,
+            'font' => 'helvetica',
+            'fontsize' => 8,
+            'stretchtext' => 4
+        );
+
+        // Generar código de barras CODE 39 (soporta letras y números)
+        $pdf->write1DBarcode($barcode_data, 'C39', 15, $y_start, 120, 15, 0.4, $style, 'N');
+
+        // Total a la derecha del código de barras
+        $pdf->SetFont('helvetica', 'B', 12);
+        $pdf->SetXY(150, $y_start + 5);
+        $pdf->Cell(40, 6, 'Total: ' . number_format($this->reserva_data['precio_final'], 2) . ' €', 0, 1, 'R');
+    }
 
     /**
      * Métodos auxiliares

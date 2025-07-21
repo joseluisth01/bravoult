@@ -335,26 +335,27 @@ class SistemaReservas
 
         // Tabla de servicios
         $table_servicios = $wpdb->prefix . 'reservas_servicios';
-        $sql_servicios = "CREATE TABLE $table_servicios (
-            id mediumint(9) NOT NULL AUTO_INCREMENT,
-            fecha date NOT NULL,
-            hora time NOT NULL,
-            plazas_totales int(11) NOT NULL,
-            plazas_disponibles int(11) NOT NULL,
-            plazas_bloqueadas int(11) DEFAULT 0,
-            precio_adulto decimal(10,2) NOT NULL,
-            precio_nino decimal(10,2) NOT NULL,
-            precio_residente decimal(10,2) NOT NULL,
-            tiene_descuento tinyint(1) DEFAULT 0,
-            porcentaje_descuento decimal(5,2) DEFAULT 0.00,
-            status enum('active', 'inactive') DEFAULT 'active',
-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            UNIQUE KEY fecha_hora (fecha, hora),
-            KEY fecha (fecha),
-            KEY status (status)
-        ) $charset_collate;";
+    $sql_servicios = "CREATE TABLE $table_servicios (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        fecha date NOT NULL,
+        hora time NOT NULL,
+        hora_vuelta time NOT NULL, // Añade esta línea
+        plazas_totales int(11) NOT NULL,
+        plazas_disponibles int(11) NOT NULL,
+        plazas_bloqueadas int(11) DEFAULT 0,
+        precio_adulto decimal(10,2) NOT NULL,
+        precio_nino decimal(10,2) NOT NULL,
+        precio_residente decimal(10,2) NOT NULL,
+        tiene_descuento tinyint(1) DEFAULT 0,
+        porcentaje_descuento decimal(5,2) DEFAULT 0.00,
+        status enum('active', 'inactive') DEFAULT 'active',
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY fecha_hora (fecha, hora),
+        KEY fecha (fecha),
+        KEY status (status)
+    ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql_servicios);

@@ -279,6 +279,14 @@ class ReservasEmailService
                         <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; font-weight: 600; color: #2D2D2D;'>Fecha de reserva:</td>
                         <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; text-align: right; color: #666666;'>" . $fecha_creacion . "</td>
                     </tr>
+                    <tr>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; font-weight: 600; color: #2D2D2D;'>Hora de salida:</td>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; text-align: right; font-weight: 700; color: #871727;'>" . substr($reserva['hora'], 0, 5) . "</td>
+                </tr>
+                <tr>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; font-weight: 600; color: #2D2D2D;'>Hora de vuelta:</td>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; text-align: right; font-weight: 700; color: #871727;'>" . substr($reserva['hora_vuelta'], 0, 5) . "</td>
+                </tr>
                 </table>
             </div>
 
@@ -423,9 +431,13 @@ class ReservasEmailService
                         <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; text-align: right; font-weight: 700; color: #871727;'>" . $dia_semana_es . ", " . $fecha_formateada . "</td>
                     </tr>
                     <tr>
-                        <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; font-weight: 600; color: #2D2D2D;'>Hora de salida:</td>
-                        <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; text-align: right; font-weight: 700; color: #871727; font-size: 18px;'>" . substr($reserva['hora'], 0, 5) . "</td>
-                    </tr>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; font-weight: 600; color: #2D2D2D;'>Hora de salida:</td>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; text-align: right; font-weight: 700; color: #871727;'>" . substr($reserva['hora'], 0, 5) . "</td>
+                </tr>
+                <tr>
+                    <td style='padding: 15px 25px; font-weight: 600; color: #2D2D2D;'>Hora de vuelta:</td>
+                    <td style='padding: 15px 25px; text-align: right; font-weight: 700; color: #871727;'>" . substr($reserva['hora_vuelta'], 0, 5) . "</td>
+                </tr>
                     <tr>
                         <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; font-weight: 600; color: #2D2D2D;'>Cliente:</td>
                         <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; text-align: right; color: #666666;'>" . $reserva['nombre'] . " " . $reserva['apellidos'] . "</td>
@@ -569,9 +581,9 @@ class ReservasEmailService
                 
                 <table style='width: 100%; border-collapse: collapse; background: #FFFFFF; border: 2px solid #EFCF4B; border-radius: 8px; overflow: hidden;'>
                     <tr>
-                        <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; font-weight: 600; color: #2D2D2D;'>Fecha del servicio:</td>
-                        <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; text-align: right; font-weight: 700; color: #871727;'>" . $fecha_formateada . " a las " . substr($reserva['hora'], 0, 5) . "</td>
-                    </tr>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; font-weight: 600; color: #2D2D2D;'>Fecha del servicio:</td>
+                    <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; text-align: right; font-weight: 700; color: #871727;'>" . $fecha_formateada . " - Salida: " . substr($reserva['hora'], 0, 5) . " - Vuelta: " . substr($reserva['hora_vuelta'], 0, 5) . "</td>
+                </tr>
                     <tr>
                         <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; font-weight: 600; color: #2D2D2D;'>Fecha de reserva:</td>
                         <td style='padding: 15px 25px; border-bottom: 1px solid #E0E0E0; text-align: right; color: #666666;'>" . $fecha_creacion . "</td>

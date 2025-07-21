@@ -306,8 +306,12 @@ function getModalHTML() {
                         <input type="date" id="serviceFecha" name="fecha" required>
                     </div>
                     <div class="form-group">
-                        <label for="serviceHora">Hora:</label>
+                        <label for="serviceHora">Hora Ida:</label>
                         <input type="time" id="serviceHora" name="hora" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceHoraVuelta">Hora Vuelta:</label>
+                        <input type="time" id="serviceHoraVuelta" name="hora_vuelta" required>
                     </div>
                     <div class="form-group">
                         <label for="servicePlazas">Plazas Totales:</label>
@@ -402,13 +406,23 @@ function getModalHTML() {
                     </div>
                     
                     <div class="form-group">
-                        <label>Horarios:</label>
+                        <label>Horarios Ida:</label>
                         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                             <input type="time" id="nuevoHorario" placeholder="Hora">
                             <button type="button" class="btn-primary" onclick="addHorario()">Añadir</button>
                         </div>
                         <div id="horariosList" class="horarios-list">
                             <!-- Los horarios se añadirán aquí -->
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Horarios Vuelta:</label>
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <input type="time" id="nuevoHorarioVuelta" placeholder="Hora Vuelta">
+                            <button type="button" class="btn-primary" onclick="addHorarioVuelta()">Añadir</button>
+                        </div>
+                        <div id="horariosVueltaList" class="horarios-list">
+                            <!-- Los horarios de vuelta se añadirán aquí -->
                         </div>
                     </div>
                     
@@ -2937,7 +2951,7 @@ function loadAdminAvailableSchedules(dateStr) {
             descuentoInfo = ` (${service.porcentaje_descuento}% descuento)`;
         }
 
-        optionsHTML += `<option value="${service.id}">${service.hora} - ${service.plazas_disponibles} plazas disponibles${descuentoInfo}</option>`;
+        generate_ticket_pdf += `<option value="${service.id}">${service.hora} - ${service.plazas_disponibles} plazas disponibles${descuentoInfo}</option>`;
     });
 
     document.getElementById('admin-horarios-select').innerHTML = optionsHTML;
