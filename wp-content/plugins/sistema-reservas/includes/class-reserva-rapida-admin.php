@@ -10,8 +10,9 @@ class ReservasReservaRapidaAdmin
     public function __construct()
     {
         // Hooks AJAX para reserva rápida ADMIN
-        add_action('wp_ajax_get_reserva_rapida_form', array($this, 'get_reserva_rapida_form'));
-        add_action('wp_ajax_nopriv_get_reserva_rapida_form', array($this, 'get_reserva_rapida_form'));
+            add_action('wp_ajax_get_reserva_rapida_form', array($this, 'get_reserva_rapida_form'));
+    add_action('wp_ajax_nopriv_get_reserva_rapida_form', array($this, 'get_reserva_rapida_form'));
+
 
         add_action('wp_ajax_process_reserva_rapida', array($this, 'process_reserva_rapida'));
         add_action('wp_ajax_nopriv_process_reserva_rapida', array($this, 'process_reserva_rapida'));
@@ -27,6 +28,14 @@ class ReservasReservaRapidaAdmin
         add_action('wp_ajax_get_available_services_rapida', array($this, 'get_available_services_rapida'));
         add_action('wp_ajax_nopriv_get_available_services_rapida', array($this, 'get_available_services_rapida'));
 
+            add_action('wp_ajax_calculate_price', array($this, 'calculate_price'));
+    add_action('wp_ajax_nopriv_calculate_price', array($this, 'calculate_price'));
+
+
+            add_action('wp_ajax_get_available_services', array($this, 'get_available_services'));
+    add_action('wp_ajax_nopriv_get_available_services', array($this, 'get_available_services'));
+
+
         add_action('wp_ajax_calculate_price_rapida', array($this, 'calculate_price_rapida'));
         add_action('wp_ajax_nopriv_calculate_price_rapida', array($this, 'calculate_price_rapida'));
 
@@ -34,51 +43,192 @@ class ReservasReservaRapidaAdmin
 
     }
 
+
+    public function get_available_services()
+{
+    if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+        wp_send_json_error('Error de seguridad');
+        return;
+    }
+
+    if (!session_id()) {
+        session_start();
+    }
+
+    if (!isset($_SESSION['reservas_user'])) {
+        wp_send_json_error('Sesión expirada');
+        return;
+    }
+
+    $user = $_SESSION['reservas_user'];
+
+    if (!in_array($user['role'], ['super_admin', 'admin', 'agencia'])) {
+        wp_send_json_error('Sin permisos');
+        return;
+    }
+
+    $month = isset($_POST['month']) ? intval($_POST['month']) : date('n');
+    $year = isset($_POST['year']) ? intval($_POST['year']) : date('Y');
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'reservas_servicios';
+
+    $first_day = sprintf('%04d-%02d-01', $year, $month);
+    $last_day = date('Y-m-t', strtotime($first_day));
+
+    $servicios = $wpdb->get_results($wpdb->prepare(
+        "SELECT id, fecha, hora, plazas_totales, plazas_disponibles, 
+                precio_adulto, precio_nino, precio_residente,
+                tiene_descuento, porcentaje_descuento
+        FROM $table_name 
+        WHERE fecha BETWEEN %s AND %s 
+        AND status = 'active'
+        AND plazas_disponibles > 0
+        ORDER BY fecha, hora",
+        $first_day,
+        $last_day
+    ));
+
+    // Organizar por fecha (mismo formato que frontend)
+    $calendar_data = array();
+    foreach ($servicios as $servicio) {
+        if (!isset($calendar_data[$servicio->fecha])) {
+            $calendar_data[$servicio->fecha] = array();
+        }
+
+        $calendar_data[$servicio->fecha][] = array(
+            'id' => $servicio->id,
+            'hora' => substr($servicio->hora, 0, 5),
+            'plazas_totales' => $servicio->plazas_totales,
+            'plazas_disponibles' => $servicio->plazas_disponibles,
+            'precio_adulto' => $servicio->precio_adulto,
+            'precio_nino' => $servicio->precio_nino,
+            'precio_residente' => $servicio->precio_residente,
+            'tiene_descuento' => $servicio->tiene_descuento,
+            'porcentaje_descuento' => $servicio->porcentaje_descuento
+        );
+    }
+
+    wp_send_json_success($calendar_data);
+}
+
+
+public function calculate_price()
+{
+    if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+        wp_send_json_error('Error de seguridad');
+        return;
+    }
+
+    $service_id = intval($_POST['service_id']);
+    $adultos = intval($_POST['adultos']);
+    $residentes = intval($_POST['residentes']);
+    $ninos_5_12 = intval($_POST['ninos_5_12']);
+    $ninos_menores = intval($_POST['ninos_menores']);
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'reservas_servicios';
+
+    $servicio = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM $table_name WHERE id = %d",
+        $service_id
+    ));
+
+    if (!$servicio) {
+        wp_send_json_error('Servicio no encontrado');
+        return;
+    }
+
+    // Usar la misma lógica que el frontend
+    $total_personas_con_plaza = $adultos + $residentes + $ninos_5_12;
+
+    $precio_base = 0;
+    $precio_base += $adultos * $servicio->precio_adulto;
+    $precio_base += $residentes * $servicio->precio_adulto;
+    $precio_base += $ninos_5_12 * $servicio->precio_adulto;
+
+    $descuento_total = 0;
+    $descuento_residentes = $residentes * ($servicio->precio_adulto - $servicio->precio_residente);
+    $descuento_ninos = $ninos_5_12 * ($servicio->precio_adulto - $servicio->precio_nino);
+    $descuento_total += $descuento_residentes + $descuento_ninos;
+
+    $descuento_grupo = 0;
+    $regla_aplicada = null;
+
+    if ($total_personas_con_plaza > 0) {
+        if (!class_exists('ReservasDiscountsAdmin')) {
+            require_once RESERVAS_PLUGIN_PATH . 'includes/class-discounts-admin.php';
+        }
+
+        $subtotal = $precio_base - $descuento_total;
+        $discount_info = ReservasDiscountsAdmin::calculate_discount($total_personas_con_plaza, $subtotal, 'total');
+
+        if ($discount_info['discount_applied']) {
+            $descuento_grupo = $discount_info['discount_amount'];
+            $descuento_total += $descuento_grupo;
+            $regla_aplicada = $discount_info;
+        }
+    }
+
+    $precio_final = $precio_base - $descuento_total;
+    if ($precio_final < 0) $precio_final = 0;
+
+    // Respuesta en el mismo formato que el frontend
+    $response_data = array(
+        'precio_base' => round($precio_base, 2),
+        'descuento' => round($descuento_total, 2),
+        'total' => round($precio_final, 2),
+        'regla_descuento_aplicada' => $regla_aplicada
+    );
+
+    wp_send_json_success($response_data);
+}
+
+
     /**
      * Obtener formulario de reserva rápida para ADMINISTRADORES
      */
     public function get_reserva_rapida_form()
-    {
-        error_log('=== GET RESERVA RAPIDA FORM (ADMIN) START ===');
-        header('Content-Type: application/json');
+{
+    error_log('=== GET RESERVA RAPIDA FORM (ADMIN) START ===');
+    header('Content-Type: application/json');
 
-        try {
-            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-                wp_send_json_error('Error de seguridad');
-                return;
-            }
-
-            if (!session_id()) {
-                session_start();
-            }
-
-            if (!isset($_SESSION['reservas_user'])) {
-                wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
-                return;
-            }
-
-            $user = $_SESSION['reservas_user'];
-
-            // Solo super_admin y admin pueden usar reserva rápida
-            if (!in_array($user['role'], ['super_admin', 'admin'])) {
-                wp_send_json_error('Sin permisos para usar reserva rápida');
-                return;
-            }
-
-            // Obtener servicios disponibles para los próximos 30 días
-            $servicios_disponibles = $this->get_upcoming_services();
-
-            // Generar HTML del formulario
-            ob_start();
-            include RESERVAS_PLUGIN_PATH . 'templates/reserva-rapida-form.php';
-            $form_html = ob_get_clean();
-
-            wp_send_json_success($form_html);
-        } catch (Exception $e) {
-            error_log('❌ RESERVA RAPIDA FORM EXCEPTION: ' . $e->getMessage());
-            wp_send_json_error('Error del servidor: ' . $e->getMessage());
+    try {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+            wp_send_json_error('Error de seguridad');
+            return;
         }
+
+        if (!session_id()) {
+            session_start();
+        }
+
+        if (!isset($_SESSION['reservas_user'])) {
+            wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
+            return;
+        }
+
+        $user = $_SESSION['reservas_user'];
+
+        // Solo super_admin y admin pueden usar reserva rápida
+        if (!in_array($user['role'], ['super_admin', 'admin'])) {
+            wp_send_json_error('Sin permisos para usar reserva rápida');
+            return;
+        }
+
+        // En lugar de generar HTML, devolver señal para inicializar JavaScript
+        wp_send_json_success(array(
+            'action' => 'initialize_admin_reserva_rapida',
+            'user' => $user,
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('reservas_nonce')
+        ));
+        
+    } catch (Exception $e) {
+        error_log('❌ RESERVA RAPIDA FORM EXCEPTION: ' . $e->getMessage());
+        wp_send_json_error('Error del servidor: ' . $e->getMessage());
     }
+}
 
     /**
      * ✅ NUEVO: Obtener formulario de reserva rápida para AGENCIAS
@@ -186,198 +336,67 @@ class ReservasReservaRapidaAdmin
     return $servicios;
 }
 
-    /**
-     * Obtener servicios disponibles vía AJAX
-     */
-    public function get_available_services_rapida()
-{
-    error_log('=== GET_AVAILABLE_SERVICES_RAPIDA CALLED ===');
-    
-    if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-        error_log('❌ Nonce verification failed');
-        wp_send_json_error('Error de seguridad');
-        return;
-    }
 
-    // Verificar sesión
-    if (!session_id()) {
-        session_start();
-    }
 
-    if (!isset($_SESSION['reservas_user'])) {
-        error_log('❌ No session user found');
-        wp_send_json_error('Sesión expirada');
-        return;
-    }
-
-    $user = $_SESSION['reservas_user'];
-    error_log('Usuario actual: ' . print_r($user, true));
-
-    // Verificar permisos
-    if (!in_array($user['role'], ['super_admin', 'admin', 'agencia'])) {
-        error_log('❌ User role not allowed: ' . $user['role']);
-        wp_send_json_error('Sin permisos para acceder a servicios');
-        return;
-    }
-
-    try {
-        $servicios = $this->get_upcoming_services();
-        error_log('Servicios obtenidos: ' . count($servicios));
-
-        // Organizar por fecha
-        $servicios_organizados = array();
-        foreach ($servicios as $servicio) {
-            if (!isset($servicios_organizados[$servicio->fecha])) {
-                $servicios_organizados[$servicio->fecha] = array();
-            }
-
-            $servicios_organizados[$servicio->fecha][] = array(
-                'id' => $servicio->id,
-                'hora' => substr($servicio->hora, 0, 5),
-                'plazas_disponibles' => $servicio->plazas_disponibles,
-                'precio_adulto' => $servicio->precio_adulto,
-                'precio_nino' => $servicio->precio_nino,
-                'precio_residente' => $servicio->precio_residente
-            );
-        }
-
-        error_log('Servicios organizados: ' . print_r($servicios_organizados, true));
-        wp_send_json_success($servicios_organizados);
-
-    } catch (Exception $e) {
-        error_log('❌ Exception in get_available_services_rapida: ' . $e->getMessage());
-        wp_send_json_error('Error obteniendo servicios: ' . $e->getMessage());
-    }
-}
-
-    /**
-     * Calcular precio para reserva rápida
-     */
-    public function calculate_price_rapida()
-    {
-        if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-            wp_send_json_error('Error de seguridad');
-            return;
-        }
-
-        $service_id = intval($_POST['service_id']);
-        $adultos = intval($_POST['adultos']);
-        $residentes = intval($_POST['residentes']);
-        $ninos_5_12 = intval($_POST['ninos_5_12']);
-        $ninos_menores = intval($_POST['ninos_menores']);
-
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'reservas_servicios';
-
-        // Obtener datos del servicio
-        $servicio = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $table_name WHERE id = %d",
-            $service_id
-        ));
-
-        if (!$servicio) {
-            wp_send_json_error('Servicio no encontrado');
-            return;
-        }
-
-        // Calcular precio usando la misma lógica que el frontend
-        $total_personas_con_plaza = $adultos + $residentes + $ninos_5_12;
-
-        // Precio base
-        $precio_base = 0;
-        $precio_base += $adultos * $servicio->precio_adulto;
-        $precio_base += $residentes * $servicio->precio_adulto;
-        $precio_base += $ninos_5_12 * $servicio->precio_adulto;
-
-        // Descuentos individuales
-        $descuento_total = 0;
-        $descuento_residentes = $residentes * ($servicio->precio_adulto - $servicio->precio_residente);
-        $descuento_ninos = $ninos_5_12 * ($servicio->precio_adulto - $servicio->precio_nino);
-        $descuento_total += $descuento_residentes + $descuento_ninos;
-
-        // Descuento por grupo
-        $descuento_grupo = 0;
-        $regla_aplicada = null;
-
-        if ($total_personas_con_plaza > 0) {
-            if (!class_exists('ReservasDiscountsAdmin')) {
-                require_once RESERVAS_PLUGIN_PATH . 'includes/class-discounts-admin.php';
-            }
-
-            $subtotal = $precio_base - $descuento_total;
-            $discount_info = ReservasDiscountsAdmin::calculate_discount($total_personas_con_plaza, $subtotal, 'total');
-
-            if ($discount_info['discount_applied']) {
-                $descuento_grupo = $discount_info['discount_amount'];
-                $descuento_total += $descuento_grupo;
-                $regla_aplicada = $discount_info;
-            }
-        }
-
-        // Precio final
-        $precio_final = $precio_base - $descuento_total;
-        if ($precio_final < 0) $precio_final = 0;
-
-        $response_data = array(
-            'precio_base' => round($precio_base, 2),
-            'descuento_total' => round($descuento_total, 2),
-            'descuento_residentes' => round($descuento_residentes, 2),
-            'descuento_ninos' => round($descuento_ninos, 2),
-            'descuento_grupo' => round($descuento_grupo, 2),
-            'precio_final' => round($precio_final, 2),
-            'total_personas_con_plaza' => $total_personas_con_plaza,
-            'regla_descuento_aplicada' => $regla_aplicada
-        );
-
-        wp_send_json_success($response_data);
-    }
+ 
 
     /**
      * Procesar reserva rápida para ADMINISTRADORES
      */
-    public function process_reserva_rapida()
-    {
-        // Limpiar cualquier output buffer
-        if (ob_get_level()) {
-            ob_clean();
-        }
-
-        header('Content-Type: application/json');
-
-        try {
-            error_log('=== INICIANDO PROCESS_RESERVA_RAPIDA (ADMIN) ===');
-
-            // Verificar nonce
-            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-                wp_send_json_error('Error de seguridad');
-                return;
-            }
-
-            // Verificar sesión y permisos
-            if (!session_id()) {
-                session_start();
-            }
-
-            if (!isset($_SESSION['reservas_user'])) {
-                wp_send_json_error('Sesión expirada');
-                return;
-            }
-
-            $user = $_SESSION['reservas_user'];
-
-            if (!in_array($user['role'], ['super_admin', 'admin'])) {
-                wp_send_json_error('Sin permisos para crear reservas rápidas');
-                return;
-            }
-
-            // Procesar reserva usando método común
-            $this->process_common_reserva_rapida($user, 'admin');
-
-        } catch (Exception $e) {
-            error_log('❌ RESERVA RAPIDA ADMIN EXCEPTION: ' . $e->getMessage());
-            wp_send_json_error('Error interno del servidor: ' . $e->getMessage());
-        }
+ public function process_reserva_rapida()
+{
+    // Limpiar cualquier output buffer
+    if (ob_get_level()) {
+        ob_clean();
     }
+
+    header('Content-Type: application/json');
+
+    try {
+        error_log('=== INICIANDO PROCESS_RESERVA_RAPIDA (ADMIN) ===');
+
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+            wp_send_json_error('Error de seguridad');
+            return;
+        }
+
+        if (!session_id()) {
+            session_start();
+        }
+
+        if (!isset($_SESSION['reservas_user'])) {
+            wp_send_json_error('Sesión expirada');
+            return;
+        }
+
+        $user = $_SESSION['reservas_user'];
+
+        if (!in_array($user['role'], ['super_admin', 'admin'])) {
+            wp_send_json_error('Sin permisos para crear reservas rápidas');
+            return;
+        }
+
+        // ✅ USAR VALIDACIÓN COMÚN PERO CON DATOS DEL FORMULARIO ADMIN
+        $datos = array(
+            'nombre' => sanitize_text_field($_POST['nombre'] ?? ''),
+            'apellidos' => sanitize_text_field($_POST['apellidos'] ?? ''),
+            'email' => sanitize_email($_POST['email'] ?? ''),
+            'telefono' => sanitize_text_field($_POST['telefono'] ?? ''),
+            'service_id' => intval($_POST['service_id'] ?? 0),
+            'adultos' => intval($_POST['adultos'] ?? 0),
+            'residentes' => intval($_POST['residentes'] ?? 0),
+            'ninos_5_12' => intval($_POST['ninos_5_12'] ?? 0),
+            'ninos_menores' => intval($_POST['ninos_menores'] ?? 0)
+        );
+
+        // Procesar usando método común
+        $this->process_common_reserva_rapida($datos, $user, 'admin');
+
+    } catch (Exception $e) {
+        error_log('❌ RESERVA RAPIDA ADMIN EXCEPTION: ' . $e->getMessage());
+        wp_send_json_error('Error interno del servidor: ' . $e->getMessage());
+    }
+}
 
     /**
      * ✅ NUEVO: Procesar reserva rápida para AGENCIAS

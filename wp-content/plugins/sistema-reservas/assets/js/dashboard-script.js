@@ -2627,7 +2627,7 @@ function showErrorInContent(message) {
 }
 
 function loadAdminReservaRapida() {
-    console.log('=== CARGANDO RESERVA RÁPIDA PARA ADMIN ===');
+    console.log('=== CARGANDO RESERVA RÁPIDA ADMIN ===');
     
     showLoadingInContent();
     
@@ -2640,13 +2640,12 @@ function loadAdminReservaRapida() {
         },
         success: function(response) {
             if (response.success) {
-                // Usar dashboard-content si existe, sino usar body
-                const targetElement = document.querySelector('.dashboard-content') || document.body;
-                targetElement.innerHTML = response.data;
-                
-                // Inicializar la reserva rápida si la función existe
-                if (typeof initializeReservaRapida === 'function') {
-                    initializeReservaRapida();
+                if (response.data.action === 'initialize_admin_reserva_rapida') {
+                    // Inicializar reserva rápida con flujo de calendario
+                    initAdminReservaRapida();
+                } else {
+                    // Fallback al método anterior si es necesario
+                    document.body.innerHTML = response.data;
                 }
             } else {
                 showErrorInContent('Error cargando reserva rápida: ' + response.data);
@@ -2811,7 +2810,7 @@ function loadAdminCalendar() {
     updateAdminCalendarHeader();
 
     const formData = new FormData();
-    formData.append('action', 'get_available_services');
+    formData.append('action', 'get_available_services'); // ✅ MISMO ENDPOINT QUE FRONTEND
     formData.append('month', adminCurrentDate.getMonth() + 1);
     formData.append('year', adminCurrentDate.getFullYear());
     formData.append('nonce', reservasAjax.nonce);
@@ -2989,9 +2988,9 @@ function calculateAdminTotalPrice() {
         return;
     }
 
-    // Llamar al cálculo de precio del servidor
+    // ✅ USAR MISMO ENDPOINT QUE FRONTEND
     const formData = new FormData();
-    formData.append('action', 'calculate_price');
+    formData.append('action', 'calculate_price'); // ✅ MISMO ENDPOINT
     formData.append('service_id', adminSelectedServiceId);
     formData.append('adultos', adultos);
     formData.append('residentes', residentes);
@@ -3026,7 +3025,7 @@ function calculateAdminTotalPrice() {
 }
 
 function updateAdminPricingDisplay(result) {
-    // Manejar descuentos
+    // Manejar descuentos (misma lógica que frontend)
     if (result.descuento > 0) {
         document.getElementById('admin-total-discount').textContent = '-' + result.descuento.toFixed(2) + '€';
         document.getElementById('admin-discount-row').style.display = 'block';
@@ -3079,113 +3078,57 @@ function validateAdminPersonSelection() {
     return true;
 }
 
-// Navegación entre pasos
-function adminNextStep() {
-    console.log('Admin: Avanzando al siguiente paso desde', adminCurrentStep);
-    
-    if (adminCurrentStep === 1) {
-        // Validar paso 1
-        if (!adminSelectedDate || !adminSelectedServiceId) {
-            alert('Por favor, selecciona una fecha y horario.');
-            return;
-        }
-        
-        // Mostrar paso 2
-        document.getElementById('step-1-admin').style.display = 'none';
-        document.getElementById('step-2-admin').style.display = 'block';
-        document.getElementById('admin-btn-anterior').style.display = 'block';
-        document.getElementById('admin-btn-siguiente').disabled = true;
-        document.getElementById('admin-step-text').textContent = 'Paso 2 de 4: Seleccionar personas';
-        adminCurrentStep = 2;
-        
-    } else if (adminCurrentStep === 2) {
-        // Validar paso 2
-        const adultos = parseInt(document.getElementById('admin-adultos').value) || 0;
-        const residentes = parseInt(document.getElementById('admin-residentes').value) || 0;
-        const ninos512 = parseInt(document.getElementById('admin-ninos-5-12').value) || 0;
-        const ninosMenores = parseInt(document.getElementById('admin-ninos-menores').value) || 0;
 
-        const totalPersonas = adultos + residentes + ninos512 + ninosMenores;
-
-        if (totalPersonas === 0) {
-            alert('Debe seleccionar al menos una persona.');
-            return;
-        }
-
-        if (!validateAdminPersonSelection()) {
-            return;
-        }
-        
-        // Mostrar paso 3
-        document.getElementById('step-2-admin').style.display = 'none';
-        document.getElementById('step-3-admin').style.display = 'block';
-        document.getElementById('admin-btn-siguiente').disabled = true;
-        document.getElementById('admin-step-text').textContent = 'Paso 3 de 4: Datos del cliente';
-        adminCurrentStep = 3;
-        
-        // Listener para validar formulario
-        setupAdminFormValidation();
-        
-    } else if (adminCurrentStep === 3) {
-        // Validar paso 3
-        const form = document.getElementById('admin-client-form');
-        const formData = new FormData(form);
-        
-        const nombre = formData.get('nombre').trim();
-        const apellidos = formData.get('apellidos').trim();
-        const email = formData.get('email').trim();
-        const telefono = formData.get('telefono').trim();
-
-        if (!nombre || !apellidos || !email || !telefono) {
-            alert('Por favor, completa todos los campos del cliente.');
-            return;
-        }
-
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            alert('Por favor, introduce un email válido.');
-            return;
-        }
-        
-        // Mostrar paso 4 - confirmación
-        fillAdminConfirmationData();
-        document.getElementById('step-3-admin').style.display = 'none';
-        document.getElementById('step-4-admin').style.display = 'block';
-        document.getElementById('admin-btn-siguiente').style.display = 'none';
-        document.getElementById('admin-btn-confirmar').style.display = 'block';
-        document.getElementById('admin-step-text').textContent = 'Paso 4 de 4: Confirmar reserva';
-        adminCurrentStep = 4;
-    }
-}
 
 function adminPreviousStep() {
     console.log('Admin: Retrocediendo desde paso', adminCurrentStep);
     
     if (adminCurrentStep === 2) {
         // Volver al paso 1
-        document.getElementById('step-2-admin').style.display = 'none';
-        document.getElementById('step-1-admin').style.display = 'block';
+        document.getElementById('admin-step-2').style.display = 'none';
+        document.getElementById('admin-step-1').style.display = 'block';
+        
+        // Actualizar indicadores
+        document.getElementById('admin-step-2-indicator').classList.remove('active');
+        document.getElementById('admin-step-1-indicator').classList.add('active');
+        
+        // Actualizar navegación
         document.getElementById('admin-btn-anterior').style.display = 'none';
         document.getElementById('admin-btn-siguiente').disabled = adminSelectedServiceId ? false : true;
         document.getElementById('admin-step-text').textContent = 'Paso 1 de 4: Seleccionar fecha y horario';
+        
         adminCurrentStep = 1;
         
     } else if (adminCurrentStep === 3) {
         // Volver al paso 2
-        document.getElementById('step-3-admin').style.display = 'none';
-        document.getElementById('step-2-admin').style.display = 'block';
+        document.getElementById('admin-step-3').style.display = 'none';
+        document.getElementById('admin-step-2').style.display = 'block';
+        
+        // Actualizar indicadores
+        document.getElementById('admin-step-3-indicator').classList.remove('active');
+        document.getElementById('admin-step-2-indicator').classList.add('active');
+        
+        // Actualizar navegación
         document.getElementById('admin-btn-siguiente').disabled = false;
         document.getElementById('admin-step-text').textContent = 'Paso 2 de 4: Seleccionar personas';
+        
         adminCurrentStep = 2;
         
     } else if (adminCurrentStep === 4) {
         // Volver al paso 3
-        document.getElementById('step-4-admin').style.display = 'none';
-        document.getElementById('step-3-admin').style.display = 'block';
+        document.getElementById('admin-step-4').style.display = 'none';
+        document.getElementById('admin-step-3').style.display = 'block';
+        
+        // Actualizar indicadores
+        document.getElementById('admin-step-4-indicator').classList.remove('active');
+        document.getElementById('admin-step-3-indicator').classList.add('active');
+        
+        // Actualizar navegación
         document.getElementById('admin-btn-siguiente').style.display = 'block';
         document.getElementById('admin-btn-confirmar').style.display = 'none';
         document.getElementById('admin-btn-siguiente').disabled = false;
         document.getElementById('admin-step-text').textContent = 'Paso 3 de 4: Datos del cliente';
+        
         adminCurrentStep = 3;
     }
 }
@@ -3223,31 +3166,120 @@ function setupAdminFormValidation() {
 }
 
 function fillAdminConfirmationData() {
-    const service = findAdminServiceById(adminSelectedServiceId);
-    const form = document.getElementById('admin-client-form');
-    const formData = new FormData(form);
+    console.log('=== LLENANDO DATOS DE CONFIRMACIÓN ===');
     
+    // Verificar que tenemos todos los datos necesarios
+    if (!adminSelectedServiceId || !adminSelectedDate) {
+        console.error('❌ Faltan datos básicos:', {
+            serviceId: adminSelectedServiceId,
+            selectedDate: adminSelectedDate
+        });
+        return;
+    }
+    
+    const service = findAdminServiceById(adminSelectedServiceId);
+    if (!service) {
+        console.error('❌ No se encontró el servicio');
+        return;
+    }
+    
+    console.log('✅ Servicio encontrado:', service);
+    
+    // Obtener datos del formulario
+    const nombreInput = document.getElementById('admin-nombre');
+    const apellidosInput = document.getElementById('admin-apellidos');
+    const emailInput = document.getElementById('admin-email');
+    const telefonoInput = document.getElementById('admin-telefono');
+    
+    if (!nombreInput || !apellidosInput || !emailInput || !telefonoInput) {
+        console.error('❌ No se encontraron los campos del formulario');
+        return;
+    }
+    
+    const nombre = nombreInput.value.trim();
+    const apellidos = apellidosInput.value.trim();
+    const email = emailInput.value.trim();
+    const telefono = telefonoInput.value.trim();
+    
+    console.log('✅ Datos del cliente:', { nombre, apellidos, email, telefono });
+    
+    // Obtener datos de personas
     const adultos = parseInt(document.getElementById('admin-adultos').value) || 0;
     const residentes = parseInt(document.getElementById('admin-residentes').value) || 0;
     const ninos512 = parseInt(document.getElementById('admin-ninos-5-12').value) || 0;
     const ninosMenores = parseInt(document.getElementById('admin-ninos-menores').value) || 0;
     const totalPersonas = adultos + residentes + ninos512 + ninosMenores;
     
+    console.log('✅ Datos de personas:', { adultos, residentes, ninos512, ninosMenores, totalPersonas });
+    
     // Formatear fecha
-    const fechaObj = new Date(adminSelectedDate + 'T00:00:00');
-    const fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+    let fechaFormateada = adminSelectedDate;
+    try {
+        const fechaObj = new Date(adminSelectedDate + 'T00:00:00');
+        fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        // Capitalizar primera letra
+        fechaFormateada = fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1);
+    } catch (e) {
+        console.warn('No se pudo formatear la fecha, usando formato original');
+    }
+    
+    // Crear detalle de personas
+    let personasDetalle = [];
+    if (adultos > 0) personasDetalle.push(`${adultos} adulto${adultos > 1 ? 's' : ''}`);
+    if (residentes > 0) personasDetalle.push(`${residentes} residente${residentes > 1 ? 's' : ''}`);
+    if (ninos512 > 0) personasDetalle.push(`${ninos512} niño${ninos512 > 1 ? 's' : ''} (5-12)`);
+    if (ninosMenores > 0) personasDetalle.push(`${ninosMenores} bebé${ninosMenores > 1 ? 's' : ''} (gratis)`);
+    
+    const personasTexto = personasDetalle.length > 0 ? 
+        `${totalPersonas} personas (${personasDetalle.join(', ')})` : 
+        `${totalPersonas} personas`;
+    
+    // Obtener precio total
+    const totalPriceElement = document.getElementById('admin-total-price');
+    const precioTotal = totalPriceElement ? totalPriceElement.textContent : '0€';
+    
+    console.log('✅ Datos finales a mostrar:', {
+        fecha: fechaFormateada,
+        hora: service.hora,
+        personas: personasTexto,
+        cliente: `${nombre} ${apellidos}`,
+        email: email,
+        total: precioTotal
     });
     
-    document.getElementById('confirm-fecha').textContent = fechaFormateada;
-    document.getElementById('confirm-hora').textContent = service.hora;
-    document.getElementById('confirm-personas').textContent = totalPersonas + ' personas';
-    document.getElementById('confirm-cliente').textContent = formData.get('nombre') + ' ' + formData.get('apellidos');
-    document.getElementById('confirm-email').textContent = formData.get('email');
-    document.getElementById('confirm-total').textContent = document.getElementById('admin-total-price').textContent;
+    // Actualizar elementos de confirmación
+    const confirmElements = {
+        'admin-confirm-fecha': fechaFormateada,
+        'admin-confirm-hora': service.hora,
+        'admin-confirm-personas': personasTexto,
+        'admin-confirm-cliente': `${nombre} ${apellidos}`,
+        'admin-confirm-email': email,
+        'admin-confirm-total': precioTotal
+    };
+    
+    // Aplicar datos a los elementos
+    let errorsFound = 0;
+    Object.keys(confirmElements).forEach(elementId => {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = confirmElements[elementId];
+            console.log(`✅ ${elementId}: ${confirmElements[elementId]}`);
+        } else {
+            console.error(`❌ No se encontró elemento: ${elementId}`);
+            errorsFound++;
+        }
+    });
+    
+    if (errorsFound === 0) {
+        console.log('✅ Todos los datos de confirmación se llenaron correctamente');
+    } else {
+        console.error(`❌ Se encontraron ${errorsFound} errores al llenar los datos`);
+    }
 }
 
 function adminConfirmReservation() {
@@ -3366,7 +3398,126 @@ window.adminNextStep = adminNextStep;
 window.adminPreviousStep = adminPreviousStep;
 window.adminConfirmReservation = adminConfirmReservation;
 
+function adminNextStep() {
+    console.log('Admin: Avanzando al siguiente paso desde', adminCurrentStep);
+    
+    if (adminCurrentStep === 1) {
+        // Validar paso 1
+        if (!adminSelectedDate || !adminSelectedServiceId) {
+            alert('Por favor, selecciona una fecha y horario.');
+            return;
+        }
+        
+        // Ocultar paso 1 y mostrar paso 2
+        document.getElementById('admin-step-1').style.display = 'none';
+        document.getElementById('admin-step-2').style.display = 'block';
+        
+        // Actualizar indicadores de pasos
+        document.getElementById('admin-step-1-indicator').classList.remove('active');
+        document.getElementById('admin-step-2-indicator').classList.add('active');
+        
+        // Actualizar navegación
+        document.getElementById('admin-btn-anterior').style.display = 'block';
+        document.getElementById('admin-btn-siguiente').disabled = true;
+        document.getElementById('admin-step-text').textContent = 'Paso 2 de 4: Seleccionar personas';
+        
+        adminCurrentStep = 2;
+        
+        // Cargar precios en el paso 2
+        loadAdminPrices();
+        
+    } else if (adminCurrentStep === 2) {
+        // Validar paso 2
+        const adultos = parseInt(document.getElementById('admin-adultos').value) || 0;
+        const residentes = parseInt(document.getElementById('admin-residentes').value) || 0;
+        const ninos512 = parseInt(document.getElementById('admin-ninos-5-12').value) || 0;
+        const ninosMenores = parseInt(document.getElementById('admin-ninos-menores').value) || 0;
 
+        const totalPersonas = adultos + residentes + ninos512 + ninosMenores;
+
+        if (totalPersonas === 0) {
+            alert('Debe seleccionar al menos una persona.');
+            return;
+        }
+
+        if (!validateAdminPersonSelection()) {
+            return;
+        }
+        
+        // Ocultar paso 2 y mostrar paso 3
+        document.getElementById('admin-step-2').style.display = 'none';
+        document.getElementById('admin-step-3').style.display = 'block';
+        
+        // Actualizar indicadores de pasos
+        document.getElementById('admin-step-2-indicator').classList.remove('active');
+        document.getElementById('admin-step-3-indicator').classList.add('active');
+        
+        // Actualizar navegación
+        document.getElementById('admin-btn-siguiente').disabled = true;
+        document.getElementById('admin-step-text').textContent = 'Paso 3 de 4: Datos del cliente';
+        
+        adminCurrentStep = 3;
+        
+        // Configurar validación del formulario
+        setupAdminFormValidation();
+        
+    } else if (adminCurrentStep === 3) {
+    // Validar paso 3
+    const form = document.getElementById('admin-client-form');
+    
+    // Verificar que el formulario existe
+    if (!form) {
+        console.error('❌ No se encontró el formulario de cliente');
+        alert('Error: No se encontró el formulario. Recarga la página e inténtalo de nuevo.');
+        return;
+    }
+    
+    const formData = new FormData(form);
+    
+    const nombre = formData.get('nombre') ? formData.get('nombre').trim() : '';
+    const apellidos = formData.get('apellidos') ? formData.get('apellidos').trim() : '';
+    const email = formData.get('email') ? formData.get('email').trim() : '';
+    const telefono = formData.get('telefono') ? formData.get('telefono').trim() : '';
+
+    console.log('=== VALIDANDO PASO 3 ===');
+    console.log('Datos del formulario:', { nombre, apellidos, email, telefono });
+
+    if (!nombre || !apellidos || !email || !telefono) {
+        console.error('❌ Campos faltantes:', { nombre, apellidos, email, telefono });
+        alert('Por favor, completa todos los campos del cliente.');
+        return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        console.error('❌ Email no válido:', email);
+        alert('Por favor, introduce un email válido.');
+        return;
+    }
+    
+    console.log('✅ Validación del paso 3 completada');
+    
+    // Ocultar paso 3 y mostrar paso 4
+    document.getElementById('admin-step-3').style.display = 'none';
+    document.getElementById('admin-step-4').style.display = 'block';
+    
+    // Actualizar indicadores de pasos
+    document.getElementById('admin-step-3-indicator').classList.remove('active');
+    document.getElementById('admin-step-4-indicator').classList.add('active');
+    
+    // Actualizar navegación
+    document.getElementById('admin-btn-siguiente').style.display = 'none';
+    document.getElementById('admin-btn-confirmar').style.display = 'block';
+    document.getElementById('admin-step-text').textContent = 'Paso 4 de 4: Confirmar reserva';
+    
+    adminCurrentStep = 4;
+    
+    // ✅ AÑADIR UN PEQUEÑO DELAY PARA ASEGURAR QUE EL DOM SE ACTUALICE
+    setTimeout(() => {
+        fillAdminConfirmationData();
+    }, 100);
+}
+}
 
 
 function loadAgenciesSection() {
@@ -4051,34 +4202,583 @@ function showErrorInMainContent(message) {
     jQuery('.dashboard-content').html(`<div class="error">${message}</div>`);
 }
 
-/**
- * Función para cargar la sección de Reserva Rápida
- */
-function loadAdvancedReservaRapida() {
-    console.log('=== CARGANDO RESERVA RÁPIDA PARA ADMIN ===');
+
+
+
+
+
+
+function initAdminReservaRapida() {
+    console.log('=== INICIALIZANDO RESERVA RÁPIDA ADMIN (NUEVO FLUJO) ===');
     
-    showLoadingInContent();
-    
-    jQuery.ajax({
-        url: reservasAjax.ajax_url,
-        type: 'POST',
-        data: {
-            action: 'get_reserva_rapida_form',
-            nonce: reservasAjax.nonce
-        },
-        success: function(response) {
-            if (response.success) {
-                jQuery('#dashboard-content').html(response.data);
-                // No necesitamos initializeReservaRapida() aquí porque se llama desde el template
-            } else {
-                showErrorInContent('Error cargando reserva rápida: ' + response.data);
-            }
-        },
-        error: function() {
-            showErrorInContent('Error de conexión cargando reserva rápida');
+    // Mostrar interfaz de reserva rápida
+    document.body.innerHTML = `
+        <div class="admin-reserva-rapida">
+            <div class="admin-header">
+                <h1>⚡ Reserva Rápida - Administrador</h1>
+                <div class="admin-actions">
+                    <button class="btn-secondary" onclick="goBackToDashboard()">← Volver al Dashboard</button>
+                </div>
+            </div>
+            
+            <div class="admin-steps-container">
+                <div class="admin-step-indicator">
+                    <div class="admin-step active" id="admin-step-1-indicator">
+                        <div class="admin-step-number">1</div>
+                        <div class="admin-step-title">Fecha y Hora</div>
+                    </div>
+                    <div class="admin-step" id="admin-step-2-indicator">
+                        <div class="admin-step-number">2</div>
+                        <div class="admin-step-title">Personas</div>
+                    </div>
+                    <div class="admin-step" id="admin-step-3-indicator">
+                        <div class="admin-step-number">3</div>
+                        <div class="admin-step-title">Datos Cliente</div>
+                    </div>
+                    <div class="admin-step" id="admin-step-4-indicator">
+                        <div class="admin-step-number">4</div>
+                        <div class="admin-step-title">Confirmar</div>
+                    </div>
+                </div>
+                
+                <!-- Paso 1: Seleccionar fecha y horario -->
+                <div class="admin-step-content" id="admin-step-1">
+                    <h2>1. Selecciona fecha y horario</h2>
+                    
+                    <div class="admin-calendar-section">
+                        <div class="admin-calendar-controls">
+                            <button id="admin-prev-month">← Mes Anterior</button>
+                            <h3 id="admin-current-month-year"></h3>
+                            <button id="admin-next-month">Siguiente Mes →</button>
+                        </div>
+                        
+                        <div class="admin-calendar-container">
+                            <div id="admin-calendar-grid">
+                                <!-- Calendario se cargará aquí -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-schedule-section">
+                        <label for="admin-horarios-select">Horarios disponibles:</label>
+                        <select id="admin-horarios-select" disabled>
+                            <option value="">Selecciona primero una fecha</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Paso 2: Seleccionar personas -->
+                <div class="admin-step-content" id="admin-step-2" style="display: none;">
+                    <h2>2. Selecciona el número de personas</h2>
+                    
+                    <div class="admin-persons-grid">
+                        <div class="admin-person-selector">
+                            <label for="admin-adultos">Adultos:</label>
+                            <input type="number" id="admin-adultos" min="0" max="50" value="0">
+                            <span id="admin-price-adultos" class="admin-price">10€</span>
+                        </div>
+                        
+                        <div class="admin-person-selector">
+                            <label for="admin-residentes">Residentes:</label>
+                            <input type="number" id="admin-residentes" min="0" max="50" value="0">
+                            <span class="admin-price">5€</span>
+                        </div>
+                        
+                        <div class="admin-person-selector">
+                            <label for="admin-ninos-5-12">Niños (5-12 años):</label>
+                            <input type="number" id="admin-ninos-5-12" min="0" max="50" value="0">
+                            <span id="admin-price-ninos" class="admin-price">5€</span>
+                        </div>
+                        
+                        <div class="admin-person-selector">
+                            <label for="admin-ninos-menores">Niños (-5 años):</label>
+                            <input type="number" id="admin-ninos-menores" min="0" max="50" value="0">
+                            <span class="admin-price">GRATIS</span>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-pricing-summary">
+                        <div class="admin-discount-row" id="admin-discount-row" style="display: none;">
+                            <span>Descuento:</span>
+                            <span id="admin-total-discount">-0€</span>
+                        </div>
+                        <div class="admin-total-row">
+                            <span>Total:</span>
+                            <span id="admin-total-price">0€</span>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-discount-message" id="admin-discount-message">
+                        <span id="admin-discount-text"></span>
+                    </div>
+                </div>
+                
+                <!-- Paso 3: Datos del cliente -->
+                <div class="admin-step-content" id="admin-step-3" style="display: none;">
+                    <h2>3. Datos del cliente</h2>
+                    
+                    <form id="admin-client-form" class="admin-client-form">
+                        <div class="admin-form-row">
+                            <div class="admin-form-group">
+                                <label for="admin-nombre">Nombre *</label>
+                                <input type="text" id="admin-nombre" name="nombre" required>
+                            </div>
+                            <div class="admin-form-group">
+                                <label for="admin-apellidos">Apellidos *</label>
+                                <input type="text" id="admin-apellidos" name="apellidos" required>
+                            </div>
+                        </div>
+                        
+                        <div class="admin-form-row">
+                            <div class="admin-form-group">
+                                <label for="admin-email">Email *</label>
+                                <input type="email" id="admin-email" name="email" required>
+                            </div>
+                            <div class="admin-form-group">
+                                <label for="admin-telefono">Teléfono *</label>
+                                <input type="tel" id="admin-telefono" name="telefono" required>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Paso 4: Confirmación -->
+                <div class="admin-step-content" id="admin-step-4" style="display: none;">
+                    <h2>4. Confirmar reserva</h2>
+                    
+                    <div class="admin-confirmation-details">
+                        <div class="admin-confirm-row">
+                            <strong>Fecha:</strong> <span id="admin-confirm-fecha"></span>
+                        </div>
+                        <div class="admin-confirm-row">
+                            <strong>Hora:</strong> <span id="admin-confirm-hora"></span>
+                        </div>
+                        <div class="admin-confirm-row">
+                            <strong>Personas:</strong> <span id="admin-confirm-personas"></span>
+                        </div>
+                        <div class="admin-confirm-row">
+                            <strong>Cliente:</strong> <span id="admin-confirm-cliente"></span>
+                        </div>
+                        <div class="admin-confirm-row">
+                            <strong>Email:</strong> <span id="admin-confirm-email"></span>
+                        </div>
+                        <div class="admin-confirm-row">
+                            <strong>Total:</strong> <span id="admin-confirm-total"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Navegación -->
+                <div class="admin-navigation">
+                    <button id="admin-btn-anterior" class="btn-secondary" onclick="adminPreviousStep()" style="display: none;">← Anterior</button>
+                    <div class="admin-step-info">
+                        <span id="admin-step-text">Paso 1 de 4: Seleccionar fecha y horario</span>
+                    </div>
+                    <button id="admin-btn-siguiente" class="btn-primary" onclick="adminNextStep()" disabled>Siguiente →</button>
+                    <button id="admin-btn-confirmar" class="btn-success" onclick="adminConfirmReservation()" style="display: none;">Confirmar Reserva</button>
+                </div>
+            </div>
+        </div>
+        
+        <style>
+        .admin-reserva-rapida {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
         }
+        
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #0073aa;
+        }
+        
+        .admin-header h1 {
+            color: #23282d;
+            margin: 0;
+        }
+        
+        .admin-steps-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .admin-step-indicator {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .admin-step {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            border-right: 1px solid #eee;
+            transition: all 0.3s;
+        }
+        
+        .admin-step:last-child {
+            border-right: none;
+        }
+        
+        .admin-step.active {
+            background: #0073aa;
+            color: white;
+        }
+        
+        .admin-step-number {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-weight: bold;
+        }
+        
+        .admin-step.active .admin-step-number {
+            background: white;
+            color: #0073aa;
+        }
+        
+        .admin-step-title {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .admin-step-content {
+            padding: 30px;
+        }
+        
+        .admin-step-content h2 {
+            color: #23282d;
+            margin-bottom: 20px;
+        }
+        
+        .admin-calendar-section {
+            margin-bottom: 30px;
+        }
+        
+        .admin-calendar-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .admin-calendar-controls button {
+            padding: 10px 20px;
+            background: #0073aa;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .admin-calendar-controls h3 {
+            margin: 0;
+            color: #23282d;
+        }
+        
+        .admin-calendar-container {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        #admin-calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+        }
+        
+        .calendar-day-header {
+            background: #0073aa;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .calendar-day {
+            background: white;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            min-height: 40px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .calendar-day:hover {
+            background: #f0f0f0;
+        }
+        
+        .calendar-day.disponible {
+            background: #e8f5e8;
+            color: #155724;
+        }
+        
+        .calendar-day.disponible:hover {
+            background: #d4edda;
+        }
+        
+        .calendar-day.selected {
+            background: #0073aa !important;
+            color: white !important;
+            border-color: #005177;
+        }
+        
+        .calendar-day.no-disponible {
+            background: #f8f8f8;
+            color: #999;
+            cursor: not-allowed;
+        }
+        
+        .calendar-day.blocked-day {
+            background: #ffeaa7;
+            color: #856404;
+            cursor: not-allowed;
+        }
+        
+        .calendar-day.oferta {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .calendar-day.other-month {
+            background: #f8f9fa;
+            color: #999;
+        }
+        
+        .admin-schedule-section {
+            margin-bottom: 30px;
+        }
+        
+        .admin-schedule-section label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .admin-schedule-section select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .admin-persons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .admin-person-selector {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .admin-person-selector label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .admin-person-selector input {
+            width: 80px;
+            padding: 8px;
+            text-align: center;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .admin-price {
+            display: block;
+            font-weight: bold;
+            color: #0073aa;
+        }
+        
+        .admin-pricing-summary {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .admin-discount-row, .admin-total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .admin-total-row {
+            font-size: 20px;
+            font-weight: bold;
+            color: #0073aa;
+            border-top: 2px solid #ddd;
+            padding-top: 10px;
+        }
+        
+        .admin-discount-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .admin-discount-message.show {
+            display: block;
+        }
+        
+        .admin-client-form {
+            max-width: 600px;
+        }
+        
+        .admin-form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .admin-form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .admin-form-group label {
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .admin-form-group input {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .admin-form-group input:focus {
+            outline: none;
+            border-color: #0073aa;
+        }
+        
+        .admin-confirmation-details {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .admin-confirm-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .admin-confirm-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .admin-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+        }
+        
+        .admin-step-info {
+            font-weight: 600;
+            color: #23282d;
+        }
+        
+        .btn-primary, .btn-secondary, .btn-success {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #0073aa;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #005177;
+        }
+        
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        @media (max-width: 768px) {
+            .admin-form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .admin-persons-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .admin-navigation {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+        </style>
+    `;
+    
+    // Inicializar calendario y eventos
+    loadAdminSystemConfiguration().then(() => {
+        loadAdminCalendar();
+        setupAdminEventListeners();
     });
 }
+
+
 
 /**
  * Función principal para procesar reserva rápida
