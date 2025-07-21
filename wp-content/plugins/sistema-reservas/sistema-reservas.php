@@ -459,21 +459,30 @@ class SistemaReservas
         $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_reservas LIKE 'recordatorio_enviado'");
 
         if (empty($column_exists)) {
-            // Añadir columna para tracking de recordatorios
-            $wpdb->query("ALTER TABLE $table_reservas ADD COLUMN recordatorio_enviado TINYINT(1) DEFAULT 0");
-            $wpdb->query("ALTER TABLE $table_reservas ADD INDEX recordatorio_enviado (recordatorio_enviado)");
-            error_log('✅ Columna recordatorio_enviado añadida a tabla de reservas');
-        }
+        // Añadir columna para tracking de recordatorios
+        $wpdb->query("ALTER TABLE $table_reservas ADD COLUMN recordatorio_enviado TINYINT(1) DEFAULT 0");
+        $wpdb->query("ALTER TABLE $table_reservas ADD INDEX recordatorio_enviado (recordatorio_enviado)");
+        error_log('✅ Columna recordatorio_enviado añadida a tabla de reservas');
+    }
+
+    // ✅ AÑADIR ESTE BLOQUE NUEVO:
+    $hora_vuelta_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_reservas LIKE 'hora_vuelta'");
+
+    if (empty($hora_vuelta_exists)) {
+        // Añadir columna para hora de vuelta
+        $wpdb->query("ALTER TABLE $table_reservas ADD COLUMN hora_vuelta TIME NULL AFTER hora");
+        error_log('✅ Columna hora_vuelta añadida a tabla de reservas');
+    }
 
         // ✅ NUEVO: Verificar si el campo agency_id existe
         $agency_column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_reservas LIKE 'agency_id'");
 
-        if (empty($agency_column_exists)) {
-            // Añadir columna para vincular reservas con agencias
-            $wpdb->query("ALTER TABLE $table_reservas ADD COLUMN agency_id MEDIUMINT(9) NULL DEFAULT NULL");
-            $wpdb->query("ALTER TABLE $table_reservas ADD INDEX agency_id (agency_id)");
-            error_log('✅ Columna agency_id añadida a tabla de reservas');
-        }
+    if (empty($agency_column_exists)) {
+        // Añadir columna para vincular reservas con agencias
+        $wpdb->query("ALTER TABLE $table_reservas ADD COLUMN agency_id MEDIUMINT(9) NULL DEFAULT NULL");
+        $wpdb->query("ALTER TABLE $table_reservas ADD INDEX agency_id (agency_id)");
+        error_log('✅ Columna agency_id añadida a tabla de reservas');
+    }
 
         // ✅ NUEVO: Verificar si el campo motivo_cancelacion existe
         $cancel_column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_reservas LIKE 'motivo_cancelacion'");
@@ -507,6 +516,14 @@ class SistemaReservas
             );
             error_log('✅ Configuración email_reservas añadida');
         }
+
+        $hora_vuelta_column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_reservas LIKE 'hora_vuelta'");
+
+    if (empty($hora_vuelta_column_exists)) {
+        // Añadir columna para hora de vuelta
+        $wpdb->query("ALTER TABLE $table_reservas ADD COLUMN hora_vuelta TIME NULL AFTER hora");
+        error_log('✅ Columna hora_vuelta añadida a tabla de reservas');
+    }
 
         // Actualizar descripción del email remitente
         $wpdb->update(

@@ -207,16 +207,16 @@ class ReservasFrontend
 
         // ACTUALIZADO: Incluir los nuevos campos de descuento en la consulta
         $servicios = $wpdb->get_results($wpdb->prepare(
-            "SELECT id, fecha, hora, plazas_disponibles, precio_adulto, precio_nino, precio_residente, 
-                    tiene_descuento, porcentaje_descuento
-            FROM $table_name 
-            WHERE fecha BETWEEN %s AND %s 
-            AND status = 'active'
-            AND plazas_disponibles > 0
-            ORDER BY fecha, hora",
-            $first_day,
-            $last_day
-        ));
+    "SELECT id, fecha, hora, hora_vuelta, plazas_disponibles, precio_adulto, precio_nino, precio_residente, 
+            tiene_descuento, porcentaje_descuento
+    FROM $table_name 
+    WHERE fecha BETWEEN %s AND %s 
+    AND status = 'active'
+    AND plazas_disponibles > 0
+    ORDER BY fecha, hora",
+    $first_day,
+    $last_day
+));
 
         // Organizar por fecha
         $calendar_data = array();
@@ -226,15 +226,16 @@ class ReservasFrontend
             }
 
             $calendar_data[$servicio->fecha][] = array(
-                'id' => $servicio->id,
-                'hora' => substr($servicio->hora, 0, 5),
-                'plazas_disponibles' => $servicio->plazas_disponibles,
-                'precio_adulto' => $servicio->precio_adulto,
-                'precio_nino' => $servicio->precio_nino,
-                'precio_residente' => $servicio->precio_residente,
-                'tiene_descuento' => $servicio->tiene_descuento,
-                'porcentaje_descuento' => $servicio->porcentaje_descuento
-            );
+    'id' => $servicio->id,
+    'hora' => substr($servicio->hora, 0, 5),
+    'hora_vuelta' => $servicio->hora_vuelta ? substr($servicio->hora_vuelta, 0, 5) : '',
+    'plazas_disponibles' => $servicio->plazas_disponibles,
+    'precio_adulto' => $servicio->precio_adulto,
+    'precio_nino' => $servicio->precio_nino,
+    'precio_residente' => $servicio->precio_residente,
+    'tiene_descuento' => $servicio->tiene_descuento,
+    'porcentaje_descuento' => $servicio->porcentaje_descuento
+);
         }
 
         wp_send_json_success($calendar_data);
@@ -516,15 +517,15 @@ class ReservasFrontend
 
                 // Formatear fecha
                 let fechaFormateada = "-";
-                if (data.fecha) {
-                    const fechaObj = new Date(data.fecha + "T00:00:00");
-                    fechaFormateada = fechaObj.toLocaleDateString("es-ES", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric"
-                    });
-                }
+    if (data.fecha) {
+        const fechaObj = new Date(data.fecha + "T00:00:00");
+        fechaFormateada = fechaObj.toLocaleDateString("es-ES", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric"
+        });
+    }
 
                 // Rellenar datos básicos
                 jQuery("#fecha-ida").text(fechaFormateada);

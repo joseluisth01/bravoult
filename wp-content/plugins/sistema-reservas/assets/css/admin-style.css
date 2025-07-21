@@ -190,6 +190,8 @@
     border-radius: 8px;
     width: 90%;
     position: relative;
+    max-height: 90vh;        /* Limita la altura máxima al 90% de la ventana */
+    overflow-y: auto;  
 }
 
 .close {

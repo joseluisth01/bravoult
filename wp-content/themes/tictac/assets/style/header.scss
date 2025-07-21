@@ -10,7 +10,8 @@ $xl: 1100px;
 
 }
 #header {
-    background: #871727ad;
+    background: #871727;
+    opacity: 80%;
     left: 0;
     width: 100%;
     font-family: 'MontserratAlternates-Medium';
@@ -54,7 +55,7 @@ $xl: 1100px;
     }
     .divheader nav ul li a{
         color: white;
-        font-family: 'Duran-Medium' !important;
+        font-family: 'Duran-Regular' !important;
         text-transform: uppercase;
         letter-spacing: 2px;
     }

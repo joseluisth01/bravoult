@@ -536,21 +536,22 @@ jQuery(document).ready(function ($) {
         }
 
         const reservationData = {
-            fecha: selectedDate,
-            service_id: selectedServiceId,
-            hora_ida: service.hora,
-            adultos: adultos,
-            residentes: residentes,
-            ninos_5_12: ninos_5_12,
-            ninos_menores: ninos_menores,
-            precio_adulto: service.precio_adulto,
-            precio_nino: service.precio_nino,
-            precio_residente: service.precio_residente,
-            total_price: totalPrice,
-            descuento_grupo: $('#total-discount').text().includes('€') ?
-                parseFloat($('#total-discount').text().replace('€', '').replace('-', '')) : 0,
-            regla_descuento_aplicada: window.lastDiscountRule || null
-        };
+        fecha: selectedDate,
+        service_id: selectedServiceId,
+        hora_ida: service.hora,
+        hora_vuelta: service.hora_vuelta || '',
+        adultos: adultos,
+        residentes: residentes,
+        ninos_5_12: ninos_5_12,
+        ninos_menores: ninos_menores,
+        precio_adulto: service.precio_adulto,
+        precio_nino: service.precio_nino,
+        precio_residente: service.precio_residente,
+        total_price: totalPrice,
+        descuento_grupo: $('#total-discount').text().includes('€') ?
+            parseFloat($('#total-discount').text().replace('€', '').replace('-', '')) : 0,
+        regla_descuento_aplicada: window.lastDiscountRule || null
+    };
 
         console.log('Datos de reserva preparados:', reservationData);
 

@@ -67,6 +67,8 @@ include("blocks/horarios/horarios.php");
 include("blocks/slidergrande/slidergrande.php");
 include("blocks/textosemaforoslider/textosemaforoslider.php");
 include("blocks/textoiconos/textoiconos.php");
+include("blocks/textoaudio/textoaudio.php");
+include("blocks/textoalternado/textoalternado.php");
 
 
 
