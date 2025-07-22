@@ -205,18 +205,18 @@ class ReservasFrontend
         $first_day = sprintf('%04d-%02d-01', $year, $month);
         $last_day = date('Y-m-t', strtotime($first_day));
 
-        // ACTUALIZADO: Incluir los nuevos campos de descuento en la consulta
+        // ✅ ACTUALIZADO: Incluir los nuevos campos de descuento específico
         $servicios = $wpdb->get_results($wpdb->prepare(
-    "SELECT id, fecha, hora, hora_vuelta, plazas_disponibles, precio_adulto, precio_nino, precio_residente, 
-            tiene_descuento, porcentaje_descuento
-    FROM $table_name 
-    WHERE fecha BETWEEN %s AND %s 
-    AND status = 'active'
-    AND plazas_disponibles > 0
-    ORDER BY fecha, hora",
-    $first_day,
-    $last_day
-));
+            "SELECT id, fecha, hora, hora_vuelta, plazas_disponibles, precio_adulto, precio_nino, precio_residente, 
+                tiene_descuento, porcentaje_descuento, descuento_tipo, descuento_minimo_personas
+        FROM $table_name 
+        WHERE fecha BETWEEN %s AND %s 
+        AND status = 'active'
+        AND plazas_disponibles > 0
+        ORDER BY fecha, hora",
+            $first_day,
+            $last_day
+        ));
 
         // Organizar por fecha
         $calendar_data = array();
@@ -226,16 +226,19 @@ class ReservasFrontend
             }
 
             $calendar_data[$servicio->fecha][] = array(
-    'id' => $servicio->id,
-    'hora' => substr($servicio->hora, 0, 5),
-    'hora_vuelta' => $servicio->hora_vuelta ? substr($servicio->hora_vuelta, 0, 5) : '',
-    'plazas_disponibles' => $servicio->plazas_disponibles,
-    'precio_adulto' => $servicio->precio_adulto,
-    'precio_nino' => $servicio->precio_nino,
-    'precio_residente' => $servicio->precio_residente,
-    'tiene_descuento' => $servicio->tiene_descuento,
-    'porcentaje_descuento' => $servicio->porcentaje_descuento
-);
+                'id' => $servicio->id,
+                'hora' => substr($servicio->hora, 0, 5),
+                'hora_vuelta' => $servicio->hora_vuelta ? substr($servicio->hora_vuelta, 0, 5) : '',
+                'plazas_disponibles' => $servicio->plazas_disponibles,
+                'precio_adulto' => $servicio->precio_adulto,
+                'precio_nino' => $servicio->precio_nino,
+                'precio_residente' => $servicio->precio_residente,
+                'tiene_descuento' => $servicio->tiene_descuento,
+                'porcentaje_descuento' => $servicio->porcentaje_descuento,
+                // ✅ NUEVOS CAMPOS AÑADIDOS
+                'descuento_tipo' => $servicio->descuento_tipo ?? 'fijo',
+                'descuento_minimo_personas' => $servicio->descuento_minimo_personas ?? 1
+            );
         }
 
         wp_send_json_success($calendar_data);
@@ -258,9 +261,11 @@ class ReservasFrontend
 
         // Obtener datos del servicio
         $servicio = $wpdb->get_row($wpdb->prepare(
-            "SELECT *, tiene_descuento, porcentaje_descuento FROM $table_name WHERE id = %d",
-            $service_id
-        ));
+        "SELECT *, tiene_descuento, porcentaje_descuento, descuento_tipo, descuento_minimo_personas,
+                descuento_acumulable, descuento_prioridad
+         FROM $table_name WHERE id = %d",
+        $service_id
+    ));
 
         if (!$servicio) {
             wp_send_json_error('Servicio no encontrado');
@@ -292,6 +297,12 @@ class ReservasFrontend
         $descuento_grupo = 0;
         $regla_aplicada = null;
 
+        $descuento_servicio = 0;
+    $aplicar_descuento_servicio = false;
+    $descuento_grupo_original = $descuento_grupo;
+
+    
+
         if ($total_personas_con_plaza > 0) {
             if (!class_exists('ReservasDiscountsAdmin')) {
                 require_once RESERVAS_PLUGIN_PATH . 'includes/class-discounts-admin.php';
@@ -317,13 +328,54 @@ class ReservasFrontend
             }
         }
 
-        // ✅ APLICAR DESCUENTO ESPECÍFICO DEL SERVICIO (si existe)
+        // ✅ APLICAR DESCUENTO ESPECÍFICO DEL SERVICIO CON NUEVAS REGLAS (UNA SOLA VEZ)
         $descuento_servicio = 0;
+        $aplicar_descuento_servicio = false;
+
         if ($servicio->tiene_descuento && floatval($servicio->porcentaje_descuento) > 0) {
+        if ($servicio->descuento_tipo === 'fijo') {
+            $aplicar_descuento_servicio = true;
+        } elseif ($servicio->descuento_tipo === 'por_grupo') {
+            $minimo_requerido = intval($servicio->descuento_minimo_personas);
+            if ($total_personas_con_plaza >= $minimo_requerido) {
+                $aplicar_descuento_servicio = true;
+            }
+        }
+
+        if ($aplicar_descuento_servicio) {
             $subtotal_actual = $precio_base - $descuento_total;
             $descuento_servicio = ($subtotal_actual * floatval($servicio->porcentaje_descuento)) / 100;
-            $descuento_total += $descuento_servicio;
+
+            // ✅ DECIDIR SI ACUMULAR O APLICAR PRIORIDAD
+            $acumulable = $servicio->descuento_acumulable == '1';
+            
+            if ($acumulable) {
+                // ACUMULAR: Sumar ambos descuentos
+                $descuento_total += $descuento_servicio;
+            } else {
+                // NO ACUMULAR: Aplicar prioridad
+                $prioridad = $servicio->descuento_prioridad ?? 'servicio';
+                
+                if ($prioridad === 'servicio') {
+                    // Prioridad al servicio: quitar descuento por grupo y aplicar solo el del servicio
+                    if ($descuento_grupo_original > 0) {
+                        $descuento_total -= $descuento_grupo_original;
+                        $descuento_grupo = 0; // Reset para el response
+                        $regla_aplicada = null; // Reset para el response
+                    }
+                    $descuento_total += $descuento_servicio;
+                } else {
+                    // Prioridad al grupo: solo aplicar descuento del servicio si no hay descuento por grupo
+                    if ($descuento_grupo_original == 0) {
+                        $descuento_total += $descuento_servicio;
+                    } else {
+                        $descuento_servicio = 0; // Reset porque tiene menos prioridad
+                        $aplicar_descuento_servicio = false;
+                    }
+                }
+            }
         }
+    }
 
         // ✅ CALCULAR TOTAL FINAL
         $total = $precio_base - $descuento_total;
@@ -331,22 +383,27 @@ class ReservasFrontend
 
         // ✅ PREPARAR RESPUESTA CON INFORMACIÓN DETALLADA
         $response_data = array(
-            'precio_base' => round($precio_base, 2),
-            'descuento' => round($descuento_total, 2),
-            'descuento_residentes' => round($descuento_residentes, 2),
-            'descuento_ninos' => round($descuento_ninos, 2),
-            'descuento_grupo' => round($descuento_grupo, 2),
-            'descuento_servicio' => round($descuento_servicio, 2),
-            'total' => round($total, 2),
-            'precio_adulto' => $servicio->precio_adulto,
-            'precio_nino' => $servicio->precio_nino,
-            'precio_residente' => $servicio->precio_residente,
-            'total_personas_con_plaza' => $total_personas_con_plaza,
-            'regla_descuento_aplicada' => $regla_aplicada,
-            'servicio_con_descuento' => array(
-                'tiene_descuento' => $servicio->tiene_descuento,
-                'porcentaje_descuento' => $servicio->porcentaje_descuento
-            ),
+        'precio_base' => round($precio_base, 2),
+        'descuento' => round($descuento_total, 2),
+        'descuento_residentes' => round($descuento_residentes, 2),
+        'descuento_ninos' => round($descuento_ninos, 2),
+        'descuento_grupo' => round($descuento_grupo, 2),
+        'descuento_servicio' => round($descuento_servicio, 2),
+        'total' => round($total, 2),
+        'precio_adulto' => $servicio->precio_adulto,
+        'precio_nino' => $servicio->precio_nino,
+        'precio_residente' => $servicio->precio_residente,
+        'total_personas_con_plaza' => $total_personas_con_plaza,
+        'regla_descuento_aplicada' => $regla_aplicada,
+        'servicio_con_descuento' => array(
+            'tiene_descuento' => $servicio->tiene_descuento,
+            'porcentaje_descuento' => $servicio->porcentaje_descuento,
+            'descuento_tipo' => $servicio->descuento_tipo ?? 'fijo',
+            'descuento_minimo_personas' => $servicio->descuento_minimo_personas ?? 1,
+            'descuento_acumulable' => $servicio->descuento_acumulable ?? 0,
+            'descuento_prioridad' => $servicio->descuento_prioridad ?? 'servicio',
+            'descuento_aplicado' => $aplicar_descuento_servicio
+        ),
             // ✅ INFORMACIÓN DE DEBUG
             'debug' => array(
                 'adultos' => $adultos,
@@ -355,13 +412,13 @@ class ReservasFrontend
                 'ninos_menores' => $ninos_menores,
                 'total_personas_con_plaza' => $total_personas_con_plaza,
                 'precio_base_calculado' => $precio_base,
-                'descuento_grupo_aplicado' => $descuento_grupo > 0
+                'descuento_grupo_aplicado' => $descuento_grupo > 0,
+                'descuento_servicio_aplicado' => $aplicar_descuento_servicio
             )
         );
 
         wp_send_json_success($response_data);
     }
-
     public function render_details_form()
     {
         ob_start();
@@ -517,15 +574,15 @@ class ReservasFrontend
 
                 // Formatear fecha
                 let fechaFormateada = "-";
-    if (data.fecha) {
-        const fechaObj = new Date(data.fecha + "T00:00:00");
-        fechaFormateada = fechaObj.toLocaleDateString("es-ES", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric"
-        });
-    }
+                if (data.fecha) {
+                    const fechaObj = new Date(data.fecha + "T00:00:00");
+                    fechaFormateada = fechaObj.toLocaleDateString("es-ES", {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric"
+                    });
+                }
 
                 // Rellenar datos básicos
                 jQuery("#fecha-ida").text(fechaFormateada);

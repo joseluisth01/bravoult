@@ -160,8 +160,12 @@ class ReservasCalendarAdmin
         $service_id = isset($_POST['service_id']) ? intval($_POST['service_id']) : 0;
 
         // Campos de descuento
-        $tiene_descuento = isset($_POST['tiene_descuento']) ? 1 : 0;
-        $porcentaje_descuento = floatval($_POST['porcentaje_descuento']) ?: 0;
+            $tiene_descuento = isset($_POST['tiene_descuento']) ? 1 : 0;
+    $porcentaje_descuento = floatval($_POST['porcentaje_descuento']) ?: 0;
+    $descuento_tipo = sanitize_text_field($_POST['descuento_tipo'] ?? 'fijo');
+    $descuento_minimo_personas = intval($_POST['descuento_minimo_personas'] ?? 1);
+    $descuento_acumulable = isset($_POST['descuento_acumulable']) ? 1 : 0;
+    $descuento_prioridad = sanitize_text_field($_POST['descuento_prioridad'] ?? 'servicio');
 
         // ✅ VALIDAR DÍAS DE ANTICIPACIÓN MÍNIMA
         if (!class_exists('ReservasConfigurationAdmin')) {
@@ -175,6 +179,18 @@ class ReservasCalendarAdmin
             wp_send_json_error("No se puede crear servicios para fechas anteriores a $fecha_minima (mínimo $dias_anticipacion días de anticipación)");
             return;
         }
+
+        if (!in_array($descuento_tipo, ['fijo', 'por_grupo'])) {
+        $descuento_tipo = 'fijo';
+    }
+
+    if (!in_array($descuento_prioridad, ['servicio', 'grupo'])) {
+        $descuento_prioridad = 'servicio';
+    }
+
+    if ($descuento_tipo === 'fijo') {
+        $descuento_minimo_personas = 1;
+    }
 
         // Validar que no exista ya un servicio en esa fecha y hora
         if ($service_id == 0) {
@@ -191,18 +207,22 @@ class ReservasCalendarAdmin
         }
 
         $data = array(
-            'fecha' => $fecha,
-            'hora' => $hora,
-            'hora_vuelta' => $hora_vuelta,
-            'plazas_totales' => $plazas_totales,
-            'plazas_disponibles' => $plazas_totales,
-            'precio_adulto' => $precio_adulto,
-            'precio_nino' => $precio_nino,
-            'precio_residente' => $precio_residente,
-            'tiene_descuento' => $tiene_descuento,
-            'porcentaje_descuento' => $porcentaje_descuento,
-            'status' => 'active'
-        );
+        'fecha' => $fecha,
+        'hora' => $hora,
+        'hora_vuelta' => $hora_vuelta,
+        'plazas_totales' => $plazas_totales,
+        'plazas_disponibles' => $plazas_totales,
+        'precio_adulto' => $precio_adulto,
+        'precio_nino' => $precio_nino,
+        'precio_residente' => $precio_residente,
+        'tiene_descuento' => $tiene_descuento,
+        'porcentaje_descuento' => $porcentaje_descuento,
+        'descuento_tipo' => $descuento_tipo,
+        'descuento_minimo_personas' => $descuento_minimo_personas,
+        'descuento_acumulable' => $descuento_acumulable,
+        'descuento_prioridad' => $descuento_prioridad,
+        'status' => 'active'
+    );
 
         if ($service_id > 0) {
             // Actualizar
@@ -250,41 +270,42 @@ class ReservasCalendarAdmin
         }
     }
 
-public function get_service_details()
-{
-    // ✅ VERIFICACIÓN SIMPLIFICADA TEMPORAL
-    if (!session_id()) {
-        session_start();
-    }
+    public function get_service_details()
+    {
+        // ✅ VERIFICACIÓN SIMPLIFICADA TEMPORAL
+        if (!session_id()) {
+            session_start();
+        }
 
-    if (!isset($_SESSION['reservas_user'])) {
-        wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
-        return;
-    }
+        if (!isset($_SESSION['reservas_user'])) {
+            wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
+            return;
+        }
 
-    $user = $_SESSION['reservas_user'];
-    if (!in_array($user['role'], ['super_admin', 'admin'])) {
-        wp_send_json_error('Sin permisos');
-        return;
-    }
-    
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'reservas_servicios';
+        $user = $_SESSION['reservas_user'];
+        if (!in_array($user['role'], ['super_admin', 'admin'])) {
+            wp_send_json_error('Sin permisos');
+            return;
+        }
 
-    $service_id = intval($_POST['service_id']);
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'reservas_servicios';
 
-    // ✅ AÑADIR hora_vuelta a la consulta
-    $servicio = $wpdb->get_row($wpdb->prepare(
-        "SELECT *, hora_vuelta FROM $table_name WHERE id = %d",
+        $service_id = intval($_POST['service_id']);
+
+        $servicio = $wpdb->get_row($wpdb->prepare(
+        "SELECT *, hora_vuelta, descuento_tipo, descuento_minimo_personas, 
+                descuento_acumulable, descuento_prioridad 
+         FROM $table_name WHERE id = %d",
         $service_id
     ));
 
-    if ($servicio) {
-        wp_send_json_success($servicio);
-    } else {
-        wp_send_json_error('Servicio no encontrado');
+        if ($servicio) {
+            wp_send_json_success($servicio);
+        } else {
+            wp_send_json_error('Servicio no encontrado');
+        }
     }
-}
 
     public function bulk_add_services()
     {
@@ -310,7 +331,7 @@ public function get_service_details()
         $fecha_inicio = sanitize_text_field($_POST['fecha_inicio']);
         $fecha_fin = sanitize_text_field($_POST['fecha_fin']);
         $horarios = json_decode(stripslashes($_POST['horarios']), true);
-    $horarios_vuelta = json_decode(stripslashes($_POST['horarios_vuelta']), true);
+        $horarios_vuelta = json_decode(stripslashes($_POST['horarios_vuelta']), true);
         $plazas_totales = intval($_POST['plazas_totales']);
         $precio_adulto = floatval($_POST['precio_adulto']);
         $precio_nino = floatval($_POST['precio_nino']);
@@ -320,13 +341,23 @@ public function get_service_details()
         // Campos de descuento para bulk
         $tiene_descuento = isset($_POST['bulk_tiene_descuento']) ? 1 : 0;
         $porcentaje_descuento = floatval($_POST['bulk_porcentaje_descuento']) ?: 0;
+        $descuento_tipo = sanitize_text_field($_POST['bulk_descuento_tipo'] ?? 'fijo');
+        $descuento_minimo_personas = intval($_POST['bulk_descuento_minimo_personas'] ?? 1);
+            $descuento_acumulable = isset($_POST['bulk_descuento_acumulable']) ? 1 : 0;
+    $descuento_prioridad = sanitize_text_field($_POST['bulk_descuento_prioridad'] ?? 'servicio');
 
         // ✅ VALIDAR DÍAS DE ANTICIPACIÓN MÍNIMA PARA BULK
         if (!class_exists('ReservasConfigurationAdmin')) {
             require_once RESERVAS_PLUGIN_PATH . 'includes/class-configuration-admin.php';
         }
 
-        
+        if (!in_array($descuento_tipo, ['fijo', 'por_grupo'])) {
+            $descuento_tipo = 'fijo';
+        }
+
+        if ($descuento_tipo === 'fijo') {
+            $descuento_minimo_personas = 1;
+        }
 
         $dias_anticipacion = ReservasConfigurationAdmin::get_dias_anticipacion_minima();
         $fecha_minima = date('Y-m-d', strtotime("+$dias_anticipacion days"));
@@ -335,9 +366,9 @@ public function get_service_details()
             wp_send_json_error("La fecha de inicio no puede ser anterior a $fecha_minima (mínimo $dias_anticipacion días de anticipación)");
         }
         if (count($horarios) !== count($horarios_vuelta)) {
-        wp_send_json_error('Debe haber el mismo número de horarios de ida y vuelta');
-        return;
-    }
+            wp_send_json_error('Debe haber el mismo número de horarios de ida y vuelta');
+            return;
+        }
 
         $fecha_actual = strtotime($fecha_inicio);
         $fecha_limite = strtotime($fecha_fin);
@@ -347,57 +378,61 @@ public function get_service_details()
         $errores = 0;
 
         while ($fecha_actual <= $fecha_limite) {
-        $fecha_str = date('Y-m-d', $fecha_actual);
-        $dia_semana = date('w', $fecha_actual);
+            $fecha_str = date('Y-m-d', $fecha_actual);
+            $dia_semana = date('w', $fecha_actual);
 
-        // ✅ VERIFICAR DÍAS DE ANTICIPACIÓN PARA CADA FECHA
-        if ($fecha_str < $fecha_minima) {
-            $servicios_bloqueados++;
-            $fecha_actual = strtotime('+1 day', $fecha_actual);
-            continue;
-        }
+            // ✅ VERIFICAR DÍAS DE ANTICIPACIÓN PARA CADA FECHA
+            if ($fecha_str < $fecha_minima) {
+                $servicios_bloqueados++;
+                $fecha_actual = strtotime('+1 day', $fecha_actual);
+                continue;
+            }
 
-        if (empty($dias_semana) || in_array($dia_semana, $dias_semana)) {
-            // ✅ Recorrer ambos arrays juntos
-            for ($i = 0; $i < count($horarios); $i++) {
-                $hora = sanitize_text_field($horarios[$i]['hora']);
-                $hora_vuelta = sanitize_text_field($horarios_vuelta[$i]['hora']); // ✅ Obtener hora de vuelta correspondiente
+            if (empty($dias_semana) || in_array($dia_semana, $dias_semana)) {
+                // ✅ Recorrer ambos arrays juntos
+                for ($i = 0; $i < count($horarios); $i++) {
+                    $hora = sanitize_text_field($horarios[$i]['hora']);
+                    $hora_vuelta = sanitize_text_field($horarios_vuelta[$i]['hora']); // ✅ Obtener hora de vuelta correspondiente
 
-                $existing = $wpdb->get_var($wpdb->prepare(
-                    "SELECT COUNT(*) FROM $table_name WHERE fecha = %s AND hora = %s",
-                    $fecha_str,
-                    $hora
-                ));
-
-                if ($existing == 0) {
-                    $result = $wpdb->insert($table_name, array(
-                        'fecha' => $fecha_str,
-                        'hora' => $hora,
-                        'hora_vuelta' => $hora_vuelta, // ✅ Incluir hora de vuelta
-                        'plazas_totales' => $plazas_totales,
-                        'plazas_disponibles' => $plazas_totales,
-                        'precio_adulto' => $precio_adulto,
-                        'precio_nino' => $precio_nino,
-                        'precio_residente' => $precio_residente,
-                        'tiene_descuento' => $tiene_descuento,
-                        'porcentaje_descuento' => $porcentaje_descuento,
-                        'status' => 'active'
+                    $existing = $wpdb->get_var($wpdb->prepare(
+                        "SELECT COUNT(*) FROM $table_name WHERE fecha = %s AND hora = %s",
+                        $fecha_str,
+                        $hora
                     ));
 
-                    if ($result !== false) {
-                        $servicios_creados++;
+                    if ($existing == 0) {
+                        $result = $wpdb->insert($table_name, array(
+        'fecha' => $fecha_str,
+        'hora' => $hora,
+        'hora_vuelta' => $hora_vuelta,
+        'plazas_totales' => $plazas_totales,
+        'plazas_disponibles' => $plazas_totales,
+        'precio_adulto' => $precio_adulto,
+        'precio_nino' => $precio_nino,
+        'precio_residente' => $precio_residente,
+        'tiene_descuento' => $tiene_descuento,
+        'porcentaje_descuento' => $porcentaje_descuento,
+        'descuento_tipo' => $descuento_tipo,
+        'descuento_minimo_personas' => $descuento_minimo_personas,
+        'descuento_acumulable' => $descuento_acumulable,
+        'descuento_prioridad' => $descuento_prioridad,
+        'status' => 'active'
+    ));
+
+                        if ($result !== false) {
+                            $servicios_creados++;
+                        } else {
+                            $errores++;
+                            error_log("Error insertando servicio: " . $wpdb->last_error);
+                        }
                     } else {
-                        $errores++;
-                        error_log("Error insertando servicio: " . $wpdb->last_error);
+                        $servicios_existentes++;
                     }
-                } else {
-                    $servicios_existentes++;
                 }
             }
-        }
 
-        $fecha_actual = strtotime('+1 day', $fecha_actual);
-    }
+            $fecha_actual = strtotime('+1 day', $fecha_actual);
+        }
 
         $mensaje = "Se crearon $servicios_creados servicios.";
         if ($servicios_existentes > 0) {

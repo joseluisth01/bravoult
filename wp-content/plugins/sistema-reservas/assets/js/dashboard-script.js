@@ -342,48 +342,61 @@ function getModalHTML() {
                 <span class="close" onclick="closeServiceModal()">&times;</span>
                 <h3 id="serviceModalTitle">Añadir Servicio</h3>
                 <form id="serviceForm">
-                    <input type="hidden" id="serviceId" name="service_id">
-                    <div class="form-group">
-                        <label for="serviceFecha">Fecha:</label>
-                        <input type="date" id="serviceFecha" name="fecha" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="serviceHora">Hora Ida:</label>
-                        <input type="time" id="serviceHora" name="hora" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="serviceHoraVuelta">Hora Vuelta:</label>
-                        <input type="time" id="serviceHoraVuelta" name="hora_vuelta" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="servicePlazas">Plazas Totales:</label>
-                        <input type="number" id="servicePlazas" name="plazas_totales" min="1" max="100" required>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="precioAdulto">Precio Adulto (€):</label>
-                            <input type="number" id="precioAdulto" name="precio_adulto" step="0.01" min="0" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="precioNino">Precio Niño (€):</label>
-                            <input type="number" id="precioNino" name="precio_nino" step="0.01" min="0" required>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="precioResidente">Precio Residente (€):</label>
-                        <input type="number" id="precioResidente" name="precio_residente" step="0.01" min="0" required>
-                    </div>
+                    <!-- ... campos existentes ... -->
                     
-                    <!-- Sección de descuento -->
+                    <!-- Sección de descuento AMPLIADA -->
                     <div class="form-group discount-section">
                         <label>
                             <input type="checkbox" id="tieneDescuento" name="tiene_descuento"> 
                             Activar descuento especial para este servicio
                         </label>
-                        <div id="discountFields" style="display: none; margin-top: 10px;">
-                            <label for="porcentajeDescuento">Porcentaje de descuento (%):</label>
-                            <input type="number" id="porcentajeDescuento" name="porcentaje_descuento" 
-                                   min="0" max="100" step="0.1" placeholder="Ej: 15">
+                        <div id="discountFields" style="display: none; margin-top: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="porcentajeDescuento">Porcentaje de descuento (%):</label>
+                                    <input type="number" id="porcentajeDescuento" name="porcentaje_descuento" 
+                                           min="0" max="100" step="0.1" placeholder="Ej: 15">
+                                </div>
+                                <div class="form-group">
+                                    <label for="tipoDescuento">Tipo de descuento:</label>
+                                    <select id="tipoDescuento" name="descuento_tipo">
+                                        <option value="fijo">Descuento fijo para todos</option>
+                                        <option value="por_grupo">Descuento por número mínimo</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group" id="minimoPersonasGroup" style="display: none;">
+                                <label for="minimoPersonas">Mínimo de personas para descuento:</label>
+                                <input type="number" id="minimoPersonas" name="descuento_minimo_personas" 
+                                       min="1" max="100" placeholder="Ej: 5">
+                                <small>El descuento se aplicará solo si hay este número mínimo de personas</small>
+                            </div>
+                            
+                            <!-- ✅ NUEVOS CAMPOS: ACUMULACIÓN Y PRIORIDAD -->
+                            <div class="form-group accumulation-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+                                <label>
+                                    <input type="checkbox" id="descuentoAcumulable" name="descuento_acumulable"> 
+                                    Acumulable con descuentos por grupo
+                                </label>
+                                <small style="display: block; margin-top: 5px; color: #666; font-style: italic;">
+                                    Si está marcado, este descuento se sumará a los descuentos por grupo configurados en el sistema
+                                </small>
+                            </div>
+                            
+                            <div class="form-group" id="prioridadGroup" style="display: none; margin-top: 10px;">
+                                <label for="descuentoPrioridad">Prioridad cuando no es acumulable:</label>
+                                <select id="descuentoPrioridad" name="descuento_prioridad">
+                                    <option value="servicio">Prioridad al descuento del servicio</option>
+                                    <option value="grupo">Prioridad al descuento por grupo</option>
+                                </select>
+                                <small style="display: block; margin-top: 5px; color: #666; font-style: italic;">
+                                    Cuando no sea acumulable, se aplicará el descuento con mayor prioridad
+                                </small>
+                            </div>
+                            
+                            <div class="discount-preview" id="discountPreview" style="margin-top: 15px; padding: 10px; background: #e8f4fd; border-radius: 4px; display: none;">
+                                <strong>Vista previa:</strong> <span id="discountPreviewText"></span>
+                            </div>
                         </div>
                     </div>
                     
@@ -402,103 +415,51 @@ function getModalHTML() {
                 <span class="close" onclick="closeBulkAddModal()">&times;</span>
                 <h3>Añadir Múltiples Servicios</h3>
                 <form id="bulkAddForm">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="bulkFechaInicio">Fecha Inicio:</label>
-                            <input type="date" id="bulkFechaInicio" name="fecha_inicio" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="bulkFechaFin">Fecha Fin:</label>
-                            <input type="date" id="bulkFechaFin" name="fecha_fin" required>
-                        </div>
-                    </div>
+                    <!-- ... campos existentes ... -->
                     
-                    <div class="form-group">
-                        <label>Días de la semana:</label>
-                        <div class="dias-semana">
-                            <div class="dia-checkbox">
-                                <input type="checkbox" id="dom" name="dias_semana[]" value="0">
-                                <label for="dom">Dom</label>
-                            </div>
-                            <div class="dia-checkbox">
-                                <input type="checkbox" id="lun" name="dias_semana[]" value="1">
-                                <label for="lun">Lun</label>
-                            </div>
-                            <div class="dia-checkbox">
-                                <input type="checkbox" id="mar" name="dias_semana[]" value="2">
-                                <label for="mar">Mar</label>
-                            </div>
-                            <div class="dia-checkbox">
-                                <input type="checkbox" id="mie" name="dias_semana[]" value="3">
-                                <label for="mie">Mié</label>
-                            </div>
-                            <div class="dia-checkbox">
-                                <input type="checkbox" id="jue" name="dias_semana[]" value="4">
-                                <label for="jue">Jue</label>
-                            </div>
-                            <div class="dia-checkbox">
-                                <input type="checkbox" id="vie" name="dias_semana[]" value="5">
-                                <label for="vie">Vie</label>
-                            </div>
-                            <div class="dia-checkbox">
-                                <input type="checkbox" id="sab" name="dias_semana[]" value="6">
-                                <label for="sab">Sáb</label>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Horarios Ida:</label>
-                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                            <input type="time" id="nuevoHorario" placeholder="Hora">
-                            <button type="button" class="btn-primary" onclick="addHorario()">Añadir</button>
-                        </div>
-                        <div id="horariosList" class="horarios-list">
-                            <!-- Los horarios se añadirán aquí -->
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Horarios Vuelta:</label>
-                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                            <input type="time" id="nuevoHorarioVuelta" placeholder="Hora Vuelta">
-                            <button type="button" class="btn-primary" onclick="addHorarioVuelta()">Añadir</button>
-                        </div>
-                        <div id="horariosVueltaList" class="horarios-list">
-                            <!-- Los horarios de vuelta se añadirán aquí -->
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="bulkPlazas">Plazas por Servicio:</label>
-                        <input type="number" id="bulkPlazas" name="plazas_totales" min="1" max="100" required>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="bulkPrecioAdulto">Precio Adulto (€):</label>
-                            <input type="number" id="bulkPrecioAdulto" name="precio_adulto" step="0.01" min="0" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="bulkPrecioNino">Precio Niño (€):</label>
-                            <input type="number" id="bulkPrecioNino" name="precio_nino" step="0.01" min="0" required>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="bulkPrecioResidente">Precio Residente (€):</label>
-                        <input type="number" id="bulkPrecioResidente" name="precio_residente" step="0.01" min="0" required>
-                    </div>
-                    
-                    <!-- Sección de descuento para bulk -->
+                    <!-- Sección de descuento para bulk AMPLIADA -->
                     <div class="form-group discount-section">
                         <label>
                             <input type="checkbox" id="bulkTieneDescuento" name="bulk_tiene_descuento"> 
                             Aplicar descuento especial a todos los servicios
                         </label>
-                        <div id="bulkDiscountFields" style="display: none; margin-top: 10px;">
-                            <label for="bulkPorcentajeDescuento">Porcentaje de descuento (%):</label>
-                            <input type="number" id="bulkPorcentajeDescuento" name="bulk_porcentaje_descuento" 
-                                   min="0" max="100" step="0.1" placeholder="Ej: 15">
+                        <div id="bulkDiscountFields" style="display: none; margin-top: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="bulkPorcentajeDescuento">Porcentaje de descuento (%):</label>
+                                    <input type="number" id="bulkPorcentajeDescuento" name="bulk_porcentaje_descuento" 
+                                           min="0" max="100" step="0.1" placeholder="Ej: 15">
+                                </div>
+                                <div class="form-group">
+                                    <label for="bulkTipoDescuento">Tipo de descuento:</label>
+                                    <select id="bulkTipoDescuento" name="bulk_descuento_tipo">
+                                        <option value="fijo">Descuento fijo para todos</option>
+                                        <option value="por_grupo">Descuento por número mínimo</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group" id="bulkMinimoPersonasGroup" style="display: none;">
+                                <label for="bulkMinimoPersonas">Mínimo de personas para descuento:</label>
+                                <input type="number" id="bulkMinimoPersonas" name="bulk_descuento_minimo_personas" 
+                                       min="1" max="100" placeholder="Ej: 5">
+                                <small>El descuento se aplicará solo si hay este número mínimo de personas</small>
+                            </div>
+                            
+                            <!-- ✅ NUEVOS CAMPOS PARA BULK -->
+                            <div class="form-group accumulation-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+                                <label>
+                                    <input type="checkbox" id="bulkDescuentoAcumulable" name="bulk_descuento_acumulable"> 
+                                    Acumulable con descuentos por grupo
+                                </label>
+                            </div>
+                            
+                            <div class="form-group" id="bulkPrioridadGroup" style="display: none; margin-top: 10px;">
+                                <label for="bulkDescuentoPrioridad">Prioridad cuando no es acumulable:</label>
+                                <select id="bulkDescuentoPrioridad" name="bulk_descuento_prioridad">
+                                    <option value="servicio">Prioridad al descuento del servicio</option>
+                                    <option value="grupo">Prioridad al descuento por grupo</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                     
@@ -509,25 +470,6 @@ function getModalHTML() {
                 </form>
             </div>
         </div>
-        
-        <style>
-        /* ✅ ESTILOS PARA DÍAS BLOQUEADOS */
-        .calendar-day.blocked-day {
-            background-color: #f8f8f8 !important;
-            color: #999 !important;
-            cursor: not-allowed !important;
-            opacity: 0.6;
-        }
-        
-        .calendar-day.blocked-day:hover {
-            background-color: #f8f8f8 !important;
-            transform: none !important;
-        }
-        
-        .calendar-day.blocked-day .day-number {
-            text-decoration: line-through;
-        }
-        </style>
     `;
 }
 
@@ -544,17 +486,37 @@ function initModalEvents() {
         saveBulkServices();
     });
 
-    // Eventos para los checkboxes de descuento
+    // ✅ EVENTOS PARA DESCUENTO INDIVIDUAL
     document.getElementById('tieneDescuento').addEventListener('change', function () {
         const discountFields = document.getElementById('discountFields');
         if (this.checked) {
             discountFields.style.display = 'block';
+            // Activar vista previa cuando se habilita
+            updateDiscountPreview();
         } else {
             discountFields.style.display = 'none';
             document.getElementById('porcentajeDescuento').value = '';
+            document.getElementById('tipoDescuento').value = 'fijo';
+            document.getElementById('minimoPersonas').value = 1;
+            document.getElementById('minimoPersonasGroup').style.display = 'none';
+            
+            // Ocultar vista previa
+            const preview = document.getElementById('discountPreview');
+            if (preview) preview.style.display = 'none';
         }
     });
 
+    // ✅ EVENTOS PARA TIPO DE DESCUENTO
+    document.getElementById('tipoDescuento').addEventListener('change', function () {
+        toggleMinimoPersonasField('tipoDescuento', 'minimoPersonasGroup');
+        updateDiscountPreview();
+    });
+
+    // ✅ EVENTOS PARA ACTUALIZAR VISTA PREVIA
+    document.getElementById('porcentajeDescuento').addEventListener('input', updateDiscountPreview);
+    document.getElementById('minimoPersonas').addEventListener('input', updateDiscountPreview);
+
+    // ✅ EVENTOS PARA DESCUENTO BULK
     document.getElementById('bulkTieneDescuento').addEventListener('change', function () {
         const bulkDiscountFields = document.getElementById('bulkDiscountFields');
         if (this.checked) {
@@ -562,9 +524,107 @@ function initModalEvents() {
         } else {
             bulkDiscountFields.style.display = 'none';
             document.getElementById('bulkPorcentajeDescuento').value = '';
+            document.getElementById('bulkTipoDescuento').value = 'fijo';
+            document.getElementById('bulkMinimoPersonas').value = 1;
+            document.getElementById('bulkMinimoPersonasGroup').style.display = 'none';
         }
     });
+
+    document.getElementById('bulkTipoDescuento').addEventListener('change', function () {
+        toggleMinimoPersonasField('bulkTipoDescuento', 'bulkMinimoPersonasGroup');
+    });
+
+    document.getElementById('descuentoAcumulable').addEventListener('change', function () {
+        togglePrioridadField('descuentoAcumulable', 'prioridadGroup');
+        updateDiscountPreview();
+    });
+
+    document.getElementById('bulkDescuentoAcumulable').addEventListener('change', function () {
+        togglePrioridadField('bulkDescuentoAcumulable', 'bulkPrioridadGroup');
+    });
+
+    // Eventos para cambio de prioridad
+    document.getElementById('descuentoPrioridad').addEventListener('change', updateDiscountPreview);
 }
+
+function togglePrioridadField(checkboxId, groupId) {
+    const checkbox = document.getElementById(checkboxId);
+    const group = document.getElementById(groupId);
+    
+    if (!checkbox || !group) {
+        console.warn(`No se encontraron elementos: ${checkboxId} o ${groupId}`);
+        return;
+    }
+    
+    // Si NO es acumulable, mostrar campo de prioridad
+    if (!checkbox.checked) {
+        group.style.display = 'block';
+    } else {
+        group.style.display = 'none';
+    }
+}
+
+
+function toggleMinimoPersonasField(selectId, groupId) {
+    const select = document.getElementById(selectId);
+    const group = document.getElementById(groupId);
+
+    if (!select || !group) return;
+
+    if (select.value === 'por_grupo') {
+        group.style.display = 'block';
+    } else {
+        group.style.display = 'none';
+    }
+}
+
+
+function updateDiscountPreview() {
+    const porcentaje = document.getElementById('porcentajeDescuento').value;
+    const tipo = document.getElementById('tipoDescuento').value;
+    const minimo = document.getElementById('minimoPersonas').value;
+    const acumulable = document.getElementById('descuentoAcumulable').checked;
+    const prioridad = document.getElementById('descuentoPrioridad').value;
+    const preview = document.getElementById('discountPreview');
+    const previewText = document.getElementById('discountPreviewText');
+    
+    if (!preview || !previewText) {
+        console.warn('Elementos de vista previa no encontrados');
+        return;
+    }
+    
+    if (!porcentaje || porcentaje <= 0) {
+        preview.style.display = 'none';
+        return;
+    }
+    
+    let texto = '';
+    
+    // Texto base del descuento
+    if (tipo === 'fijo') {
+        texto = `Se aplicará un ${porcentaje}% de descuento a todas las reservas de este servicio`;
+    } else if (tipo === 'por_grupo' && minimo) {
+        texto = `Se aplicará un ${porcentaje}% de descuento solo cuando haya ${minimo} o más personas`;
+    } else {
+        preview.style.display = 'none';
+        return;
+    }
+    
+    // Añadir información sobre acumulación
+    if (acumulable) {
+        texto += '. <br><strong>Se acumulará</strong> con cualquier descuento por grupo que aplique.';
+    } else {
+        if (prioridad === 'servicio') {
+            texto += '. <br><strong>Tendrá prioridad</strong> sobre los descuentos por grupo.';
+        } else {
+            texto += '. <br><strong>Los descuentos por grupo tendrán prioridad</strong> sobre este descuento.';
+        }
+    }
+    
+    previewText.innerHTML = texto;
+    preview.style.display = 'block';
+}
+
 
 function addService(fecha) {
     // ✅ VERIFICAR DÍAS DE ANTICIPACIÓN ANTES DE ABRIR MODAL
@@ -631,32 +691,86 @@ function editService(serviceId) {
         console.log('Service details response:', data);
         if (data.success) {
             const service = data.data;
+            
+            // ✅ CONFIGURAR MODAL PARA EDICIÓN
             document.getElementById('serviceModalTitle').textContent = 'Editar Servicio';
+            
+            // ✅ RELLENAR CAMPOS BÁSICOS
             document.getElementById('serviceId').value = service.id;
             document.getElementById('serviceFecha').value = service.fecha;
             document.getElementById('serviceHora').value = service.hora;
-            // ✅ AÑADIR esta línea para hora_vuelta
             document.getElementById('serviceHoraVuelta').value = service.hora_vuelta || '';
             document.getElementById('servicePlazas').value = service.plazas_totales;
             document.getElementById('precioAdulto').value = service.precio_adulto;
             document.getElementById('precioNino').value = service.precio_nino;
             document.getElementById('precioResidente').value = service.precio_residente;
 
-            // Cargar datos de descuento
+            // ✅ CONFIGURAR CAMPOS DE DESCUENTO
             const tieneDescuento = service.tiene_descuento == '1';
             document.getElementById('tieneDescuento').checked = tieneDescuento;
 
             if (tieneDescuento) {
+                // Mostrar sección de descuento
                 document.getElementById('discountFields').style.display = 'block';
+                
+                // Rellenar valores de descuento
                 document.getElementById('porcentajeDescuento').value = service.porcentaje_descuento || '';
+                
+                // ✅ CONFIGURAR TIPO DE DESCUENTO
+                const tipoDescuento = service.descuento_tipo || 'fijo';
+                document.getElementById('tipoDescuento').value = tipoDescuento;
+                
+                // ✅ CONFIGURAR MÍNIMO DE PERSONAS
+                document.getElementById('minimoPersonas').value = service.descuento_minimo_personas || 1;
+                
+                // ✅ MOSTRAR/OCULTAR CAMPO DE MÍNIMO PERSONAS SEGÚN EL TIPO
+                const minimoPersonasGroup = document.getElementById('minimoPersonasGroup');
+                if (tipoDescuento === 'por_grupo') {
+                    minimoPersonasGroup.style.display = 'block';
+                } else {
+                    minimoPersonasGroup.style.display = 'none';
+                }
+
+                const acumulable = service.descuento_acumulable == '1';
+        document.getElementById('descuentoAcumulable').checked = acumulable;
+        
+        // ✅ CONFIGURAR PRIORIDAD
+        const prioridad = service.descuento_prioridad || 'servicio';
+        document.getElementById('descuentoPrioridad').value = prioridad;
+        
+        // ✅ MOSTRAR/OCULTAR CAMPO DE PRIORIDAD
+        const prioridadGroup = document.getElementById('prioridadGroup');
+        if (!acumulable) {
+            prioridadGroup.style.display = 'block';
+        } else {
+            prioridadGroup.style.display = 'none';
+        }
+                
+                // ✅ ACTUALIZAR VISTA PREVIA
+                updateDiscountPreview();
             } else {
+                // Ocultar sección de descuento y resetear valores
                 document.getElementById('discountFields').style.display = 'none';
                 document.getElementById('porcentajeDescuento').value = '';
+                document.getElementById('tipoDescuento').value = 'fijo';
+                document.getElementById('minimoPersonas').value = 1;
+                document.getElementById('minimoPersonasGroup').style.display = 'none';
+                document.getElementById('descuentoAcumulable').checked = false;
+        document.getElementById('descuentoPrioridad').value = 'servicio';
+        document.getElementById('prioridadGroup').style.display = 'none';
+                
+                // Ocultar vista previa
+                const preview = document.getElementById('discountPreview');
+                if (preview) preview.style.display = 'none';
             }
 
+            // ✅ MOSTRAR BOTÓN DE ELIMINAR Y ABRIR MODAL
             document.getElementById('deleteServiceBtn').style.display = 'block';
             document.getElementById('serviceModal').style.display = 'block';
+            
+            console.log('✅ Modal de edición configurado correctamente');
         } else {
+            console.error('Error del servidor:', data.data);
             alert('Error al cargar el servicio: ' + data.data);
         }
     })
@@ -852,20 +966,20 @@ function saveBulkServices() {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert(data.data.mensaje);
-            closeBulkAddModal();
-            loadCalendarData();
-        } else {
-            alert('Error: ' + data.data);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error de conexión');
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.data.mensaje);
+                closeBulkAddModal();
+                loadCalendarData();
+            } else {
+                alert('Error: ' + data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión');
+        });
 }
 
 function goBackToDashboard() {

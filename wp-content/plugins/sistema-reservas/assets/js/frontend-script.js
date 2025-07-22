@@ -249,23 +249,40 @@ jQuery(document).ready(function ($) {
         loadAvailableSchedules(dateStr);
     }
 
-    function loadAvailableSchedules(dateStr) {
-        const services = servicesData[dateStr] || [];
+function loadAvailableSchedules(dateStr) {
+    const services = servicesData[dateStr] || [];
 
-        let optionsHTML = '<option value="">Selecciona un horario</option>';
+    let optionsHTML = '<option value="">Selecciona un horario</option>';
 
-        services.forEach(service => {
-            let descuentoInfo = '';
-            if (service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0) {
-                descuentoInfo = ` (${service.porcentaje_descuento}% descuento)`;
+    services.forEach(service => {
+        let descuentoInfo = '';
+        
+        // ✅ LÓGICA MEJORADA PARA MOSTRAR INFORMACIÓN DEL DESCUENTO
+        if (service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0) {
+            const porcentaje = parseFloat(service.porcentaje_descuento);
+            const tipo = service.descuento_tipo || 'fijo';
+            const minimo = parseInt(service.descuento_minimo_personas) || 1;
+            
+            if (tipo === 'fijo') {
+                // Descuento fijo para todos
+                descuentoInfo = ` (${porcentaje}% descuento)`;
+            } else if (tipo === 'por_grupo') {
+                // Descuento por grupo con mínimo de personas
+                descuentoInfo = ` (${porcentaje}% descuento desde ${minimo} personas)`;
             }
+        }
 
-            optionsHTML += `<option value="${service.id}">${service.hora} - ${service.plazas_disponibles} plazas disponibles${descuentoInfo}</option>`;
-        });
+        optionsHTML += `<option value="${service.id}" 
+                               data-plazas="${service.plazas_disponibles}"
+                               data-descuento-tipo="${service.descuento_tipo || 'fijo'}"
+                               data-descuento-minimo="${service.descuento_minimo_personas || 1}">
+                            ${service.hora} - ${service.plazas_disponibles} plazas disponibles${descuentoInfo}
+                        </option>`;
+    });
 
-        $('#horarios-select').html(optionsHTML).prop('disabled', false);
-        $('#btn-siguiente').prop('disabled', true);
-    }
+    $('#horarios-select').html(optionsHTML).prop('disabled', false);
+    $('#btn-siguiente').prop('disabled', true);
+}
 
     function loadPrices() {
         if (!selectedServiceId) return;
@@ -358,42 +375,60 @@ jQuery(document).ready(function ($) {
         console.log('Precios limpiados - mostrando 0€');
     }
 
-    function updatePricingDisplay(result) {
-        console.log('Datos recibidos del servidor:', result);
+function updatePricingDisplay(result) {
+    console.log('Datos recibidos del servidor:', result);
 
-        // Manejar descuentos
-        if (result.descuento > 0) {
-            $('#total-discount').text('-' + result.descuento.toFixed(2) + '€');
-            $('#discount-row').show();
-        } else {
-            $('#discount-row').hide();
+    // Manejar descuentos por grupo
+    if (result.descuento > 0) {
+        $('#total-discount').text('-' + result.descuento.toFixed(2) + '€');
+        $('#discount-row').show();
+    } else {
+        $('#discount-row').hide();
+    }
+
+    // Manejar mensaje de descuento por grupo (reglas globales)
+    if (result.regla_descuento_aplicada && result.regla_descuento_aplicada.rule_name) {
+        const regla = result.regla_descuento_aplicada;
+        const mensaje = `Descuento del ${regla.discount_percentage}% por ${regla.rule_name.toLowerCase()}`;
+
+        $('#discount-text').text(mensaje);
+        $('#discount-message').addClass('show');
+
+        console.log('Descuento por grupo aplicado:', mensaje);
+    } 
+    // ✅ NUEVO: Manejar mensaje de descuento específico del servicio
+    else if (result.servicio_con_descuento && result.servicio_con_descuento.descuento_aplicado) {
+        const servicio = result.servicio_con_descuento;
+        let mensaje = '';
+        
+        if (servicio.descuento_tipo === 'fijo') {
+            mensaje = `Descuento del ${servicio.porcentaje_descuento}% aplicado a este servicio`;
+        } else if (servicio.descuento_tipo === 'por_grupo') {
+            mensaje = `Descuento del ${servicio.porcentaje_descuento}% por alcanzar ${servicio.descuento_minimo_personas} personas`;
         }
-
-        // Manejar mensaje de descuento por grupo
-        if (result.regla_descuento_aplicada && result.regla_descuento_aplicada.rule_name) {
-            const regla = result.regla_descuento_aplicada;
-            const mensaje = `Descuento del ${regla.discount_percentage}% por ${regla.rule_name.toLowerCase()}`;
-
+        
+        if (mensaje) {
             $('#discount-text').text(mensaje);
             $('#discount-message').addClass('show');
-
-            console.log('Descuento por grupo aplicado:', mensaje);
-        } else {
-            $('#discount-message').removeClass('show');
+            console.log('Descuento de servicio aplicado:', mensaje);
         }
-
-        window.lastDiscountRule = result.regla_descuento_aplicada;
-
-        // ✅ CAMBIO: Actualizar precio total siempre con € y formato correcto
-        const totalPrice = parseFloat(result.total) || 0;
-        $('#total-price').text(totalPrice.toFixed(2) + '€');
-
-        console.log('Precios actualizados:', {
-            descuento: result.descuento,
-            total: totalPrice,
-            regla_aplicada: result.regla_descuento_aplicada
-        });
+    } else {
+        $('#discount-message').removeClass('show');
     }
+
+    window.lastDiscountRule = result.regla_descuento_aplicada;
+
+    // ✅ CAMBIO: Actualizar precio total siempre con € y formato correcto
+    const totalPrice = parseFloat(result.total) || 0;
+    $('#total-price').text(totalPrice.toFixed(2) + '€');
+
+    console.log('Precios actualizados:', {
+        descuento: result.descuento,
+        total: totalPrice,
+        regla_aplicada: result.regla_descuento_aplicada,
+        descuento_servicio: result.servicio_con_descuento
+    });
+}
 
     function validatePersonSelection() {
         const adultos = parseInt($('#adultos').val()) || 0;
@@ -536,22 +571,22 @@ jQuery(document).ready(function ($) {
         }
 
         const reservationData = {
-        fecha: selectedDate,
-        service_id: selectedServiceId,
-        hora_ida: service.hora,
-        hora_vuelta: service.hora_vuelta || '',
-        adultos: adultos,
-        residentes: residentes,
-        ninos_5_12: ninos_5_12,
-        ninos_menores: ninos_menores,
-        precio_adulto: service.precio_adulto,
-        precio_nino: service.precio_nino,
-        precio_residente: service.precio_residente,
-        total_price: totalPrice,
-        descuento_grupo: $('#total-discount').text().includes('€') ?
-            parseFloat($('#total-discount').text().replace('€', '').replace('-', '')) : 0,
-        regla_descuento_aplicada: window.lastDiscountRule || null
-    };
+            fecha: selectedDate,
+            service_id: selectedServiceId,
+            hora_ida: service.hora,
+            hora_vuelta: service.hora_vuelta || '',
+            adultos: adultos,
+            residentes: residentes,
+            ninos_5_12: ninos_5_12,
+            ninos_menores: ninos_menores,
+            precio_adulto: service.precio_adulto,
+            precio_nino: service.precio_nino,
+            precio_residente: service.precio_residente,
+            total_price: totalPrice,
+            descuento_grupo: $('#total-discount').text().includes('€') ?
+                parseFloat($('#total-discount').text().replace('€', '').replace('-', '')) : 0,
+            regla_descuento_aplicada: window.lastDiscountRule || null
+        };
 
         console.log('Datos de reserva preparados:', reservationData);
 
@@ -676,14 +711,14 @@ function processReservation() {
                 // ✅ MOSTRAR ALERT DE CONFIRMACIÓN
                 const detalles = response.data.detalles;
                 const mensaje = "🎉 ¡RESERVA CONFIRMADA! 🎉\n\n" +
-                               "📋 LOCALIZADOR: " + response.data.localizador + "\n\n" +
-                               "📅 DETALLES:\n" +
-                               "• Fecha: " + detalles.fecha + "\n" +
-                               "• Hora: " + detalles.hora + "\n" +
-                               "• Personas: " + detalles.personas + "\n" +
-                               "• Precio: " + detalles.precio_final + "€\n\n" +
-                               "✅ Tu reserva ha sido procesada correctamente.\n\n" +
-                               "¡Guarda tu localizador para futuras consultas!";
+                    "📋 LOCALIZADOR: " + response.data.localizador + "\n\n" +
+                    "📅 DETALLES:\n" +
+                    "• Fecha: " + detalles.fecha + "\n" +
+                    "• Hora: " + detalles.hora + "\n" +
+                    "• Personas: " + detalles.personas + "\n" +
+                    "• Precio: " + detalles.precio_final + "€\n\n" +
+                    "✅ Tu reserva ha sido procesada correctamente.\n\n" +
+                    "¡Guarda tu localizador para futuras consultas!";
 
                 alert(mensaje);
 
@@ -708,7 +743,7 @@ function processReservation() {
                     // Calcular URL de confirmación
                     let confirmUrl;
                     const currentPath = window.location.pathname;
-                    
+
                     if (currentPath.includes('/bravo/')) {
                         confirmUrl = window.location.origin + '/bravo/confirmacion-reserva/';
                     } else if (currentPath.includes('/')) {
@@ -721,7 +756,7 @@ function processReservation() {
                     } else {
                         confirmUrl = window.location.origin + '/confirmacion-reserva/';
                     }
-                    
+
                     console.log('Redirigiendo a confirmación:', confirmUrl);
                     window.location.href = confirmUrl;
                 }, 2000);
