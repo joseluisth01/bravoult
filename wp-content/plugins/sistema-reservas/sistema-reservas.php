@@ -448,6 +448,22 @@ class SistemaReservas
         $this->maybe_update_existing_tables();
     }
 
+    private function maybe_add_enabled_field()
+    {
+        global $wpdb;
+        $table_servicios = $wpdb->prefix . 'reservas_servicios';
+
+        // Verificar si el campo enabled existe
+        $enabled_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_servicios LIKE 'enabled'");
+
+        if (empty($enabled_exists)) {
+            // Añadir columna enabled
+            $wpdb->query("ALTER TABLE $table_servicios ADD COLUMN enabled TINYINT(1) DEFAULT 1 AFTER status");
+            $wpdb->query("ALTER TABLE $table_servicios ADD INDEX enabled (enabled)");
+            error_log('✅ Columna enabled añadida a tabla de servicios');
+        }
+    }
+
     // ✅ NUEVA FUNCIÓN PARA ACTUALIZAR TABLAS EXISTENTES
     private function maybe_update_existing_tables()
     {
@@ -467,12 +483,13 @@ class SistemaReservas
             error_log('✅ Campos de descuento específico por servicio añadidos');
         }
 
+
         if (empty($acumulable_exists)) {
-        // Añadir campos de acumulación y prioridad
-        $wpdb->query("ALTER TABLE $table_servicios ADD COLUMN descuento_acumulable TINYINT(1) DEFAULT 0 AFTER descuento_minimo_personas");
-        $wpdb->query("ALTER TABLE $table_servicios ADD COLUMN descuento_prioridad ENUM('servicio', 'grupo') DEFAULT 'servicio' AFTER descuento_acumulable");
-        error_log('✅ Campos de acumulación de descuentos añadidos');
-    }
+            // Añadir campos de acumulación y prioridad
+            $wpdb->query("ALTER TABLE $table_servicios ADD COLUMN descuento_acumulable TINYINT(1) DEFAULT 0 AFTER descuento_minimo_personas");
+            $wpdb->query("ALTER TABLE $table_servicios ADD COLUMN descuento_prioridad ENUM('servicio', 'grupo') DEFAULT 'servicio' AFTER descuento_acumulable");
+            error_log('✅ Campos de acumulación de descuentos añadidos');
+        }
 
         // ✅ SEGUNDO: Actualizar tabla de reservas
 
@@ -523,6 +540,8 @@ class SistemaReservas
             "SELECT COUNT(*) FROM $table_configuration WHERE config_key = %s",
             'email_reservas'
         ));
+
+        $this->maybe_add_enabled_field();
 
         if ($email_reservas_exists == 0) {
             // Añadir nueva configuración

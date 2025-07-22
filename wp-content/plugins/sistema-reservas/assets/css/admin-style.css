@@ -172,6 +172,29 @@
     color: #0073aa;
 }
 
+/* Estilos para servicios deshabilitados */
+.service-item.service-disabled {
+    background-color: #f8d7da !important;
+    color: #721c24 !important;
+    border: 1px solid #f5c6cb;
+    opacity: 0.7;
+}
+
+.day-with-disabled {
+    background-color: #fff3cd !important;
+    border-left: 3px solid #ffc107;
+}
+
+.calendar-day.day-with-disabled .day-number {
+    color: #856404;
+    font-weight: bold;
+}
+
+/* Tooltip para servicios deshabilitados */
+.service-item.service-disabled:hover {
+    background-color: #f1b0b7 !important;
+}
+
 /* Modal Styles */
 .modal {
     position: fixed;

@@ -378,55 +378,75 @@ function loadAvailableSchedules(dateStr) {
 function updatePricingDisplay(result) {
     console.log('Datos recibidos del servidor:', result);
 
-    // Manejar descuentos por grupo
-    if (result.descuento > 0) {
-        $('#total-discount').text('-' + result.descuento.toFixed(2) + '€');
+    // Calcular descuento total para mostrar
+    const descuentoTotal = (result.descuento_grupo || 0) + (result.descuento_servicio || 0);
+
+    // Manejar descuentos totales
+    if (descuentoTotal > 0) {
+        $('#total-discount').text('-' + descuentoTotal.toFixed(2) + '€');
         $('#discount-row').show();
     } else {
         $('#discount-row').hide();
     }
 
-    // Manejar mensaje de descuento por grupo (reglas globales)
-    if (result.regla_descuento_aplicada && result.regla_descuento_aplicada.rule_name) {
+    // ✅ LÓGICA MEJORADA PARA MENSAJES DE DESCUENTO
+    let mensajeDescuento = '';
+    
+    // Si hay descuento por grupo (reglas globales)
+    if (result.regla_descuento_aplicada && result.regla_descuento_aplicada.rule_name && result.descuento_grupo > 0) {
         const regla = result.regla_descuento_aplicada;
-        const mensaje = `Descuento del ${regla.discount_percentage}% por ${regla.rule_name.toLowerCase()}`;
-
-        $('#discount-text').text(mensaje);
-        $('#discount-message').addClass('show');
-
-        console.log('Descuento por grupo aplicado:', mensaje);
-    } 
-    // ✅ NUEVO: Manejar mensaje de descuento específico del servicio
-    else if (result.servicio_con_descuento && result.servicio_con_descuento.descuento_aplicado) {
+        mensajeDescuento = `Descuento del ${regla.discount_percentage}% por ${regla.rule_name.toLowerCase()}`;
+    }
+    
+    // Si hay descuento específico del servicio aplicado
+    if (result.servicio_con_descuento && result.servicio_con_descuento.descuento_aplicado && result.descuento_servicio > 0) {
         const servicio = result.servicio_con_descuento;
-        let mensaje = '';
+        let mensajeServicio = '';
         
         if (servicio.descuento_tipo === 'fijo') {
-            mensaje = `Descuento del ${servicio.porcentaje_descuento}% aplicado a este servicio`;
+            mensajeServicio = `Descuento del ${servicio.porcentaje_descuento}% aplicado a este servicio`;
         } else if (servicio.descuento_tipo === 'por_grupo') {
-            mensaje = `Descuento del ${servicio.porcentaje_descuento}% por alcanzar ${servicio.descuento_minimo_personas} personas`;
+            mensajeServicio = `Descuento del ${servicio.porcentaje_descuento}% por alcanzar ${servicio.descuento_minimo_personas} personas`;
         }
         
-        if (mensaje) {
-            $('#discount-text').text(mensaje);
-            $('#discount-message').addClass('show');
-            console.log('Descuento de servicio aplicado:', mensaje);
+        // ✅ COMBINAR MENSAJES SI HAY AMBOS DESCUENTOS
+        if (mensajeDescuento && mensajeServicio) {
+            if (servicio.descuento_acumulable == '1') {
+                mensajeDescuento += ` + ${mensajeServicio}`;
+            } else {
+                // Mostrar solo el que tiene prioridad
+                const prioridad = servicio.descuento_prioridad || 'servicio';
+                if (prioridad === 'servicio') {
+                    mensajeDescuento = mensajeServicio;
+                }
+                // Si prioridad es 'grupo', ya tenemos el mensaje del grupo
+            }
+        } else if (mensajeServicio) {
+            mensajeDescuento = mensajeServicio;
         }
+    }
+    
+    // Mostrar mensaje final
+    if (mensajeDescuento) {
+        $('#discount-text').text(mensajeDescuento);
+        $('#discount-message').addClass('show');
+        console.log('Mensaje de descuento mostrado:', mensajeDescuento);
     } else {
         $('#discount-message').removeClass('show');
     }
 
     window.lastDiscountRule = result.regla_descuento_aplicada;
 
-    // ✅ CAMBIO: Actualizar precio total siempre con € y formato correcto
+    // Actualizar precio total
     const totalPrice = parseFloat(result.total) || 0;
     $('#total-price').text(totalPrice.toFixed(2) + '€');
 
     console.log('Precios actualizados:', {
-        descuento: result.descuento,
+        descuento_grupo: result.descuento_grupo,
+        descuento_servicio: result.descuento_servicio,
+        descuento_total: descuentoTotal,
         total: totalPrice,
-        regla_aplicada: result.regla_descuento_aplicada,
-        descuento_servicio: result.servicio_con_descuento
+        debug: result.debug
     });
 }
 

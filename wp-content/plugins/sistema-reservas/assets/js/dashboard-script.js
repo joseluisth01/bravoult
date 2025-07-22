@@ -26,7 +26,83 @@ function loadCalendarSection() {
                 <div class="loading">Cargando calendario...</div>
             </div>
         </div>
+        <style>
+            /* Estilos para servicios deshabilitados */
+            .service-item.service-disabled {
+                background-color: #f8d7da !important;
+                color: #721c24 !important;
+                border: 1px solid #f5c6cb !important;
+                opacity: 0.8 !important;
+                text-decoration: line-through;
+            }
+
+            .service-item.service-disabled:hover {
+                background-color: #f1b0b7 !important;
+                color: #721c24 !important;
+                cursor: pointer;
+            }
+
+            /* Días con servicios deshabilitados */
+            .day-with-disabled {
+                background-color: #fff3cd !important;
+                border: 2px solid #dc3545 !important;
+            }
+
+            .calendar-day.day-with-disabled .day-number {
+                color: #dc3545 !important;
+                font-weight: bold !important;
+                background-color: rgba(220, 53, 69, 0.1);
+                border-radius: 3px;
+                padding: 2px 4px;
+            }
+
+            /* Si el día tiene SOLO servicios deshabilitados, hacerlo más rojo */
+            .calendar-day.day-all-disabled {
+                background-color: #f8d7da !important;
+                border: 2px solid #dc3545 !important;
+            }
+
+            .calendar-day.day-all-disabled .day-number {
+                background-color: #dc3545 !important;
+                color: white !important;
+                border-radius: 50%;
+                width: 25px;
+                height: 25px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto;
+            }
+
+            /* Tooltip mejorado */
+            .service-item.service-disabled {
+                position: relative;
+            }
+
+            .service-item.service-disabled:before {
+                content: "Deshabilitado - No visible para clientes";
+                position: absolute;
+                bottom: 100%;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: #721c24;
+                color: white;
+                padding: 5px 8px;
+                border-radius: 4px;
+                font-size: 11px;
+                white-space: nowrap;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.3s;
+                z-index: 1000;
+            }
+
+            .service-item.service-disabled:hover:before {
+                opacity: 1;
+            }
+        </style>
     `;
+    
 
     // ✅ CARGAR CONFIGURACIÓN PRIMERO, LUEGO INICIALIZAR CALENDARIO
     loadDefaultConfiguration().then(() => {
@@ -254,6 +330,7 @@ function renderCalendar() {
         calendarHTML += `<div class="calendar-header-day">${day}</div>`;
     });
 
+    // Días del mes anterior
     for (let i = 0; i < firstDayOfWeek; i++) {
         const dayNum = new Date(year, month, -firstDayOfWeek + i + 1).getDate();
         calendarHTML += `<div class="calendar-day other-month">
@@ -261,7 +338,7 @@ function renderCalendar() {
         </div>`;
     }
 
-    // ✅ OBTENER DÍAS DE ANTICIPACIÓN MÍNIMA DE LA CONFIGURACIÓN
+    // Obtener días de anticipación mínima de la configuración
     const diasAnticiapcion = defaultConfig?.servicios?.dias_anticipacion_minima?.value || '1';
     const fechaMinima = new Date();
     fechaMinima.setDate(fechaMinima.getDate() + parseInt(diasAnticiapcion));
@@ -273,15 +350,31 @@ function renderCalendar() {
         const isToday = dateStr === new Date().toISOString().split('T')[0];
         const todayClass = isToday ? ' today' : '';
 
-        // ✅ VERIFICAR SI EL DÍA ESTÁ BLOQUEADO POR DÍAS DE ANTICIPACIÓN
+        // Verificar si el día está bloqueado por días de anticipación
         const isBlocked = dayDate < fechaMinima;
 
-        // Verificar si algún servicio tiene descuento
+        // ✅ ANÁLISIS MEJORADO DE SERVICIOS
         let hasDiscount = false;
+        let hasDisabledServices = false;
+        let hasEnabledServices = false;
+        let totalServices = 0;
+        
         if (servicesData[dateStr]) {
-            hasDiscount = servicesData[dateStr].some(service =>
-                service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0
-            );
+            totalServices = servicesData[dateStr].length;
+            
+            servicesData[dateStr].forEach(service => {
+                // Verificar descuentos
+                if (service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0) {
+                    hasDiscount = true;
+                }
+                
+                // Verificar estado de habilitación
+                if (service.enabled === 0 || service.enabled === '0') {
+                    hasDisabledServices = true;
+                } else {
+                    hasEnabledServices = true;
+                }
+            });
         }
 
         let servicesHTML = '';
@@ -289,22 +382,39 @@ function renderCalendar() {
             servicesData[dateStr].forEach(service => {
                 let serviceClass = 'service-item';
                 let discountText = '';
+                let disabledText = '';
 
                 if (service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0) {
                     serviceClass += ' service-discount';
                     discountText = ` (${service.porcentaje_descuento}% OFF)`;
                 }
 
-                servicesHTML += `<div class="${serviceClass}" onclick="editService(${service.id})">${service.hora}${discountText}</div>`;
+                // ✅ AÑADIR INDICADOR VISUAL PARA SERVICIOS DESHABILITADOS
+                if (service.enabled === 0 || service.enabled === '0') {
+                    serviceClass += ' service-disabled';
+                    disabledText = ' 🚫';
+                }
+
+                servicesHTML += `<div class="${serviceClass}" onclick="editService(${service.id})">${service.hora}${discountText}${disabledText}</div>`;
             });
         }
 
         let dayClass = `calendar-day${todayClass}`;
+        
+        // ✅ LÓGICA MEJORADA PARA CLASES DE DÍA
         if (hasDiscount) {
             dayClass += ' day-with-discount';
         }
+        
+        if (hasDisabledServices && !hasEnabledServices) {
+            // Todos los servicios están deshabilitados - rojo intenso
+            dayClass += ' day-all-disabled';
+        } else if (hasDisabledServices) {
+            // Algunos servicios deshabilitados - amarillo/naranja
+            dayClass += ' day-with-disabled';
+        }
 
-        // ✅ AGREGAR CLASE Y COMPORTAMIENTO PARA DÍAS BLOQUEADOS
+        // Agregar clase y comportamiento para días bloqueados
         let clickHandler = `onclick="addService('${dateStr}')"`;
         if (isBlocked) {
             dayClass += ' blocked-day';
@@ -342,7 +452,54 @@ function getModalHTML() {
                 <span class="close" onclick="closeServiceModal()">&times;</span>
                 <h3 id="serviceModalTitle">Añadir Servicio</h3>
                 <form id="serviceForm">
-                    <!-- ... campos existentes ... -->
+                    <input type="hidden" id="serviceId" name="service_id">
+                    
+                    <div class="form-group">
+                        <label for="serviceFecha">Fecha:</label>
+                        <input type="date" id="serviceFecha" name="fecha" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="serviceHora">Hora de Ida:</label>
+                            <input type="time" id="serviceHora" name="hora" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="serviceHoraVuelta">Hora de Vuelta:</label>
+                            <input type="time" id="serviceHoraVuelta" name="hora_vuelta">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="servicePlazas">Plazas Totales:</label>
+                        <input type="number" id="servicePlazas" name="plazas_totales" min="1" max="200" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="precioAdulto">Precio Adulto (€):</label>
+                            <input type="number" id="precioAdulto" name="precio_adulto" step="0.01" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="precioNino">Precio Niño (€):</label>
+                            <input type="number" id="precioNino" name="precio_nino" step="0.01" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="precioResidente">Precio Residente (€):</label>
+                            <input type="number" id="precioResidente" name="precio_residente" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    
+                    <!-- ✅ NUEVA SECCIÓN: DISPONIBILIDAD -->
+                    <div class="form-group availability-section" style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin: 15px 0;">
+                        <label style="display: flex; align-items: center; font-weight: 600; color: #495057;">
+                            <input type="checkbox" id="serviceEnabled" name="enabled" checked style="margin-right: 10px; transform: scale(1.2);"> 
+                            Servicio habilitado para reservas
+                        </label>
+                        <small style="display: block; margin-top: 8px; color: #6c757d; font-style: italic;">
+                            Si está desmarcado, este servicio no aparecerá en el calendario público para hacer reservas, pero se mantendrá en el sistema para consultas administrativas.
+                        </small>
+                    </div>
                     
                     <!-- Sección de descuento AMPLIADA -->
                     <div class="form-group discount-section">
@@ -372,7 +529,7 @@ function getModalHTML() {
                                 <small>El descuento se aplicará solo si hay este número mínimo de personas</small>
                             </div>
                             
-                            <!-- ✅ NUEVOS CAMPOS: ACUMULACIÓN Y PRIORIDAD -->
+                            <!-- CAMPOS DE ACUMULACIÓN Y PRIORIDAD -->
                             <div class="form-group accumulation-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
                                 <label>
                                     <input type="checkbox" id="descuentoAcumulable" name="descuento_acumulable"> 
@@ -409,15 +566,88 @@ function getModalHTML() {
             </div>
         </div>
         
-        <!-- Modal Añadir Múltiples Servicios -->
+        <!-- Modal bulk sin cambios -->
         <div id="bulkAddModal" class="modal">
             <div class="modal-content">
                 <span class="close" onclick="closeBulkAddModal()">&times;</span>
                 <h3>Añadir Múltiples Servicios</h3>
                 <form id="bulkAddForm">
-                    <!-- ... campos existentes ... -->
+                    <!-- ✅ AÑADIR TAMBIÉN EL CHECKBOX PARA SERVICIOS BULK -->
+                    <div class="form-group availability-section" style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin: 15px 0;">
+                        <label style="display: flex; align-items: center; font-weight: 600; color: #495057;">
+                            <input type="checkbox" id="bulkServiceEnabled" name="bulk_enabled" checked style="margin-right: 10px; transform: scale(1.2);"> 
+                            Servicios habilitados para reservas
+                        </label>
+                        <small style="display: block; margin-top: 8px; color: #6c757d; font-style: italic;">
+                            Si está desmarcado, estos servicios no aparecerán en el calendario público
+                        </small>
+                    </div>
                     
-                    <!-- Sección de descuento para bulk AMPLIADA -->
+                    <!-- Resto del formulario bulk sin cambios -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bulkFechaInicio">Fecha Inicio:</label>
+                            <input type="date" id="bulkFechaInicio" name="fecha_inicio" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="bulkFechaFin">Fecha Fin:</label>
+                            <input type="date" id="bulkFechaFin" name="fecha_fin" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Días de la semana:</label>
+                        <div class="days-grid">
+                            <label><input type="checkbox" name="dias_semana[]" value="1"> Lunes</label>
+                            <label><input type="checkbox" name="dias_semana[]" value="2"> Martes</label>
+                            <label><input type="checkbox" name="dias_semana[]" value="3"> Miércoles</label>
+                            <label><input type="checkbox" name="dias_semana[]" value="4"> Jueves</label>
+                            <label><input type="checkbox" name="dias_semana[]" value="5"> Viernes</label>
+                            <label><input type="checkbox" name="dias_semana[]" value="6"> Sábado</label>
+                            <label><input type="checkbox" name="dias_semana[]" value="0"> Domingo</label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <h4>Horarios de Ida</h4>
+                            <div class="horarios-input">
+                                <input type="time" id="nuevoHorario">
+                                <button type="button" onclick="addHorario()">Añadir</button>
+                            </div>
+                            <div id="horariosList"></div>
+                        </div>
+                        <div class="form-group">
+                            <h4>Horarios de Vuelta</h4>
+                            <div class="horarios-input">
+                                <input type="time" id="nuevoHorarioVuelta">
+                                <button type="button" onclick="addHorarioVuelta()">Añadir</button>
+                            </div>
+                            <div id="horariosVueltaList"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="bulkPlazas">Plazas Totales:</label>
+                        <input type="number" id="bulkPlazas" name="plazas_totales" min="1" max="200" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bulkPrecioAdulto">Precio Adulto (€):</label>
+                            <input type="number" id="bulkPrecioAdulto" name="precio_adulto" step="0.01" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="bulkPrecioNino">Precio Niño (€):</label>
+                            <input type="number" id="bulkPrecioNino" name="precio_nino" step="0.01" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="bulkPrecioResidente">Precio Residente (€):</label>
+                            <input type="number" id="bulkPrecioResidente" name="precio_residente" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    
+                    <!-- Sección de descuento para bulk sin cambios -->
                     <div class="form-group discount-section">
                         <label>
                             <input type="checkbox" id="bulkTieneDescuento" name="bulk_tiene_descuento"> 
@@ -445,7 +675,6 @@ function getModalHTML() {
                                 <small>El descuento se aplicará solo si hay este número mínimo de personas</small>
                             </div>
                             
-                            <!-- ✅ NUEVOS CAMPOS PARA BULK -->
                             <div class="form-group accumulation-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
                                 <label>
                                     <input type="checkbox" id="bulkDescuentoAcumulable" name="bulk_descuento_acumulable"> 
@@ -487,64 +716,90 @@ function initModalEvents() {
     });
 
     // ✅ EVENTOS PARA DESCUENTO INDIVIDUAL
-    document.getElementById('tieneDescuento').addEventListener('change', function () {
-        const discountFields = document.getElementById('discountFields');
-        if (this.checked) {
-            discountFields.style.display = 'block';
-            // Activar vista previa cuando se habilita
-            updateDiscountPreview();
-        } else {
-            discountFields.style.display = 'none';
-            document.getElementById('porcentajeDescuento').value = '';
-            document.getElementById('tipoDescuento').value = 'fijo';
-            document.getElementById('minimoPersonas').value = 1;
-            document.getElementById('minimoPersonasGroup').style.display = 'none';
-            
-            // Ocultar vista previa
-            const preview = document.getElementById('discountPreview');
-            if (preview) preview.style.display = 'none';
-        }
-    });
+    const tieneDescuentoEl = document.getElementById('tieneDescuento');
+    if (tieneDescuentoEl) {
+        tieneDescuentoEl.addEventListener('change', function () {
+            const discountFields = document.getElementById('discountFields');
+            if (this.checked) {
+                discountFields.style.display = 'block';
+                updateDiscountPreview();
+            } else {
+                discountFields.style.display = 'none';
+                document.getElementById('porcentajeDescuento').value = '';
+                document.getElementById('tipoDescuento').value = 'fijo';
+                document.getElementById('minimoPersonas').value = 1;
+                document.getElementById('minimoPersonasGroup').style.display = 'none';
+                
+                const preview = document.getElementById('discountPreview');
+                if (preview) preview.style.display = 'none';
+            }
+        });
+    }
 
     // ✅ EVENTOS PARA TIPO DE DESCUENTO
-    document.getElementById('tipoDescuento').addEventListener('change', function () {
-        toggleMinimoPersonasField('tipoDescuento', 'minimoPersonasGroup');
-        updateDiscountPreview();
-    });
+    const tipoDescuentoEl = document.getElementById('tipoDescuento');
+    if (tipoDescuentoEl) {
+        tipoDescuentoEl.addEventListener('change', function () {
+            toggleMinimoPersonasField('tipoDescuento', 'minimoPersonasGroup');
+            updateDiscountPreview();
+        });
+    }
 
     // ✅ EVENTOS PARA ACTUALIZAR VISTA PREVIA
-    document.getElementById('porcentajeDescuento').addEventListener('input', updateDiscountPreview);
-    document.getElementById('minimoPersonas').addEventListener('input', updateDiscountPreview);
+    const porcentajeEl = document.getElementById('porcentajeDescuento');
+    if (porcentajeEl) {
+        porcentajeEl.addEventListener('input', updateDiscountPreview);
+    }
+
+    const minimoEl = document.getElementById('minimoPersonas');
+    if (minimoEl) {
+        minimoEl.addEventListener('input', updateDiscountPreview);
+    }
+
+    // ✅ EVENTOS PARA ACUMULACIÓN
+    const acumulableEl = document.getElementById('descuentoAcumulable');
+    if (acumulableEl) {
+        acumulableEl.addEventListener('change', function () {
+            togglePrioridadField('descuentoAcumulable', 'prioridadGroup');
+            updateDiscountPreview();
+        });
+    }
+
+    const prioridadEl = document.getElementById('descuentoPrioridad');
+    if (prioridadEl) {
+        prioridadEl.addEventListener('change', updateDiscountPreview);
+    }
 
     // ✅ EVENTOS PARA DESCUENTO BULK
-    document.getElementById('bulkTieneDescuento').addEventListener('change', function () {
-        const bulkDiscountFields = document.getElementById('bulkDiscountFields');
-        if (this.checked) {
-            bulkDiscountFields.style.display = 'block';
-        } else {
-            bulkDiscountFields.style.display = 'none';
-            document.getElementById('bulkPorcentajeDescuento').value = '';
-            document.getElementById('bulkTipoDescuento').value = 'fijo';
-            document.getElementById('bulkMinimoPersonas').value = 1;
-            document.getElementById('bulkMinimoPersonasGroup').style.display = 'none';
-        }
-    });
+    const bulkTieneDescuentoEl = document.getElementById('bulkTieneDescuento');
+    if (bulkTieneDescuentoEl) {
+        bulkTieneDescuentoEl.addEventListener('change', function () {
+            const bulkDiscountFields = document.getElementById('bulkDiscountFields');
+            if (this.checked) {
+                bulkDiscountFields.style.display = 'block';
+            } else {
+                bulkDiscountFields.style.display = 'none';
+                document.getElementById('bulkPorcentajeDescuento').value = '';
+                document.getElementById('bulkTipoDescuento').value = 'fijo';
+                document.getElementById('bulkMinimoPersonas').value = 1;
+                document.getElementById('bulkMinimoPersonasGroup').style.display = 'none';
+            }
+        });
+    }
 
-    document.getElementById('bulkTipoDescuento').addEventListener('change', function () {
-        toggleMinimoPersonasField('bulkTipoDescuento', 'bulkMinimoPersonasGroup');
-    });
+    const bulkTipoDescuentoEl = document.getElementById('bulkTipoDescuento');
+    if (bulkTipoDescuentoEl) {
+        bulkTipoDescuentoEl.addEventListener('change', function () {
+            toggleMinimoPersonasField('bulkTipoDescuento', 'bulkMinimoPersonasGroup');
+        });
+    }
 
-    document.getElementById('descuentoAcumulable').addEventListener('change', function () {
-        togglePrioridadField('descuentoAcumulable', 'prioridadGroup');
-        updateDiscountPreview();
-    });
-
-    document.getElementById('bulkDescuentoAcumulable').addEventListener('change', function () {
-        togglePrioridadField('bulkDescuentoAcumulable', 'bulkPrioridadGroup');
-    });
-
-    // Eventos para cambio de prioridad
-    document.getElementById('descuentoPrioridad').addEventListener('change', updateDiscountPreview);
+    const bulkAcumulableEl = document.getElementById('bulkDescuentoAcumulable');
+    if (bulkAcumulableEl) {
+        bulkAcumulableEl.addEventListener('change', function () {
+            togglePrioridadField('bulkDescuentoAcumulable', 'bulkPrioridadGroup');
+        });
+    }
 }
 
 function togglePrioridadField(checkboxId, groupId) {
@@ -640,23 +895,40 @@ function addService(fecha) {
 
     document.getElementById('serviceModalTitle').textContent = 'Añadir Servicio';
     document.getElementById('serviceForm').reset();
-    document.getElementById('serviceId').value = '';
-    document.getElementById('serviceFecha').value = fecha;
-    document.getElementById('deleteServiceBtn').style.display = 'none';
+    
+    // Configurar campos con verificación
+    const serviceId = document.getElementById('serviceId');
+    const serviceFecha = document.getElementById('serviceFecha');
+    const deleteBtn = document.getElementById('deleteServiceBtn');
+
+    if (serviceId) serviceId.value = '';
+    if (serviceFecha) serviceFecha.value = fecha;
+    if (deleteBtn) deleteBtn.style.display = 'none';
 
     // ✅ USAR VALORES DE CONFIGURACIÓN POR DEFECTO
     const defaultPrices = defaultConfig?.precios || {};
     const defaultPlazas = defaultConfig?.servicios?.plazas_defecto?.value || '50';
 
-    document.getElementById('servicePlazas').value = defaultPlazas;
-    document.getElementById('precioAdulto').value = defaultPrices.precio_adulto_defecto?.value || '10.00';
-    document.getElementById('precioNino').value = defaultPrices.precio_nino_defecto?.value || '5.00';
-    document.getElementById('precioResidente').value = defaultPrices.precio_residente_defecto?.value || '5.00';
+    const elements = [
+        { id: 'servicePlazas', value: defaultPlazas },
+        { id: 'precioAdulto', value: defaultPrices.precio_adulto_defecto?.value || '10.00' },
+        { id: 'precioNino', value: defaultPrices.precio_nino_defecto?.value || '5.00' },
+        { id: 'precioResidente', value: defaultPrices.precio_residente_defecto?.value || '5.00' }
+    ];
+
+    elements.forEach(item => {
+        const el = document.getElementById(item.id);
+        if (el) el.value = item.value;
+    });
 
     // Ocultar campos de descuento por defecto
-    document.getElementById('discountFields').style.display = 'none';
-    document.getElementById('tieneDescuento').checked = false;
-    document.getElementById('porcentajeDescuento').value = '';
+    const discountFields = document.getElementById('discountFields');
+    const tieneDescuento = document.getElementById('tieneDescuento');
+    const porcentajeDescuento = document.getElementById('porcentajeDescuento');
+
+    if (discountFields) discountFields.style.display = 'none';
+    if (tieneDescuento) tieneDescuento.checked = false;
+    if (porcentajeDescuento) porcentajeDescuento.value = '';
 
     document.getElementById('serviceModal').style.display = 'block';
 }
@@ -692,80 +964,139 @@ function editService(serviceId) {
         if (data.success) {
             const service = data.data;
             
-            // ✅ CONFIGURAR MODAL PARA EDICIÓN
+            // Configurar modal para edición
             document.getElementById('serviceModalTitle').textContent = 'Editar Servicio';
             
-            // ✅ RELLENAR CAMPOS BÁSICOS
-            document.getElementById('serviceId').value = service.id;
-            document.getElementById('serviceFecha').value = service.fecha;
-            document.getElementById('serviceHora').value = service.hora;
-            document.getElementById('serviceHoraVuelta').value = service.hora_vuelta || '';
-            document.getElementById('servicePlazas').value = service.plazas_totales;
-            document.getElementById('precioAdulto').value = service.precio_adulto;
-            document.getElementById('precioNino').value = service.precio_nino;
-            document.getElementById('precioResidente').value = service.precio_residente;
+            // Rellenar campos básicos
+            const serviceId = document.getElementById('serviceId');
+            const serviceFecha = document.getElementById('serviceFecha');
+            const serviceHora = document.getElementById('serviceHora');
+            const serviceHoraVuelta = document.getElementById('serviceHoraVuelta');
+            const servicePlazas = document.getElementById('servicePlazas');
+            const precioAdulto = document.getElementById('precioAdulto');
+            const precioNino = document.getElementById('precioNino');
+            const precioResidente = document.getElementById('precioResidente');
 
-            // ✅ CONFIGURAR CAMPOS DE DESCUENTO
+            if (serviceId) serviceId.value = service.id;
+            if (serviceFecha) serviceFecha.value = service.fecha;
+            if (serviceHora) serviceHora.value = service.hora;
+            if (serviceHoraVuelta) serviceHoraVuelta.value = service.hora_vuelta || '';
+            if (servicePlazas) servicePlazas.value = service.plazas_totales;
+            if (precioAdulto) precioAdulto.value = service.precio_adulto;
+            if (precioNino) precioNino.value = service.precio_nino;
+            if (precioResidente) precioResidente.value = service.precio_residente;
+
+            // ✅ CONFIGURAR CAMPO ENABLED
+            const serviceEnabled = document.getElementById('serviceEnabled');
+            if (serviceEnabled) {
+                // Si el campo enabled no existe en el servicio, asumir que está habilitado
+                serviceEnabled.checked = service.enabled !== undefined ? service.enabled == '1' : true;
+            }
+
+            // Configurar campos de descuento
             const tieneDescuento = service.tiene_descuento == '1';
-            document.getElementById('tieneDescuento').checked = tieneDescuento;
+            const tieneDescuentoEl = document.getElementById('tieneDescuento');
+            if (tieneDescuentoEl) {
+                tieneDescuentoEl.checked = tieneDescuento;
+            }
 
             if (tieneDescuento) {
                 // Mostrar sección de descuento
-                document.getElementById('discountFields').style.display = 'block';
+                const discountFields = document.getElementById('discountFields');
+                if (discountFields) {
+                    discountFields.style.display = 'block';
+                }
                 
                 // Rellenar valores de descuento
-                document.getElementById('porcentajeDescuento').value = service.porcentaje_descuento || '';
+                const porcentajeDescuento = document.getElementById('porcentajeDescuento');
+                if (porcentajeDescuento) {
+                    porcentajeDescuento.value = service.porcentaje_descuento || '';
+                }
                 
-                // ✅ CONFIGURAR TIPO DE DESCUENTO
                 const tipoDescuento = service.descuento_tipo || 'fijo';
-                document.getElementById('tipoDescuento').value = tipoDescuento;
+                const tipoDescuentoEl = document.getElementById('tipoDescuento');
+                if (tipoDescuentoEl) {
+                    tipoDescuentoEl.value = tipoDescuento;
+                }
                 
-                // ✅ CONFIGURAR MÍNIMO DE PERSONAS
-                document.getElementById('minimoPersonas').value = service.descuento_minimo_personas || 1;
+                const minimoPersonas = document.getElementById('minimoPersonas');
+                if (minimoPersonas) {
+                    minimoPersonas.value = service.descuento_minimo_personas || 1;
+                }
                 
-                // ✅ MOSTRAR/OCULTAR CAMPO DE MÍNIMO PERSONAS SEGÚN EL TIPO
                 const minimoPersonasGroup = document.getElementById('minimoPersonasGroup');
-                if (tipoDescuento === 'por_grupo') {
-                    minimoPersonasGroup.style.display = 'block';
-                } else {
-                    minimoPersonasGroup.style.display = 'none';
+                if (minimoPersonasGroup) {
+                    if (tipoDescuento === 'por_grupo') {
+                        minimoPersonasGroup.style.display = 'block';
+                    } else {
+                        minimoPersonasGroup.style.display = 'none';
+                    }
                 }
 
                 const acumulable = service.descuento_acumulable == '1';
-        document.getElementById('descuentoAcumulable').checked = acumulable;
-        
-        // ✅ CONFIGURAR PRIORIDAD
-        const prioridad = service.descuento_prioridad || 'servicio';
-        document.getElementById('descuentoPrioridad').value = prioridad;
-        
-        // ✅ MOSTRAR/OCULTAR CAMPO DE PRIORIDAD
-        const prioridadGroup = document.getElementById('prioridadGroup');
-        if (!acumulable) {
-            prioridadGroup.style.display = 'block';
-        } else {
-            prioridadGroup.style.display = 'none';
-        }
+                const descuentoAcumulableEl = document.getElementById('descuentoAcumulable');
+                if (descuentoAcumulableEl) {
+                    descuentoAcumulableEl.checked = acumulable;
+                }
                 
-                // ✅ ACTUALIZAR VISTA PREVIA
+                const prioridad = service.descuento_prioridad || 'servicio';
+                const descuentoPrioridadEl = document.getElementById('descuentoPrioridad');
+                if (descuentoPrioridadEl) {
+                    descuentoPrioridadEl.value = prioridad;
+                }
+                
+                const prioridadGroup = document.getElementById('prioridadGroup');
+                if (prioridadGroup) {
+                    if (!acumulable) {
+                        prioridadGroup.style.display = 'block';
+                    } else {
+                        prioridadGroup.style.display = 'none';
+                    }
+                }
+                
                 updateDiscountPreview();
             } else {
                 // Ocultar sección de descuento y resetear valores
-                document.getElementById('discountFields').style.display = 'none';
-                document.getElementById('porcentajeDescuento').value = '';
-                document.getElementById('tipoDescuento').value = 'fijo';
-                document.getElementById('minimoPersonas').value = 1;
-                document.getElementById('minimoPersonasGroup').style.display = 'none';
-                document.getElementById('descuentoAcumulable').checked = false;
-        document.getElementById('descuentoPrioridad').value = 'servicio';
-        document.getElementById('prioridadGroup').style.display = 'none';
+                const discountFields = document.getElementById('discountFields');
+                if (discountFields) {
+                    discountFields.style.display = 'none';
+                }
+
+                // Resetear valores
+                const elements = [
+                    'porcentajeDescuento', 'tipoDescuento', 'minimoPersonas', 
+                    'descuentoAcumulable', 'descuentoPrioridad'
+                ];
                 
-                // Ocultar vista previa
+                elements.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        if (el.type === 'checkbox') {
+                            el.checked = false;
+                        } else {
+                            el.value = (id === 'tipoDescuento' || id === 'descuentoPrioridad') ? 
+                                      (id === 'tipoDescuento' ? 'fijo' : 'servicio') : 
+                                      (id === 'minimoPersonas' ? 1 : '');
+                        }
+                    }
+                });
+
+                const groups = ['minimoPersonasGroup', 'prioridadGroup'];
+                groups.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+                
                 const preview = document.getElementById('discountPreview');
                 if (preview) preview.style.display = 'none';
             }
 
-            // ✅ MOSTRAR BOTÓN DE ELIMINAR Y ABRIR MODAL
-            document.getElementById('deleteServiceBtn').style.display = 'block';
+            // Mostrar botón de eliminar y abrir modal
+            const deleteBtn = document.getElementById('deleteServiceBtn');
+            if (deleteBtn) {
+                deleteBtn.style.display = 'block';
+            }
+            
             document.getElementById('serviceModal').style.display = 'block';
             
             console.log('✅ Modal de edición configurado correctamente');
@@ -3194,20 +3525,51 @@ function calculateAdminTotalPrice() {
 }
 
 function updateAdminPricingDisplay(result) {
-    // Manejar descuentos (misma lógica que frontend)
-    if (result.descuento > 0) {
-        document.getElementById('admin-total-discount').textContent = '-' + result.descuento.toFixed(2) + '€';
+    // Calcular descuento total
+    const descuentoTotal = (result.descuento_grupo || 0) + (result.descuento_servicio || 0);
+
+    // Manejar descuentos
+    if (descuentoTotal > 0) {
+        document.getElementById('admin-total-discount').textContent = '-' + descuentoTotal.toFixed(2) + '€';
         document.getElementById('admin-discount-row').style.display = 'block';
     } else {
         document.getElementById('admin-discount-row').style.display = 'none';
     }
 
-    // Manejar mensaje de descuento por grupo
-    if (result.regla_descuento_aplicada && result.regla_descuento_aplicada.rule_name) {
+    // Manejar mensaje de descuento
+    let mensajeDescuento = '';
+    
+    if (result.regla_descuento_aplicada && result.regla_descuento_aplicada.rule_name && result.descuento_grupo > 0) {
         const regla = result.regla_descuento_aplicada;
-        const mensaje = `Descuento del ${regla.discount_percentage}% por ${regla.rule_name.toLowerCase()}`;
+        mensajeDescuento = `Descuento del ${regla.discount_percentage}% por ${regla.rule_name.toLowerCase()}`;
+    }
+    
+    if (result.servicio_con_descuento && result.servicio_con_descuento.descuento_aplicado && result.descuento_servicio > 0) {
+        const servicio = result.servicio_con_descuento;
+        let mensajeServicio = '';
+        
+        if (servicio.descuento_tipo === 'fijo') {
+            mensajeServicio = `Descuento del ${servicio.porcentaje_descuento}% aplicado a este servicio`;
+        } else if (servicio.descuento_tipo === 'por_grupo') {
+            mensajeServicio = `Descuento del ${servicio.porcentaje_descuento}% por alcanzar ${servicio.descuento_minimo_personas} personas`;
+        }
+        
+        if (mensajeDescuento && mensajeServicio) {
+            if (servicio.descuento_acumulable == '1') {
+                mensajeDescuento += ` + ${mensajeServicio}`;
+            } else {
+                const prioridad = servicio.descuento_prioridad || 'servicio';
+                if (prioridad === 'servicio') {
+                    mensajeDescuento = mensajeServicio;
+                }
+            }
+        } else if (mensajeServicio) {
+            mensajeDescuento = mensajeServicio;
+        }
+    }
 
-        document.getElementById('admin-discount-text').textContent = mensaje;
+    if (mensajeDescuento) {
+        document.getElementById('admin-discount-text').textContent = mensajeDescuento;
         document.getElementById('admin-discount-message').classList.add('show');
     } else {
         document.getElementById('admin-discount-message').classList.remove('show');
