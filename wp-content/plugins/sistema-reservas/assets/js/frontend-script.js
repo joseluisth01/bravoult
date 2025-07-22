@@ -142,58 +142,87 @@ jQuery(document).ready(function ($) {
     }
 
     function renderCalendar() {
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth();
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
 
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
-        let firstDayOfWeek = firstDay.getDay();
-        firstDayOfWeek = (firstDayOfWeek + 6) % 7; // Lunes = 0
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    let firstDayOfWeek = firstDay.getDay();
+    firstDayOfWeek = (firstDayOfWeek + 6) % 7; // Lunes = 0
 
-        const daysInMonth = lastDay.getDate();
-        const dayNames = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+    const daysInMonth = lastDay.getDate();
+    const dayNames = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
-        let calendarHTML = '';
+    let calendarHTML = '';
 
-        // Encabezados de días
-        dayNames.forEach(day => {
-            calendarHTML += `<div class="calendar-day-header">${day}</div>`;
-        });
+    // Encabezados de días
+    dayNames.forEach(day => {
+        calendarHTML += `<div class="calendar-day-header">${day}</div>`;
+    });
 
-        // Días del mes anterior
-        for (let i = 0; i < firstDayOfWeek; i++) {
-            const dayNum = new Date(year, month, -firstDayOfWeek + i + 1).getDate();
-            calendarHTML += `<div class="calendar-day other-month">${dayNum}</div>`;
-        }
+    // Días del mes anterior
+    for (let i = 0; i < firstDayOfWeek; i++) {
+        const dayNum = new Date(year, month, -firstDayOfWeek + i + 1).getDate();
+        calendarHTML += `<div class="calendar-day other-month">${dayNum}</div>`;
+    }
 
-        // ✅ CALCULAR FECHA MÍNIMA BASADA EN CONFIGURACIÓN
-        const today = new Date();
-        const fechaMinima = new Date();
+    // ✅ CALCULAR FECHA MÍNIMA BASADA EN CONFIGURACIÓN
+    const today = new Date();
+    const fechaMinima = new Date();
+    
+    // ✅ CORRECCIÓN: Si días_anticipación = 0, fecha_mínima = hoy
+    if (diasAnticiapcionMinima > 0) {
         fechaMinima.setDate(today.getDate() + diasAnticiapcionMinima);
+    }
+    // Si días_anticipación = 0, fechaMinima queda como hoy
 
-        console.log(`Fecha mínima para reservar: ${fechaMinima.toDateString()} (${diasAnticiapcionMinima} días de anticipación)`);
+    console.log(`Fecha mínima para reservar: ${fechaMinima.toDateString()} (${diasAnticiapcionMinima} días de anticipación)`);
 
-        // Días del mes actual
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const dayDate = new Date(year, month, day);
+    // Días del mes actual
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayDate = new Date(year, month, day);
 
-            let dayClass = 'calendar-day';
-            let clickHandler = '';
+        let dayClass = 'calendar-day';
+        let clickHandler = '';
 
-            // ✅ VERIFICAR SI EL DÍA ESTÁ BLOQUEADO POR DÍAS DE ANTICIPACIÓN
-            const isBlockedByAnticipacion = dayDate < fechaMinima;
+        // ✅ VERIFICAR SI EL DÍA ESTÁ BLOQUEADO POR DÍAS DE ANTICIPACIÓN
+        const isBlockedByAnticipacion = dayDate < fechaMinima;
 
-            if (isBlockedByAnticipacion) {
-                dayClass += ' no-disponible';
-                console.log(`Día ${day} bloqueado por anticipación mínima`);
-            } else if (servicesData[dateStr] && servicesData[dateStr].length > 0) {
+        if (isBlockedByAnticipacion) {
+            dayClass += ' no-disponible';
+            console.log(`Día ${day} bloqueado por anticipación mínima`);
+        } else if (servicesData[dateStr] && servicesData[dateStr].length > 0) {
+            // ✅ VERIFICAR SI HAY SERVICIOS DISPONIBLES EN ESTA FECHA
+            const servicesAvailable = servicesData[dateStr];
+            let hasAvailableServices = false;
+
+            // Si es hoy, verificar que haya servicios con hora posterior a la actual
+            const isToday = dateStr === today.toISOString().split('T')[0];
+            
+            if (isToday) {
+                const currentHour = today.getHours();
+                const currentMinute = today.getMinutes();
+                const currentTimeInMinutes = currentHour * 60 + currentMinute;
+
+                hasAvailableServices = servicesAvailable.some(service => {
+                    const serviceTime = service.hora.split(':');
+                    const serviceTimeInMinutes = parseInt(serviceTime[0]) * 60 + parseInt(serviceTime[1]);
+                    return serviceTimeInMinutes > currentTimeInMinutes;
+                });
+                
+                console.log(`Día ${day} (hoy) - Servicios disponibles después de las ${currentHour}:${currentMinute}:`, hasAvailableServices);
+            } else {
+                hasAvailableServices = servicesAvailable.length > 0;
+                console.log(`Día ${day} - Servicios disponibles:`, hasAvailableServices);
+            }
+
+            if (hasAvailableServices) {
                 dayClass += ' disponible';
                 clickHandler = `onclick="selectDate('${dateStr}')"`;
-                console.log(`Día ${day} disponible con servicios`);
 
                 // Verificar si algún servicio tiene descuento
-                const tieneDescuento = servicesData[dateStr].some(service =>
+                const tieneDescuento = servicesAvailable.some(service =>
                     service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0
                 );
 
@@ -203,26 +232,30 @@ jQuery(document).ready(function ($) {
                 }
             } else {
                 dayClass += ' no-disponible';
-                console.log(`Día ${day} no disponible (sin servicios)`);
+                console.log(`Día ${day} no disponible (sin servicios válidos para la hora actual)`);
             }
-
-            if (selectedDate === dateStr) {
-                dayClass += ' selected';
-            }
-
-            calendarHTML += `<div class="${dayClass}" ${clickHandler}>${day}</div>`;
+        } else {
+            dayClass += ' no-disponible';
+            console.log(`Día ${day} no disponible (sin servicios)`);
         }
 
-        $('#calendar-grid').html(calendarHTML);
+        if (selectedDate === dateStr) {
+            dayClass += ' selected';
+        }
 
-        // Debug: Mostrar información de la configuración
-        console.log(`Configuración actual - Días anticipación: ${diasAnticiapcionMinima}`);
-        console.log(`Fecha actual: ${today.toDateString()}`);
-        console.log(`Fecha mínima: ${fechaMinima.toDateString()}`);
-
-        // Reasignar eventos de clic después de regenerar el HTML
-        setupCalendarClickEvents();
+        calendarHTML += `<div class="${dayClass}" ${clickHandler}>${day}</div>`;
     }
+
+    $('#calendar-grid').html(calendarHTML);
+
+    // Debug: Mostrar información de la configuración
+    console.log(`Configuración actual - Días anticipación: ${diasAnticiapcionMinima}`);
+    console.log(`Fecha actual: ${today.toDateString()}`);
+    console.log(`Fecha mínima: ${fechaMinima.toDateString()}`);
+
+    // Reasignar eventos de clic después de regenerar el HTML
+    setupCalendarClickEvents();
+}
 
     function setupCalendarClickEvents() {
         $('.calendar-day.disponible').off('click').on('click', function () {

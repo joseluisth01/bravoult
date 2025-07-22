@@ -164,15 +164,20 @@ class ReservasCalendarAdmin
         }
 
         $dias_anticipacion = ReservasConfigurationAdmin::get_dias_anticipacion_minima();
+    
+    // ✅ CORREGIR CÁLCULO DE FECHA MÍNIMA
+    $fecha_minima = date('Y-m-d');
+    if ($dias_anticipacion > 0) {
         $fecha_minima = date('Y-m-d', strtotime("+$dias_anticipacion days"));
+    }
 
-        // ✅ CAMBIO AQUÍ: Solo validar si NO es super_admin
-        if ($user['role'] !== 'super_admin') {
-            if ($fecha < $fecha_minima) {
-                wp_send_json_error("No se pueden crear servicios para fechas anteriores a $fecha_minima (mínimo $dias_anticipacion días de anticipación)");
-                return;
-            }
+    // ✅ CAMBIO AQUÍ: Solo validar si NO es super_admin
+    if ($user['role'] !== 'super_admin') {
+        if ($fecha < $fecha_minima) {
+            wp_send_json_error("No se pueden crear servicios para fechas anteriores a $fecha_minima (mínimo $dias_anticipacion días de anticipación)");
+            return;
         }
+    }
 
         if (!in_array($descuento_tipo, ['fijo', 'por_grupo'])) {
             $descuento_tipo = 'fijo';

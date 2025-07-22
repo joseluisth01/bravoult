@@ -189,7 +189,7 @@ class ReservasFrontend
         return ob_get_clean();
     }
 
-    public function get_available_services()
+public function get_available_services()
 {
     if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
         wp_die('Error de seguridad');
@@ -213,14 +213,17 @@ class ReservasFrontend
     $dias_anticipacion = ReservasConfigurationAdmin::get_dias_anticipacion_minima();
     
     // ✅ CORREGIR CÁLCULO DE FECHA MÍNIMA
-    // Si días_anticipacion = 0, fecha_minima = hoy
-    // Si días_anticipacion = 1, fecha_minima = mañana
     $fecha_minima = date('Y-m-d');
     if ($dias_anticipacion > 0) {
         $fecha_minima = date('Y-m-d', strtotime("+$dias_anticipacion days"));
     }
+    // Si días_anticipacion = 0, fecha_minima = hoy
 
-    // ✅ AÑADIR FILTRO POR FECHA MÍNIMA EN LA CONSULTA
+    // ✅ OBTENER HORA ACTUAL PARA FILTRADO
+    $hora_actual = date('H:i:s');
+    $fecha_hoy = date('Y-m-d');
+
+    // ✅ CONSULTA MEJORADA CON FILTRO DE HORAS PARA HOY
     $servicios = $wpdb->get_results($wpdb->prepare(
         "SELECT id, fecha, hora, hora_vuelta, plazas_disponibles, precio_adulto, precio_nino, precio_residente, 
             tiene_descuento, porcentaje_descuento, descuento_tipo, descuento_minimo_personas
@@ -230,10 +233,17 @@ class ReservasFrontend
         AND status = 'active'
         AND enabled = 1
         AND plazas_disponibles > 0
+        AND (
+            fecha > %s 
+            OR (fecha = %s AND hora > %s)
+        )
         ORDER BY fecha, hora",
         $first_day,
         $last_day,
-        $fecha_minima
+        $fecha_minima,
+        $fecha_hoy,  // Para fechas posteriores a hoy
+        $fecha_hoy,  // Para hoy, pero...
+        $hora_actual // ...solo servicios con hora posterior a la actual
     ));
 
     // Organizar por fecha

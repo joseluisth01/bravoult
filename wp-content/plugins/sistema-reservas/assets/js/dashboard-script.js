@@ -338,23 +338,24 @@ function renderCalendar() {
         </div>`;
     }
 
-    // Obtener días de anticipación mínima de la configuración
     const diasAnticiapcion = defaultConfig?.servicios?.dias_anticipacion_minima?.value || '1';
-    const fechaMinima = new Date();
-    fechaMinima.setDate(fechaMinima.getDate() + parseInt(diasAnticiapcion));
+const fechaMinima = new Date();
 
-    // ✅ OBTENER ROL DEL USUARIO ACTUAL
+// ✅ CORRECCIÓN: Si días de anticipación = 0, no añadir días
+if (parseInt(diasAnticiapcion) > 0) {
+    fechaMinima.setDate(fechaMinima.getDate() + parseInt(diasAnticiapcion));
+}
+
     const currentUser = window.reservasUser || {};
-    const isSuper = currentUser.role === 'super_admin';
+const isSuper = currentUser.role === 'super_admin';
 
     // Días del mes actual
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const dayDate = new Date(year, month, day);
-        const isToday = dateStr === new Date().toISOString().split('T')[0];
-        const todayClass = isToday ? ' today' : '';
+    const dayDate = new Date(year, month, day);
+    const isToday = dateStr === new Date().toISOString().split('T')[0];
+    const todayClass = isToday ? ' today' : '';
 
-        // ✅ CAMBIO AQUÍ: Solo verificar días de anticipación si NO es super_admin
         const isBlocked = !isSuper && dayDate < fechaMinima;
 
         // ✅ ANÁLISIS MEJORADO DE SERVICIOS

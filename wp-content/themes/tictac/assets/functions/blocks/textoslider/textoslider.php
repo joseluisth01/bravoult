@@ -149,7 +149,7 @@ function textoslider($block)
             <?php if ($titulo): ?>
                 <h1 class="textoslider-titulo"><?= $titulo ?></h1>
             <?php endif; ?>
-            
+
             <?php if ($contenido): ?>
                 <div class="textoslider-texto"><?= $contenido ?></div>
             <?php endif; ?>
@@ -160,77 +160,77 @@ function textoslider($block)
                 <div class="textoslider-track">
                     <?php foreach ($imagenes as $index => $imagen) : ?>
                         <div class="textoslider-slide">
-                            <img src="<?php echo esc_url($imagen['imagen']['url']); ?>" 
-                                 alt="<?php echo esc_attr($imagen['imagen']['alt']); ?>">
+                            <img src="<?php echo esc_url($imagen['imagen']['url']); ?>"
+                                alt="<?php echo esc_attr($imagen['imagen']['alt']); ?>">
                         </div>
                     <?php endforeach; ?>
                 </div>
             </div>
-            
+
             <div class="textoslider-pagination">
-    <?php 
-    $total_slides = count($imagenes);
-    $slides_per_view = 3;
-    // Crear un dot por cada posición posible del slider
-    $max_slide_index = max(0, $total_slides - $slides_per_view);
-    
-    for ($i = 0; $i <= $max_slide_index; $i++) : ?>
-        <span class="textoslider-dot <?php echo $i === 0 ? 'active' : ''; ?>" 
-              data-slide="<?php echo $i; ?>"></span>
-    <?php endfor; ?>
-</div>
+                <?php
+                $total_slides = count($imagenes);
+                $slides_per_view = 3;
+                // Crear un dot por cada posición posible del slider
+                $max_slide_index = max(0, $total_slides - $slides_per_view);
+
+                for ($i = 0; $i <= $max_slide_index; $i++) : ?>
+                    <span class="textoslider-dot <?php echo $i === 0 ? 'active' : ''; ?>"
+                        data-slide="<?php echo $i; ?>"></span>
+                <?php endfor; ?>
+            </div>
         </div>
     </div>
 
     <script>
         jQuery(document).ready(function($) {
-    const track = document.querySelector('.textoslider-track');
-    const slides = document.querySelectorAll('.textoslider-slide');
-    const dots = document.querySelectorAll('.textoslider-dot');
-    const slidesPerView = 3;
-    const totalSlides = slides.length;
-    const maxSlideIndex = totalSlides - slidesPerView; // Máximo índice para mostrar 3 slides
-    let currentSlide = 0;
+            const track = document.querySelector('.textoslider-track');
+            const slides = document.querySelectorAll('.textoslider-slide');
+            const dots = document.querySelectorAll('.textoslider-dot');
+            const slidesPerView = 3;
+            const totalSlides = slides.length;
+            const maxSlideIndex = totalSlides - slidesPerView; // Máximo índice para mostrar 3 slides
+            let currentSlide = 0;
 
-    function showSlide(slideIndex) {
-        // Calcular el desplazamiento: cada slide ocupa 33.333% del ancho
-        const translateX = -(slideIndex * (100 / slidesPerView));
-        track.style.transform = `translateX(${translateX}%)`;
-        
-        // Actualizar dots - calcular qué dot corresponde al slide actual
-        const activeDot = Math.floor(slideIndex / 1); // Un dot por cada slide
-        dots.forEach((dot, index) => {
-            dot.classList.remove('active');
-            if (index === slideIndex) {
-                dot.classList.add('active');
+            function showSlide(slideIndex) {
+                // Calcular el desplazamiento: cada slide ocupa 33.333% del ancho
+                const translateX = -(slideIndex * (100 / slidesPerView));
+                track.style.transform = `translateX(${translateX}%)`;
+
+                // Actualizar dots - calcular qué dot corresponde al slide actual
+                const activeDot = Math.floor(slideIndex / 1); // Un dot por cada slide
+                dots.forEach((dot, index) => {
+                    dot.classList.remove('active');
+                    if (index === slideIndex) {
+                        dot.classList.add('active');
+                    }
+                });
             }
-        });
-    }
 
-    function nextSlide() {
-        if (currentSlide < maxSlideIndex) {
-            currentSlide++;
-        } else {
-            currentSlide = 0; // Volver al inicio
-        }
-        showSlide(currentSlide);
-    }
-
-    // Click en paginación - cada dot representa un slide
-    dots.forEach((dot, index) => {
-        dot.addEventListener('click', () => {
-            if (index <= maxSlideIndex) {
-                currentSlide = index;
+            function nextSlide() {
+                if (currentSlide < maxSlideIndex) {
+                    currentSlide++;
+                } else {
+                    currentSlide = 0; // Volver al inicio
+                }
                 showSlide(currentSlide);
             }
-        });
-    });
 
-    // Auto-play cada 5 segundos
-    if (totalSlides > slidesPerView) {
-        setInterval(nextSlide, 5000);
-    }
-});
+            // Click en paginación - cada dot representa un slide
+            dots.forEach((dot, index) => {
+                dot.addEventListener('click', () => {
+                    if (index <= maxSlideIndex) {
+                        currentSlide = index;
+                        showSlide(currentSlide);
+                    }
+                });
+            });
+
+            // Auto-play cada 5 segundos
+            if (totalSlides > slidesPerView) {
+                setInterval(nextSlide, 5000);
+            }
+        });
     </script>
 <?php
 }

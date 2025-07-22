@@ -69,6 +69,7 @@ include("blocks/textosemaforoslider/textosemaforoslider.php");
 include("blocks/textoiconos/textoiconos.php");
 include("blocks/textoaudio/textoaudio.php");
 include("blocks/textoalternado/textoalternado.php");
+include("blocks/textoalternado2/textoalternado2.php");
 
 
 
