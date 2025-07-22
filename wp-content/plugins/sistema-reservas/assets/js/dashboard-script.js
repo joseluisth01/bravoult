@@ -3389,27 +3389,27 @@ function renderAdminCalendar() {
         calendarHTML += `<div class="calendar-day other-month">${dayNum}</div>`;
     }
 
+    // Calcular fecha mínima basada en configuración
     const today = new Date();
-const fechaMinima = new Date();
-fechaMinima.setDate(today.getDate() + adminDiasAnticiapcionMinima);
+    const fechaMinima = new Date();
+    fechaMinima.setDate(today.getDate() + adminDiasAnticiapcionMinima);
 
-// Días del mes actual
-for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const dayDate = new Date(year, month, day);
+    // Días del mes actual
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayDate = new Date(year, month, day);
 
-    let dayClass = 'calendar-day';
-    let clickHandler = '';
+        let dayClass = 'calendar-day';
+        let clickHandler = '';
 
-    // ✅ CAMBIO AQUÍ TAMBIÉN
-    const currentUser = window.reservasUser || {};
-    const isSuper = currentUser.role === 'super_admin';
-    const isBlockedByAnticipacion = !isSuper && dayDate < fechaMinima;
+        const currentUser = window.reservasUser || {};
+        const isSuper = currentUser.role === 'super_admin';
+        const isBlockedByAnticipacion = !isSuper && dayDate < fechaMinima;
 
-    if (isBlockedByAnticipacion) {
-        dayClass += ' blocked-day';
-        clickHandler = `onclick="showBlockedDayMessage()"`;
-    }
+        if (isBlockedByAnticipacion) {
+            dayClass += ' blocked-day';
+            clickHandler = `onclick="showBlockedDayMessage()"`;
+        }
 
         if (isBlockedByAnticipacion) {
             dayClass += ' no-disponible';
