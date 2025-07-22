@@ -212,16 +212,20 @@ public function get_available_services()
     
     $dias_anticipacion = ReservasConfigurationAdmin::get_dias_anticipacion_minima();
     
-    // ✅ CORREGIR CÁLCULO DE FECHA MÍNIMA
-    $fecha_minima = date('Y-m-d');
+    // ✅ CORRECCIÓN: Calcular fecha mínima correctamente
+    $fecha_minima = date('Y-m-d'); // Hoy por defecto
     if ($dias_anticipacion > 0) {
         $fecha_minima = date('Y-m-d', strtotime("+$dias_anticipacion days"));
     }
-    // Si días_anticipacion = 0, fecha_minima = hoy
 
     // ✅ OBTENER HORA ACTUAL PARA FILTRADO
     $hora_actual = date('H:i:s');
     $fecha_hoy = date('Y-m-d');
+
+    error_log("FRONTEND: Días anticipación: $dias_anticipacion");
+    error_log("FRONTEND: Fecha mínima: $fecha_minima");
+    error_log("FRONTEND: Fecha hoy: $fecha_hoy");
+    error_log("FRONTEND: Hora actual: $hora_actual");
 
     // ✅ CONSULTA MEJORADA CON FILTRO DE HORAS PARA HOY
     $servicios = $wpdb->get_results($wpdb->prepare(
@@ -245,6 +249,8 @@ public function get_available_services()
         $fecha_hoy,  // Para hoy, pero...
         $hora_actual // ...solo servicios con hora posterior a la actual
     ));
+
+    error_log("FRONTEND: Servicios encontrados: " . count($servicios));
 
     // Organizar por fecha
     $calendar_data = array();

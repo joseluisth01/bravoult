@@ -166,17 +166,12 @@ jQuery(document).ready(function ($) {
         calendarHTML += `<div class="calendar-day other-month">${dayNum}</div>`;
     }
 
-    // ✅ CALCULAR FECHA MÍNIMA BASADA EN CONFIGURACIÓN
+    // ✅ CORRECCIÓN: Usar solo la fecha, no la fecha mínima
     const today = new Date();
-    const fechaMinima = new Date();
-    
-    // ✅ CORRECCIÓN: Si días_anticipación = 0, fecha_mínima = hoy
-    if (diasAnticiapcionMinima > 0) {
-        fechaMinima.setDate(today.getDate() + diasAnticiapcionMinima);
-    }
-    // Si días_anticipación = 0, fechaMinima queda como hoy
+    today.setHours(0, 0, 0, 0); // Resetear hora para comparación de solo fecha
 
-    console.log(`Fecha mínima para reservar: ${fechaMinima.toDateString()} (${diasAnticiapcionMinima} días de anticipación)`);
+    console.log(`Configuración frontend: ${diasAnticiapcionMinima} días de anticipación`);
+    console.log(`Fecha actual: ${today.toDateString()}`);
 
     // Días del mes actual
     for (let day = 1; day <= daysInMonth; day++) {
@@ -186,8 +181,18 @@ jQuery(document).ready(function ($) {
         let dayClass = 'calendar-day';
         let clickHandler = '';
 
-        // ✅ VERIFICAR SI EL DÍA ESTÁ BLOQUEADO POR DÍAS DE ANTICIPACIÓN
-        const isBlockedByAnticipacion = dayDate < fechaMinima;
+        // ✅ NUEVA LÓGICA: Verificar si el día está bloqueado por días de anticipación
+        let isBlockedByAnticipacion = false;
+        
+        if (diasAnticiapcionMinima > 0) {
+            // Si hay días de anticipación, bloquear días anteriores a hoy + días de anticipación
+            const fechaMinima = new Date(today);
+            fechaMinima.setDate(today.getDate() + diasAnticiapcionMinima);
+            isBlockedByAnticipacion = dayDate < fechaMinima;
+        } else {
+            // Si días de anticipación = 0, solo bloquear días anteriores a hoy
+            isBlockedByAnticipacion = dayDate < today;
+        }
 
         if (isBlockedByAnticipacion) {
             dayClass += ' no-disponible';
@@ -197,12 +202,12 @@ jQuery(document).ready(function ($) {
             const servicesAvailable = servicesData[dateStr];
             let hasAvailableServices = false;
 
-            // Si es hoy, verificar que haya servicios con hora posterior a la actual
+            // ✅ LÓGICA MEJORADA: Si es hoy, verificar que haya servicios con hora posterior a la actual
             const isToday = dateStr === today.toISOString().split('T')[0];
-            
+
             if (isToday) {
-                const currentHour = today.getHours();
-                const currentMinute = today.getMinutes();
+                const currentHour = new Date().getHours(); // Hora actual real
+                const currentMinute = new Date().getMinutes();
                 const currentTimeInMinutes = currentHour * 60 + currentMinute;
 
                 hasAvailableServices = servicesAvailable.some(service => {
@@ -210,11 +215,11 @@ jQuery(document).ready(function ($) {
                     const serviceTimeInMinutes = parseInt(serviceTime[0]) * 60 + parseInt(serviceTime[1]);
                     return serviceTimeInMinutes > currentTimeInMinutes;
                 });
-                
-                console.log(`Día ${day} (hoy) - Servicios disponibles después de las ${currentHour}:${currentMinute}:`, hasAvailableServices);
+
+                console.log(`Día ${day} (hoy) - Hora actual: ${currentHour}:${String(currentMinute).padStart(2, '0')}`);
+                console.log(`Servicios disponibles después de la hora actual:`, hasAvailableServices);
             } else {
                 hasAvailableServices = servicesAvailable.length > 0;
-                console.log(`Día ${day} - Servicios disponibles:`, hasAvailableServices);
             }
 
             if (hasAvailableServices) {
@@ -228,7 +233,6 @@ jQuery(document).ready(function ($) {
 
                 if (tieneDescuento) {
                     dayClass += ' oferta';
-                    console.log(`Día ${day} tiene oferta/descuento`);
                 }
             } else {
                 dayClass += ' no-disponible';
@@ -236,7 +240,6 @@ jQuery(document).ready(function ($) {
             }
         } else {
             dayClass += ' no-disponible';
-            console.log(`Día ${day} no disponible (sin servicios)`);
         }
 
         if (selectedDate === dateStr) {
@@ -247,11 +250,6 @@ jQuery(document).ready(function ($) {
     }
 
     $('#calendar-grid').html(calendarHTML);
-
-    // Debug: Mostrar información de la configuración
-    console.log(`Configuración actual - Días anticipación: ${diasAnticiapcionMinima}`);
-    console.log(`Fecha actual: ${today.toDateString()}`);
-    console.log(`Fecha mínima: ${fechaMinima.toDateString()}`);
 
     // Reasignar eventos de clic después de regenerar el HTML
     setupCalendarClickEvents();
@@ -282,40 +280,40 @@ jQuery(document).ready(function ($) {
         loadAvailableSchedules(dateStr);
     }
 
-function loadAvailableSchedules(dateStr) {
-    const services = servicesData[dateStr] || [];
+    function loadAvailableSchedules(dateStr) {
+        const services = servicesData[dateStr] || [];
 
-    let optionsHTML = '<option value="">Selecciona un horario</option>';
+        let optionsHTML = '<option value="">Selecciona un horario</option>';
 
-    services.forEach(service => {
-        let descuentoInfo = '';
-        
-        // ✅ LÓGICA MEJORADA PARA MOSTRAR INFORMACIÓN DEL DESCUENTO
-        if (service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0) {
-            const porcentaje = parseFloat(service.porcentaje_descuento);
-            const tipo = service.descuento_tipo || 'fijo';
-            const minimo = parseInt(service.descuento_minimo_personas) || 1;
-            
-            if (tipo === 'fijo') {
-                // Descuento fijo para todos
-                descuentoInfo = ` (${porcentaje}% descuento)`;
-            } else if (tipo === 'por_grupo') {
-                // Descuento por grupo con mínimo de personas
-                descuentoInfo = ` (${porcentaje}% descuento desde ${minimo} personas)`;
+        services.forEach(service => {
+            let descuentoInfo = '';
+
+            // ✅ LÓGICA MEJORADA PARA MOSTRAR INFORMACIÓN DEL DESCUENTO
+            if (service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0) {
+                const porcentaje = parseFloat(service.porcentaje_descuento);
+                const tipo = service.descuento_tipo || 'fijo';
+                const minimo = parseInt(service.descuento_minimo_personas) || 1;
+
+                if (tipo === 'fijo') {
+                    // Descuento fijo para todos
+                    descuentoInfo = ` (${porcentaje}% descuento)`;
+                } else if (tipo === 'por_grupo') {
+                    // Descuento por grupo con mínimo de personas
+                    descuentoInfo = ` (${porcentaje}% descuento desde ${minimo} personas)`;
+                }
             }
-        }
 
-        optionsHTML += `<option value="${service.id}" 
+            optionsHTML += `<option value="${service.id}" 
                                data-plazas="${service.plazas_disponibles}"
                                data-descuento-tipo="${service.descuento_tipo || 'fijo'}"
                                data-descuento-minimo="${service.descuento_minimo_personas || 1}">
                             ${service.hora} - ${service.plazas_disponibles} plazas disponibles${descuentoInfo}
                         </option>`;
-    });
+        });
 
-    $('#horarios-select').html(optionsHTML).prop('disabled', false);
-    $('#btn-siguiente').prop('disabled', true);
-}
+        $('#horarios-select').html(optionsHTML).prop('disabled', false);
+        $('#btn-siguiente').prop('disabled', true);
+    }
 
     function loadPrices() {
         if (!selectedServiceId) return;
@@ -408,80 +406,80 @@ function loadAvailableSchedules(dateStr) {
         console.log('Precios limpiados - mostrando 0€');
     }
 
-function updatePricingDisplay(result) {
-    console.log('Datos recibidos del servidor:', result);
+    function updatePricingDisplay(result) {
+        console.log('Datos recibidos del servidor:', result);
 
-    // Calcular descuento total para mostrar
-    const descuentoTotal = (result.descuento_grupo || 0) + (result.descuento_servicio || 0);
+        // Calcular descuento total para mostrar
+        const descuentoTotal = (result.descuento_grupo || 0) + (result.descuento_servicio || 0);
 
-    // Manejar descuentos totales
-    if (descuentoTotal > 0) {
-        $('#total-discount').text('-' + descuentoTotal.toFixed(2) + '€');
-        $('#discount-row').show();
-    } else {
-        $('#discount-row').hide();
-    }
-
-    // ✅ LÓGICA MEJORADA PARA MENSAJES DE DESCUENTO
-    let mensajeDescuento = '';
-    
-    // Si hay descuento por grupo (reglas globales)
-    if (result.regla_descuento_aplicada && result.regla_descuento_aplicada.rule_name && result.descuento_grupo > 0) {
-        const regla = result.regla_descuento_aplicada;
-        mensajeDescuento = `Descuento del ${regla.discount_percentage}% por ${regla.rule_name.toLowerCase()}`;
-    }
-    
-    // Si hay descuento específico del servicio aplicado
-    if (result.servicio_con_descuento && result.servicio_con_descuento.descuento_aplicado && result.descuento_servicio > 0) {
-        const servicio = result.servicio_con_descuento;
-        let mensajeServicio = '';
-        
-        if (servicio.descuento_tipo === 'fijo') {
-            mensajeServicio = `Descuento del ${servicio.porcentaje_descuento}% aplicado a este servicio`;
-        } else if (servicio.descuento_tipo === 'por_grupo') {
-            mensajeServicio = `Descuento del ${servicio.porcentaje_descuento}% por alcanzar ${servicio.descuento_minimo_personas} personas`;
+        // Manejar descuentos totales
+        if (descuentoTotal > 0) {
+            $('#total-discount').text('-' + descuentoTotal.toFixed(2) + '€');
+            $('#discount-row').show();
+        } else {
+            $('#discount-row').hide();
         }
-        
-        // ✅ COMBINAR MENSAJES SI HAY AMBOS DESCUENTOS
-        if (mensajeDescuento && mensajeServicio) {
-            if (servicio.descuento_acumulable == '1') {
-                mensajeDescuento += ` + ${mensajeServicio}`;
-            } else {
-                // Mostrar solo el que tiene prioridad
-                const prioridad = servicio.descuento_prioridad || 'servicio';
-                if (prioridad === 'servicio') {
-                    mensajeDescuento = mensajeServicio;
-                }
-                // Si prioridad es 'grupo', ya tenemos el mensaje del grupo
+
+        // ✅ LÓGICA MEJORADA PARA MENSAJES DE DESCUENTO
+        let mensajeDescuento = '';
+
+        // Si hay descuento por grupo (reglas globales)
+        if (result.regla_descuento_aplicada && result.regla_descuento_aplicada.rule_name && result.descuento_grupo > 0) {
+            const regla = result.regla_descuento_aplicada;
+            mensajeDescuento = `Descuento del ${regla.discount_percentage}% por ${regla.rule_name.toLowerCase()}`;
+        }
+
+        // Si hay descuento específico del servicio aplicado
+        if (result.servicio_con_descuento && result.servicio_con_descuento.descuento_aplicado && result.descuento_servicio > 0) {
+            const servicio = result.servicio_con_descuento;
+            let mensajeServicio = '';
+
+            if (servicio.descuento_tipo === 'fijo') {
+                mensajeServicio = `Descuento del ${servicio.porcentaje_descuento}% aplicado a este servicio`;
+            } else if (servicio.descuento_tipo === 'por_grupo') {
+                mensajeServicio = `Descuento del ${servicio.porcentaje_descuento}% por alcanzar ${servicio.descuento_minimo_personas} personas`;
             }
-        } else if (mensajeServicio) {
-            mensajeDescuento = mensajeServicio;
+
+            // ✅ COMBINAR MENSAJES SI HAY AMBOS DESCUENTOS
+            if (mensajeDescuento && mensajeServicio) {
+                if (servicio.descuento_acumulable == '1') {
+                    mensajeDescuento += ` + ${mensajeServicio}`;
+                } else {
+                    // Mostrar solo el que tiene prioridad
+                    const prioridad = servicio.descuento_prioridad || 'servicio';
+                    if (prioridad === 'servicio') {
+                        mensajeDescuento = mensajeServicio;
+                    }
+                    // Si prioridad es 'grupo', ya tenemos el mensaje del grupo
+                }
+            } else if (mensajeServicio) {
+                mensajeDescuento = mensajeServicio;
+            }
         }
+
+        // Mostrar mensaje final
+        if (mensajeDescuento) {
+            $('#discount-text').text(mensajeDescuento);
+            $('#discount-message').addClass('show');
+            console.log('Mensaje de descuento mostrado:', mensajeDescuento);
+        } else {
+            $('#discount-message').removeClass('show');
+        }
+
+        window.lastDiscountRule = result.regla_descuento_aplicada;
+
+        // Actualizar precio total
+        const totalPrice = parseFloat(result.total) || 0;
+        $('#total-price').text(totalPrice.toFixed(2) + '€');
+
+        console.log('Precios actualizados:', {
+            descuento_grupo: result.descuento_grupo,
+            descuento_servicio: result.descuento_servicio,
+            descuento_total: descuentoTotal,
+            total: totalPrice,
+            debug: result.debug
+        });
     }
-    
-    // Mostrar mensaje final
-    if (mensajeDescuento) {
-        $('#discount-text').text(mensajeDescuento);
-        $('#discount-message').addClass('show');
-        console.log('Mensaje de descuento mostrado:', mensajeDescuento);
-    } else {
-        $('#discount-message').removeClass('show');
-    }
-
-    window.lastDiscountRule = result.regla_descuento_aplicada;
-
-    // Actualizar precio total
-    const totalPrice = parseFloat(result.total) || 0;
-    $('#total-price').text(totalPrice.toFixed(2) + '€');
-
-    console.log('Precios actualizados:', {
-        descuento_grupo: result.descuento_grupo,
-        descuento_servicio: result.descuento_servicio,
-        descuento_total: descuentoTotal,
-        total: totalPrice,
-        debug: result.debug
-    });
-}
 
     function validatePersonSelection() {
         const adultos = parseInt($('#adultos').val()) || 0;
