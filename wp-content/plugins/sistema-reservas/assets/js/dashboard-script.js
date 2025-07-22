@@ -339,22 +339,22 @@ function renderCalendar() {
     }
 
     const diasAnticiapcion = defaultConfig?.servicios?.dias_anticipacion_minima?.value || '1';
-const fechaMinima = new Date();
+    const fechaMinima = new Date();
 
-// ✅ CORRECCIÓN: Si días de anticipación = 0, no añadir días
-if (parseInt(diasAnticiapcion) > 0) {
-    fechaMinima.setDate(fechaMinima.getDate() + parseInt(diasAnticiapcion));
-}
+    // ✅ CORRECCIÓN: Si días de anticipación = 0, no añadir días
+    if (parseInt(diasAnticiapcion) > 0) {
+        fechaMinima.setDate(fechaMinima.getDate() + parseInt(diasAnticiapcion));
+    }
 
     const currentUser = window.reservasUser || {};
-const isSuper = currentUser.role === 'super_admin';
+    const isSuper = currentUser.role === 'super_admin';
 
     // Días del mes actual
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const dayDate = new Date(year, month, day);
-    const isToday = dateStr === new Date().toISOString().split('T')[0];
-    const todayClass = isToday ? ' today' : '';
+        const dayDate = new Date(year, month, day);
+        const isToday = dateStr === new Date().toISOString().split('T')[0];
+        const todayClass = isToday ? ' today' : '';
 
         const isBlocked = !isSuper && dayDate < fechaMinima;
 
@@ -1945,20 +1945,41 @@ function loadReportsSection() {
             
             <!-- Contenido de las pestañas -->
             <div class="tab-content">
-                <!-- Pestaña 1: Gestión de Reservas -->
+                <!-- Pestaña 1: Gestión de Reservas CON FILTROS MEJORADOS -->
                 <div id="tab-reservations" class="tab-panel active">
                     <div class="reservations-section">
-                        <h3>Reservas por Rango de Fechas</h3>
-                        <div class="date-filters">
-                            <div class="filter-group">
-                                <label for="fecha-inicio">Fecha Inicio:</label>
-                                <input type="date" id="fecha-inicio" value="${new Date().toISOString().split('T')[0]}">
+                        <h3>Gestión de Reservas con Filtros Avanzados</h3>
+                        
+                        <!-- ✅ FILTROS MEJORADOS -->
+                        <div class="advanced-filters">
+                            <div class="filters-row">
+                                <div class="filter-group">
+                                    <label for="fecha-inicio">Fecha Inicio:</label>
+                                    <input type="date" id="fecha-inicio" value="${new Date().toISOString().split('T')[0]}">
+                                </div>
+                                <div class="filter-group">
+                                    <label for="fecha-fin">Fecha Fin:</label>
+                                    <input type="date" id="fecha-fin" value="${new Date().toISOString().split('T')[0]}">
+                                </div>
+                                <div class="filter-group">
+                                    <label for="tipo-fecha">Tipo de Fecha:</label>
+                                    <select id="tipo-fecha">
+                                        <option value="servicio">Fecha de Servicio</option>
+                                        <option value="compra">Fecha de Compra</option>
+                                    </select>
+                                </div>
+                                <div class="filter-group">
+    <label for="estado-filtro">Estado de Reservas:</label>
+    <select id="estado-filtro">
+        <option value="confirmadas">Solo Confirmadas</option>
+        <option value="todas">Todas (Confirmadas y Canceladas)</option>
+        <option value="canceladas">Solo Canceladas</option>
+    </select>
+</div>
+                                <div class="filter-group">
+                                    <button class="btn-primary" onclick="loadReservationsByDateWithFilters()">🔍 Aplicar Filtros</button>
+                                </div>
                             </div>
-                            <div class="filter-group">
-                                <label for="fecha-fin">Fecha Fin:</label>
-                                <input type="date" id="fecha-fin" value="${new Date().toISOString().split('T')[0]}">
-                            </div>
-                            <button class="btn-primary" onclick="loadReservationsByDate()">🔍 Buscar Reservas</button>
                         </div>
                         
                         <div id="reservations-stats" class="stats-summary" style="display: none;">
@@ -2075,16 +2096,375 @@ function loadReportsSection() {
                 </form>
             </div>
         </div>
+        
+        <style>
+        /* ✅ NUEVOS ESTILOS PARA FILTROS AVANZADOS */
+        .advanced-filters {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .filters-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            align-items: end;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #495057;
+            font-size: 14px;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #0073aa;
+            box-shadow: 0 0 0 2px rgba(0, 115, 170, 0.1);
+        }
+        
+        /* Mejorar estadísticas para mostrar canceladas */
+        .stats-by-status {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            padding: 20px;
+            background: #fff3cd;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .status-stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .status-stat-card h5 {
+            margin: 0 0 10px 0;
+            color: #495057;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        
+        .status-stat-card .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .status-confirmada .stat-number {
+            color: #28a745;
+        }
+        
+        .status-cancelada .stat-number {
+            color: #dc3545;
+        }
+        
+        .status-pendiente .stat-number {
+            color: #ffc107;
+        }
+        </style>
     `;
 
     // Inicializar eventos
     initReportsEvents();
 
-    // Cargar datos iniciales
-    loadReservationsByDate();
+    // Cargar datos iniciales con filtros
+    loadReservationsByDateWithFilters();
 }
 
-// ✅ FUNCIÓN PARA INICIALIZAR EVENTOS
+function loadReservationsByDateWithFilters(page = 1) {
+    const fechaInicio = document.getElementById('fecha-inicio').value;
+    const fechaFin = document.getElementById('fecha-fin').value;
+    const tipoFecha = document.getElementById('tipo-fecha').value;
+    const estadoFiltro = document.getElementById('estado-filtro').value; // ✅ CAMBIO AQUÍ
+
+    if (!fechaInicio || !fechaFin) {
+        alert('Por favor, selecciona ambas fechas');
+        return;
+    }
+
+    document.getElementById('reservations-list').innerHTML = '<div class="loading">Cargando reservas...</div>';
+
+    const formData = new FormData();
+    formData.append('action', 'get_reservations_report');
+    formData.append('fecha_inicio', fechaInicio);
+    formData.append('fecha_fin', fechaFin);
+    formData.append('tipo_fecha', tipoFecha);
+    formData.append('estado_filtro', estadoFiltro); // ✅ CAMBIO AQUÍ
+    formData.append('page', page);
+    formData.append('nonce', reservasAjax.nonce);
+
+    fetch(reservasAjax.ajax_url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            renderReservationsReportWithFilters(data.data);
+        } else {
+            document.getElementById('reservations-list').innerHTML =
+                '<div class="error">Error: ' + data.data + '</div>';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('reservations-list').innerHTML =
+            '<div class="error">Error de conexión</div>';
+    });
+}
+
+function renderReservationsReportWithFilters(data) {
+    // Mostrar estadísticas principales
+    const statsHtml = `
+        <div class="stats-cards">
+            <div class="stat-card">
+                <h4>Total Reservas</h4>
+                <div class="stat-number">${data.stats.total_reservas || 0}</div>
+            </div>
+            <div class="stat-card">
+                <h4>Adultos</h4>
+                <div class="stat-number">${data.stats.total_adultos || 0}</div>
+            </div>
+            <div class="stat-card">
+                <h4>Residentes</h4>
+                <div class="stat-number">${data.stats.total_residentes || 0}</div>
+            </div>
+            <div class="stat-card">
+                <h4>Niños (5-12)</h4>
+                <div class="stat-number">${data.stats.total_ninos_5_12 || 0}</div>
+            </div>
+            <div class="stat-card">
+                <h4>Niños (-5)</h4>
+                <div class="stat-number">${data.stats.total_ninos_menores || 0}</div>
+            </div>
+            <div class="stat-card">
+                <h4>Ingresos del Filtro</h4>
+                <div class="stat-number">${parseFloat(data.stats.ingresos_totales || 0).toFixed(2)}€</div>
+            </div>
+        </div>
+    `;
+
+    let statsCompleteHtml = statsHtml;
+
+    // ✅ MOSTRAR ESTADÍSTICAS POR ESTADO SOLO CUANDO EL FILTRO ES "TODAS"
+    if (data.stats_por_estado && data.stats_por_estado.length > 0) {
+        let statusStatsHtml = '<div class="stats-by-status"><h4 style="grid-column: 1/-1; margin: 0;">📊 Desglose por Estado</h4>';
+        
+        data.stats_por_estado.forEach(stat => {
+            const statusText = stat.estado === 'confirmada' ? 'Confirmadas' : 
+                              stat.estado === 'cancelada' ? 'Canceladas' : 
+                              stat.estado === 'pendiente' ? 'Pendientes' : stat.estado;
+            
+            statusStatsHtml += `
+                <div class="status-stat-card status-${stat.estado}">
+                    <h5>${statusText}</h5>
+                    <div class="stat-number">${stat.total}</div>
+                    <div class="stat-amount">${parseFloat(stat.ingresos || 0).toFixed(2)}€</div>
+                </div>
+            `;
+        });
+        
+        statusStatsHtml += '</div>';
+        statsCompleteHtml += statusStatsHtml;
+    }
+
+    document.getElementById('reservations-stats').innerHTML = statsCompleteHtml;
+    document.getElementById('reservations-stats').style.display = 'block';
+
+    // ✅ DETERMINAR TEXTO DEL FILTRO APLICADO MEJORADO
+    const tipoFechaText = data.filtros.tipo_fecha === 'compra' ? 'Fecha de Compra' : 'Fecha de Servicio';
+    
+    let estadoText = '';
+    switch(data.filtros.estado_filtro) {
+        case 'confirmadas':
+            estadoText = ' (solo confirmadas)';
+            break;
+        case 'canceladas':
+            estadoText = ' (solo canceladas)';
+            break;
+        case 'todas':
+            estadoText = ' (todas las reservas)';
+            break;
+    }
+
+    // Mostrar tabla de reservas
+    let tableHtml = `
+        <div class="table-header">
+            <h4>Reservas por ${tipoFechaText}: ${data.filtros.fecha_inicio} al ${data.filtros.fecha_fin}${estadoText}</h4>
+        </div>
+        <table class="reservations-table-data">
+            <thead>
+                <tr>
+                    <th>Localizador</th>
+                    <th>Fecha Servicio</th>
+                    <th>Hora</th>
+                    <th>Cliente</th>
+                    <th>Email</th>
+                    <th>Teléfono</th>
+                    <th>Personas</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th>Fecha Compra</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    if (data.reservas && data.reservas.length > 0) {
+        data.reservas.forEach(reserva => {
+            const fechaServicioFormateada = new Date(reserva.fecha).toLocaleDateString('es-ES');
+            const fechaCompraFormateada = new Date(reserva.created_at).toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            const personasDetalle = `A:${reserva.adultos} R:${reserva.residentes} N:${reserva.ninos_5_12} B:${reserva.ninos_menores}`;
+
+            // Clase CSS para el estado
+            let estadoClass = 'status-confirmada';
+            let rowClass = '';
+            if (reserva.estado === 'cancelada') {
+                estadoClass = 'status-cancelada';
+                rowClass = 'reservation-cancelled';
+            }
+            if (reserva.estado === 'pendiente') {
+                estadoClass = 'status-pendiente';
+            }
+
+            tableHtml += `
+                <tr class="${rowClass}">
+                    <td><strong>${reserva.localizador}</strong></td>
+                    <td>${fechaServicioFormateada}</td>
+                    <td>${reserva.hora}</td>
+                    <td>${reserva.nombre} ${reserva.apellidos}</td>
+                    <td>${reserva.email}</td>
+                    <td>${reserva.telefono}</td>
+                    <td title="Adultos: ${reserva.adultos}, Residentes: ${reserva.residentes}, Niños 5-12: ${reserva.ninos_5_12}, Menores: ${reserva.ninos_menores}">${personasDetalle}</td>
+                    <td><strong>${parseFloat(reserva.precio_final).toFixed(2)}€</strong></td>
+                    <td><span class="status-badge ${estadoClass}">${reserva.estado.toUpperCase()}</span></td>
+                    <td><small>${fechaCompraFormateada}</small></td>
+                    <td>
+                        <button class="btn-small btn-info" onclick="showReservationDetails(${reserva.id})" title="Ver detalles">👁️</button>
+                        <button class="btn-small btn-edit" onclick="showEditEmailModal(${reserva.id}, '${reserva.email}')" title="Editar email">✏️</button>
+                        ${reserva.estado !== 'cancelada' ? 
+                            `<button class="btn-small btn-warning" onclick="showEditReservationModal(${reserva.id})" title="Editar fecha/horario">📅</button>` : 
+                            ''
+                        }
+                        <button class="btn-small btn-primary" onclick="resendConfirmationEmail(${reserva.id})" title="Reenviar confirmación">📧</button>
+                        ${reserva.estado !== 'cancelada' ?
+                            `<button class="btn-small btn-danger" onclick="showCancelReservationModal(${reserva.id}, '${reserva.localizador}')" title="Cancelar reserva">❌</button>` :
+                            `<span class="btn-small" style="background: #6c757d; color: white;">CANCELADA</span>`
+                        }
+                    </td>
+                </tr>
+            `;
+        });
+    } else {
+        tableHtml += `
+            <tr>
+                <td colspan="11" style="text-align: center; padding: 40px; color: #666;">
+                    No se encontraron reservas con los filtros aplicados
+                </td>
+            </tr>
+        `;
+    }
+
+    tableHtml += `
+            </tbody>
+        </table>
+        
+        <style>
+        .reservation-cancelled {
+            background-color: #f8d7da;
+            opacity: 0.8;
+        }
+        
+        .status-badge.status-confirmada {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-badge.status-cancelada {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-badge.status-pendiente {
+            background: #fff3cd;
+            color: #856404;
+        }
+        </style>
+    `;
+
+    document.getElementById('reservations-list').innerHTML = tableHtml;
+
+    // Mostrar paginación
+    if (data.pagination && data.pagination.total_pages > 1) {
+        renderPaginationWithFilters(data.pagination);
+    } else {
+        document.getElementById('reservations-pagination').innerHTML = '';
+    }
+}
+
+function renderPaginationWithFilters(pagination) {
+    let paginationHtml = '<div class="pagination">';
+
+    // Botón anterior
+    if (pagination.current_page > 1) {
+        paginationHtml += `<button class="btn-pagination" onclick="loadReservationsByDateWithFilters(${pagination.current_page - 1})">« Anterior</button>`;
+    }
+
+    // Números de página
+    for (let i = 1; i <= pagination.total_pages; i++) {
+        if (i === pagination.current_page) {
+            paginationHtml += `<button class="btn-pagination active">${i}</button>`;
+        } else {
+            paginationHtml += `<button class="btn-pagination" onclick="loadReservationsByDateWithFilters(${i})">${i}</button>`;
+        }
+    }
+
+    // Botón siguiente
+    if (pagination.current_page < pagination.total_pages) {
+        paginationHtml += `<button class="btn-pagination" onclick="loadReservationsByDateWithFilters(${pagination.current_page + 1})">Siguiente »</button>`;
+    }
+
+    paginationHtml += `</div>
+        <div class="pagination-info">
+            Página ${pagination.current_page} de ${pagination.total_pages} 
+            (${pagination.total_items} reservas total)
+        </div>`;
+
+    document.getElementById('reservations-pagination').innerHTML = paginationHtml;
+}
+
 function initReportsEvents() {
     // Evento para el formulario de editar email
     document.getElementById('editEmailForm').addEventListener('submit', function (e) {
@@ -2112,6 +2492,52 @@ function initReportsEvents() {
             searchReservations();
         }
     });
+
+    // ✅ NUEVOS EVENTOS PARA FILTROS
+    // Evento para cambio de tipo de fecha
+    document.getElementById('tipo-fecha').addEventListener('change', function() {
+        const label = this.value === 'compra' ? 'Fecha de Compra' : 'Fecha de Servicio';
+        console.log(`Filtro cambiado a: ${label}`);
+    });
+
+    // Evento para enter en campos de fecha
+    document.getElementById('fecha-inicio').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            loadReservationsByDateWithFilters();
+        }
+    });
+
+    document.getElementById('fecha-fin').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            loadReservationsByDateWithFilters();
+        }
+    });
+
+    // Evento para cambio automático al seleccionar fechas
+    document.getElementById('fecha-inicio').addEventListener('change', function() {
+        if (this.value && document.getElementById('fecha-fin').value) {
+            loadReservationsByDateWithFilters();
+        }
+    });
+
+    document.getElementById('fecha-fin').addEventListener('change', function() {
+        if (this.value && document.getElementById('fecha-inicio').value) {
+            loadReservationsByDateWithFilters();
+        }
+    });
+
+    // Evento para cambio de filtro de canceladas
+    document.getElementById('incluir-canceladas').addEventListener('change', function() {
+        if (document.getElementById('fecha-inicio').value && document.getElementById('fecha-fin').value) {
+            loadReservationsByDateWithFilters();
+        }
+    });
+
+    document.getElementById('estado-filtro').addEventListener('change', function() {
+    if (document.getElementById('fecha-inicio').value && document.getElementById('fecha-fin').value) {
+        loadReservationsByDateWithFilters();
+    }
+});
 }
 
 // ✅ FUNCIÓN PARA CAMBIAR PESTAÑAS
@@ -2133,44 +2559,12 @@ function switchTab(tabName) {
     event.target.classList.add('active');
 }
 
-// ✅ FUNCIÓN PARA CARGAR RESERVAS POR FECHA
 function loadReservationsByDate(page = 1) {
-    const fechaInicio = document.getElementById('fecha-inicio').value;
-    const fechaFin = document.getElementById('fecha-fin').value;
-
-    if (!fechaInicio || !fechaFin) {
-        alert('Por favor, selecciona ambas fechas');
-        return;
-    }
-
-    document.getElementById('reservations-list').innerHTML = '<div class="loading">Cargando reservas...</div>';
-
-    const formData = new FormData();
-    formData.append('action', 'get_reservations_report');
-    formData.append('fecha_inicio', fechaInicio);
-    formData.append('fecha_fin', fechaFin);
-    formData.append('page', page);
-    formData.append('nonce', reservasAjax.nonce);
-
-    fetch(reservasAjax.ajax_url, {
-        method: 'POST',
-        body: formData
-    })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                renderReservationsReport(data.data);
-            } else {
-                document.getElementById('reservations-list').innerHTML =
-                    '<div class="error">Error: ' + data.data + '</div>';
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('reservations-list').innerHTML =
-                '<div class="error">Error de conexión</div>';
-        });
+    // Redirigir a la nueva función con filtros
+    loadReservationsByDateWithFilters(page);
 }
+
+window.loadReservationsByDateWithFilters = loadReservationsByDateWithFilters;
 
 function renderReservationsReport(data) {
     // Mostrar estadísticas
@@ -2246,9 +2640,10 @@ function renderReservationsReport(data) {
                     <td><strong>${parseFloat(reserva.precio_final).toFixed(2)}€</strong></td>
                     <td><span class="status-badge status-${reserva.estado}">${reserva.estado}</span></td>
                     <td>
-        <button class="btn-small btn-info" onclick="showReservationDetails(${reserva.id})" title="Ver detalles">👁️</button>
-        <button class="btn-small btn-edit" onclick="showEditEmailModal(${reserva.id}, '${reserva.email}')" title="Editar email">✏️</button>
-        <button class="btn-small btn-primary" onclick="resendConfirmationEmail(${reserva.id})" title="Reenviar confirmación">📧</button>
+            <button class="btn-small btn-info" onclick="showReservationDetails(${reserva.id})" title="Ver detalles">👁️</button>
+    <button class="btn-small btn-edit" onclick="showEditEmailModal(${reserva.id}, '${reserva.email}')" title="Editar email">✏️</button>
+    <button class="btn-small btn-warning" onclick="showEditReservationModal(${reserva.id})" title="Editar fecha/horario">📅</button>
+    <button class="btn-small btn-primary" onclick="resendConfirmationEmail(${reserva.id})" title="Reenviar confirmación">📧</button>
         ${reserva.estado !== 'cancelada' ?
                     `<button class="btn-small btn-danger" onclick="showCancelReservationModal(${reserva.id}, '${reserva.localizador}')" title="Cancelar reserva">❌</button>` :
                     `<span class="btn-small" style="background: #6c757d; color: white;">CANCELADA</span>`
@@ -2393,9 +2788,10 @@ function renderSearchResults(data) {
                     <td title="Adultos: ${reserva.adultos}, Residentes: ${reserva.residentes}, Niños 5-12: ${reserva.ninos_5_12}, Menores: ${reserva.ninos_menores}">${personasDetalle}</td>
                     <td><strong>${parseFloat(reserva.precio_final).toFixed(2)}€</strong></td>
                     <td>
-        <button class="btn-small btn-info" onclick="showReservationDetails(${reserva.id})" title="Ver detalles">👁️</button>
-        <button class="btn-small btn-edit" onclick="showEditEmailModal(${reserva.id}, '${reserva.email}')" title="Editar email">✏️</button>
-        <button class="btn-small btn-primary" onclick="resendConfirmationEmail(${reserva.id})" title="Reenviar confirmación">📧</button>
+            <button class="btn-small btn-info" onclick="showReservationDetails(${reserva.id})" title="Ver detalles">👁️</button>
+    <button class="btn-small btn-edit" onclick="showEditEmailModal(${reserva.id}, '${reserva.email}')" title="Editar email">✏️</button>
+    <button class="btn-small btn-warning" onclick="showEditReservationModal(${reserva.id})" title="Editar fecha/horario">📅</button>
+    <button class="btn-small btn-primary" onclick="resendConfirmationEmail(${reserva.id})" title="Reenviar confirmación">📧</button>
         ${reserva.estado !== 'cancelada' ?
                     `<button class="btn-small btn-danger" onclick="showCancelReservationModal(${reserva.id}, '${reserva.localizador}')" title="Cancelar reserva">❌</button>` :
                     `<span class="btn-small" style="background: #6c757d; color: white;">CANCELADA</span>`
@@ -2449,7 +2845,28 @@ function showReservationDetails(reservaId) {
 
 function renderReservationDetails(reserva) {
     const fechaServicio = new Date(reserva.fecha).toLocaleDateString('es-ES');
-    const fechaCreacion = new Date(reserva.created_at).toLocaleDateString('es-ES');
+    const fechaCreacion = new Date(reserva.created_at).toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    // ✅ FECHA DE ACTUALIZACIÓN SI EXISTE
+    let fechaActualizacion = '';
+    if (reserva.updated_at && reserva.updated_at !== reserva.created_at) {
+        const fechaUpdate = new Date(reserva.updated_at).toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        fechaActualizacion = `
+            <p><strong>Última actualización:</strong> ${fechaUpdate}</p>
+        `;
+    }
 
     let descuentoInfo = '';
     if (reserva.regla_descuento_aplicada) {
@@ -2469,10 +2886,11 @@ function renderReservationDetails(reserva) {
                 <div class="detail-section">
                     <h4>📋 Información General</h4>
                     <p><strong>Localizador:</strong> ${reserva.localizador}</p>
-                    <p><strong>Estado:</strong> <span class="status-badge status-${reserva.estado}">${reserva.estado}</span></p>
+                    <p><strong>Estado:</strong> <span class="status-badge status-${reserva.estado}">${reserva.estado.toUpperCase()}</span></p>
                     <p><strong>Fecha de servicio:</strong> ${fechaServicio}</p>
                     <p><strong>Hora:</strong> ${reserva.hora}</p>
-                    <p><strong>Fecha de reserva:</strong> ${fechaCreacion}</p>
+                    <p><strong>Fecha de compra:</strong> ${fechaCreacion}</p>
+                    ${fechaActualizacion}
                 </div>
                 
                 <div class="detail-section">
@@ -6398,6 +6816,438 @@ function formatDateForProfile(dateString) {
         return dateString;
     }
 }
+
+
+function showEditReservationModal(reservaId) {
+    // Crear modal si no existe
+    if (!document.getElementById('editReservationModal')) {
+        createEditReservationModal();
+    }
+
+    // Resetear modal
+    document.getElementById('edit-reservation-id').value = reservaId;
+    document.getElementById('edit-calendar-grid').innerHTML = '<div class="loading">Cargando calendario...</div>';
+    document.getElementById('edit-horarios-select').innerHTML = '<option value="">Selecciona primero una fecha</option>';
+    document.getElementById('edit-horarios-select').disabled = true;
+    document.getElementById('edit-btn-confirmar').disabled = true;
+
+    // Mostrar modal
+    document.getElementById('editReservationModal').style.display = 'block';
+
+    // Cargar calendario para el mes actual
+    loadEditReservationCalendar(new Date());
+}
+
+function createEditReservationModal() {
+    const modalHtml = `
+        <div id="editReservationModal" class="modal" style="display: none;">
+            <div class="modal-content" style="max-width: 800px;">
+                <span class="close" onclick="closeEditReservationModal()">&times;</span>
+                <h3>✏️ Editar Fecha y Horario de Reserva</h3>
+                
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #ffc107;">
+                    <p style="margin: 0; color: #856404; font-weight: bold;">
+                        ⚠️ Solo se puede cambiar la fecha y horario del servicio.
+                    </p>
+                    <p style="margin: 5px 0 0 0; color: #856404; font-size: 14px;">
+                        El número de personas se mantendrá igual. Se enviará un nuevo email de confirmación al cliente.
+                    </p>
+                </div>
+                
+                <form id="editReservationForm">
+                    <input type="hidden" id="edit-reservation-id">
+                    
+                    <!-- Navegación del calendario -->
+                    <div class="edit-calendar-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <button type="button" onclick="changeEditMonth(-1)">← Mes Anterior</button>
+                        <h4 id="edit-current-month-year"></h4>
+                        <button type="button" onclick="changeEditMonth(1)">Siguiente Mes →</button>
+                    </div>
+                    
+                    <!-- Calendario -->
+                    <div class="edit-calendar-container" style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                        <div id="edit-calendar-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;">
+                            <!-- Calendario se cargará aquí -->
+                        </div>
+                    </div>
+                    
+                    <!-- Selector de horarios -->
+                    <div class="form-group">
+                        <label for="edit-horarios-select">Horarios disponibles:</label>
+                        <select id="edit-horarios-select" disabled>
+                            <option value="">Selecciona primero una fecha</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                        <button type="button" class="btn-secondary" onclick="closeEditReservationModal()">
+                            Cancelar
+                        </button>
+                        <button type="submit" id="edit-btn-confirmar" class="btn-primary" disabled>
+                            ✅ Confirmar Cambio
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <style>
+        .edit-calendar-container .calendar-day-header {
+            background: #0073aa;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .edit-calendar-container .calendar-day {
+            background: white;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            min-height: 40px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .edit-calendar-container .calendar-day:hover {
+            background: #f0f0f0;
+        }
+        
+        .edit-calendar-container .calendar-day.disponible {
+            background: #e8f5e8;
+            color: #155724;
+            cursor: pointer;
+        }
+        
+        .edit-calendar-container .calendar-day.disponible:hover {
+            background: #d4edda;
+        }
+        
+        .edit-calendar-container .calendar-day.selected {
+            background: #0073aa !important;
+            color: white !important;
+            border-color: #005177;
+        }
+        
+        .edit-calendar-container .calendar-day.no-disponible {
+            background: #f8f8f8;
+            color: #999;
+            cursor: not-allowed;
+        }
+        
+        .edit-calendar-container .calendar-day.blocked-day {
+            background: #ffeaa7;
+            color: #856404;
+            cursor: not-allowed;
+        }
+        
+        .edit-calendar-container .calendar-day.other-month {
+            background: #f8f9fa;
+            color: #999;
+        }
+            /* Añadir estos estilos dentro del <style> existente o crear uno nuevo */
+
+/* Resaltar filtros activos */
+.filter-group select[value="si"],
+.filter-group select[value="compra"] {
+    border-color: #0073aa;
+    box-shadow: 0 0 0 2px rgba(0, 115, 170, 0.1);
+}
+
+/* Indicador visual para filtros especiales */
+.filter-group select option[value="si"] {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.filter-group select option[value="compra"] {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+/* Mejorar la tabla para reservas canceladas */
+.reservations-table-data tbody tr.reservation-cancelled {
+    background: linear-gradient(90deg, #f8d7da 0%, #ffffff 100%);
+}
+
+.reservations-table-data tbody tr.reservation-cancelled:hover {
+    background: linear-gradient(90deg, #f1b0b7 0%, #f8f9fa 100%);
+}
+
+/* Estadísticas por estado más visible */
+.stats-by-status h4 {
+    color: #856404;
+    font-size: 16px;
+    text-align: center;
+    border-bottom: 2px solid #ffc107;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.status-stat-card .stat-amount {
+    font-size: 14px;
+    color: #666;
+    font-weight: normal;
+}
+
+/* Indicadores visuales para diferentes tipos de fecha */
+.table-header h4 {
+    position: relative;
+    padding-left: 25px;
+}
+
+.table-header h4:before {
+    content: "📅";
+    position: absolute;
+    left: 0;
+    font-size: 18px;
+}
+
+/* Responsive para filtros */
+@media (max-width: 768px) {
+    .filters-row {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .filter-group {
+        margin-bottom: 10px;
+    }
+    
+    .stats-by-status {
+        grid-template-columns: 1fr;
+    }
+}
+        </style>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Añadir evento al formulario
+    document.getElementById('editReservationForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        processReservationEdit();
+    });
+
+    // Evento para selector de horarios
+    document.getElementById('edit-horarios-select').addEventListener('change', function () {
+        document.getElementById('edit-btn-confirmar').disabled = !this.value;
+    });
+}
+
+let editCurrentDate = new Date();
+let editServicesData = {};
+let editSelectedDate = null;
+
+function loadEditReservationCalendar(date) {
+    editCurrentDate = date;
+    updateEditCalendarHeader();
+
+    const reservaId = document.getElementById('edit-reservation-id').value;
+
+    const formData = new FormData();
+    formData.append('action', 'get_available_services_for_edit');
+    formData.append('month', date.getMonth() + 1);
+    formData.append('year', date.getFullYear());
+    formData.append('current_reservation_id', reservaId);
+    formData.append('nonce', reservasAjax.nonce);
+
+    fetch(reservasAjax.ajax_url, {
+        method: 'POST',
+        body: formData
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                editServicesData = data.data;
+                renderEditCalendar();
+            } else {
+                console.error('Error cargando servicios para edición:', data.data);
+                document.getElementById('edit-calendar-grid').innerHTML = '<div class="error">Error cargando servicios: ' + data.data + '</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('edit-calendar-grid').innerHTML = '<div class="error">Error de conexión</div>';
+        });
+}
+
+function updateEditCalendarHeader() {
+    const monthNames = [
+        'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+        'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+    ];
+
+    const monthYear = monthNames[editCurrentDate.getMonth()] + ' ' + editCurrentDate.getFullYear();
+    document.getElementById('edit-current-month-year').textContent = monthYear;
+}
+
+function renderEditCalendar() {
+    const year = editCurrentDate.getFullYear();
+    const month = editCurrentDate.getMonth();
+
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    let firstDayOfWeek = firstDay.getDay();
+    firstDayOfWeek = (firstDayOfWeek + 6) % 7; // Lunes = 0
+
+    const daysInMonth = lastDay.getDate();
+    const dayNames = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+    let calendarHTML = '';
+
+    // Encabezados de días
+    dayNames.forEach(day => {
+        calendarHTML += `<div class="calendar-day-header">${day}</div>`;
+    });
+
+    // Días del mes anterior
+    for (let i = 0; i < firstDayOfWeek; i++) {
+        const dayNum = new Date(year, month, -firstDayOfWeek + i + 1).getDate();
+        calendarHTML += `<div class="calendar-day other-month">${dayNum}</div>`;
+    }
+
+    // Días del mes actual
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+        let dayClass = 'calendar-day';
+        let clickHandler = '';
+
+        if (editServicesData[dateStr] && editServicesData[dateStr].length > 0) {
+            dayClass += ' disponible';
+            clickHandler = `onclick="selectEditDate('${dateStr}')"`;
+        } else {
+            dayClass += ' no-disponible';
+        }
+
+        if (editSelectedDate === dateStr) {
+            dayClass += ' selected';
+        }
+
+        calendarHTML += `<div class="${dayClass}" ${clickHandler}>${day}</div>`;
+    }
+
+    document.getElementById('edit-calendar-grid').innerHTML = calendarHTML;
+}
+
+function changeEditMonth(direction) {
+    editCurrentDate.setMonth(editCurrentDate.getMonth() + direction);
+    loadEditReservationCalendar(editCurrentDate);
+}
+
+function selectEditDate(dateStr) {
+    editSelectedDate = dateStr;
+
+    // Actualizar visual del calendario
+    document.querySelectorAll('#edit-calendar-grid .calendar-day').forEach(day => {
+        day.classList.remove('selected');
+    });
+    event.target.classList.add('selected');
+
+    // Cargar horarios disponibles
+    loadEditAvailableSchedules(dateStr);
+}
+
+function loadEditAvailableSchedules(dateStr) {
+    const services = editServicesData[dateStr] || [];
+
+    let optionsHTML = '<option value="">Selecciona un horario</option>';
+
+    services.forEach(service => {
+        let descuentoInfo = '';
+        if (service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0) {
+            descuentoInfo = ` (${service.porcentaje_descuento}% descuento)`;
+        }
+
+        const plazasDisponibles = parseInt(service.plazas_disponibles);
+        const horaVuelta = service.hora_vuelta ? ` - Vuelta: ${service.hora_vuelta.substring(0, 5)}` : '';
+
+        optionsHTML += `<option value="${service.id}">
+            ${service.hora.substring(0, 5)}${horaVuelta} - ${plazasDisponibles} plazas disponibles${descuentoInfo}
+        </option>`;
+    });
+
+    document.getElementById('edit-horarios-select').innerHTML = optionsHTML;
+    document.getElementById('edit-horarios-select').disabled = false;
+    document.getElementById('edit-btn-confirmar').disabled = true;
+}
+
+function processReservationEdit() {
+    const reservaId = document.getElementById('edit-reservation-id').value;
+    const nuevoServicioId = document.getElementById('edit-horarios-select').value;
+
+    if (!reservaId || !nuevoServicioId) {
+        alert('Faltan datos necesarios para actualizar la reserva');
+        return;
+    }
+
+    if (!confirm('¿Estás seguro de que quieres cambiar la fecha y horario de esta reserva?\n\nSe enviará un nuevo email de confirmación al cliente.')) {
+        return;
+    }
+
+    // Deshabilitar botón
+    const confirmBtn = document.getElementById('edit-btn-confirmar');
+    const originalText = confirmBtn.textContent;
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = '⏳ Actualizando...';
+
+    const formData = new FormData();
+    formData.append('action', 'update_reservation_service');
+    formData.append('reserva_id', reservaId);
+    formData.append('nuevo_servicio_id', nuevoServicioId);
+    formData.append('nonce', reservasAjax.nonce);
+
+    fetch(reservasAjax.ajax_url, {
+        method: 'POST',
+        body: formData
+    })
+        .then(response => response.json())
+        .then(data => {
+            // Rehabilitar botón
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = originalText;
+
+            if (data.success) {
+                alert('✅ ' + data.data);
+                closeEditReservationModal();
+
+                // Recargar la lista actual
+                const activeTab = document.querySelector('.tab-btn.active');
+                if (activeTab && activeTab.textContent.includes('Reservas')) {
+                    loadReservationsByDate();
+                } else if (activeTab && activeTab.textContent.includes('Buscar')) {
+                    searchReservations();
+                }
+            } else {
+                alert('❌ Error: ' + data.data);
+            }
+        })
+        .catch(error => {
+            // Rehabilitar botón
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = originalText;
+
+            console.error('Error:', error);
+            alert('❌ Error de conexión al actualizar la reserva');
+        });
+}
+
+function closeEditReservationModal() {
+    document.getElementById('editReservationModal').style.display = 'none';
+}
+
+// Exponer funciones globalmente
+window.showEditReservationModal = showEditReservationModal;
+window.closeEditReservationModal = closeEditReservationModal;
+window.changeEditMonth = changeEditMonth;
+window.selectEditDate = selectEditDate;
+window.processReservationEdit = processReservationEdit;
+
 
 /**
  * FUNCIÓN PARA MOSTRAR NOTIFICACIONES TEMPORALES
