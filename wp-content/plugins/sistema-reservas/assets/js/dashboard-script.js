@@ -2222,20 +2222,20 @@ function loadReservationsByDateWithFilters(page = 1) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            renderReservationsReportWithFilters(data.data);
-        } else {
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderReservationsReportWithFilters(data.data);
+            } else {
+                document.getElementById('reservations-list').innerHTML =
+                    '<div class="error">Error: ' + data.data + '</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
             document.getElementById('reservations-list').innerHTML =
-                '<div class="error">Error: ' + data.data + '</div>';
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('reservations-list').innerHTML =
-            '<div class="error">Error de conexión</div>';
-    });
+                '<div class="error">Error de conexión</div>';
+        });
 }
 
 function renderReservationsReportWithFilters(data) {
@@ -2274,12 +2274,12 @@ function renderReservationsReportWithFilters(data) {
     // ✅ MOSTRAR ESTADÍSTICAS POR ESTADO SOLO CUANDO EL FILTRO ES "TODAS"
     if (data.stats_por_estado && data.stats_por_estado.length > 0) {
         let statusStatsHtml = '<div class="stats-by-status"><h4 style="grid-column: 1/-1; margin: 0;">📊 Desglose por Estado</h4>';
-        
+
         data.stats_por_estado.forEach(stat => {
-            const statusText = stat.estado === 'confirmada' ? 'Confirmadas' : 
-                              stat.estado === 'cancelada' ? 'Canceladas' : 
-                              stat.estado === 'pendiente' ? 'Pendientes' : stat.estado;
-            
+            const statusText = stat.estado === 'confirmada' ? 'Confirmadas' :
+                stat.estado === 'cancelada' ? 'Canceladas' :
+                    stat.estado === 'pendiente' ? 'Pendientes' : stat.estado;
+
             statusStatsHtml += `
                 <div class="status-stat-card status-${stat.estado}">
                     <h5>${statusText}</h5>
@@ -2288,7 +2288,7 @@ function renderReservationsReportWithFilters(data) {
                 </div>
             `;
         });
-        
+
         statusStatsHtml += '</div>';
         statsCompleteHtml += statusStatsHtml;
     }
@@ -2298,9 +2298,9 @@ function renderReservationsReportWithFilters(data) {
 
     // ✅ DETERMINAR TEXTO DEL FILTRO APLICADO MEJORADO
     const tipoFechaText = data.filtros.tipo_fecha === 'compra' ? 'Fecha de Compra' : 'Fecha de Servicio';
-    
+
     let estadoText = '';
-    switch(data.filtros.estado_filtro) {
+    switch (data.filtros.estado_filtro) {
         case 'confirmadas':
             estadoText = ' (solo confirmadas)';
             break;
@@ -2374,15 +2374,15 @@ function renderReservationsReportWithFilters(data) {
                     <td>
                         <button class="btn-small btn-info" onclick="showReservationDetails(${reserva.id})" title="Ver detalles">👁️</button>
                         <button class="btn-small btn-edit" onclick="showEditEmailModal(${reserva.id}, '${reserva.email}')" title="Editar email">✏️</button>
-                        ${reserva.estado !== 'cancelada' ? 
-                            `<button class="btn-small btn-warning" onclick="showEditReservationModal(${reserva.id})" title="Editar fecha/horario">📅</button>` : 
-                            ''
-                        }
+                        ${reserva.estado !== 'cancelada' ?
+                    `<button class="btn-small btn-warning" onclick="showEditReservationModal(${reserva.id})" title="Editar fecha/horario">📅</button>` :
+                    ''
+                }
                         <button class="btn-small btn-primary" onclick="resendConfirmationEmail(${reserva.id})" title="Reenviar confirmación">📧</button>
                         ${reserva.estado !== 'cancelada' ?
-                            `<button class="btn-small btn-danger" onclick="showCancelReservationModal(${reserva.id}, '${reserva.localizador}')" title="Cancelar reserva">❌</button>` :
-                            `<span class="btn-small" style="background: #6c757d; color: white;">CANCELADA</span>`
-                        }
+                    `<button class="btn-small btn-danger" onclick="showCancelReservationModal(${reserva.id}, '${reserva.localizador}')" title="Cancelar reserva">❌</button>` :
+                    `<span class="btn-small" style="background: #6c757d; color: white;">CANCELADA</span>`
+                }
                     </td>
                 </tr>
             `;
@@ -2495,49 +2495,49 @@ function initReportsEvents() {
 
     // ✅ NUEVOS EVENTOS PARA FILTROS
     // Evento para cambio de tipo de fecha
-    document.getElementById('tipo-fecha').addEventListener('change', function() {
+    document.getElementById('tipo-fecha').addEventListener('change', function () {
         const label = this.value === 'compra' ? 'Fecha de Compra' : 'Fecha de Servicio';
         console.log(`Filtro cambiado a: ${label}`);
     });
 
     // Evento para enter en campos de fecha
-    document.getElementById('fecha-inicio').addEventListener('keypress', function(e) {
+    document.getElementById('fecha-inicio').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
             loadReservationsByDateWithFilters();
         }
     });
 
-    document.getElementById('fecha-fin').addEventListener('keypress', function(e) {
+    document.getElementById('fecha-fin').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
             loadReservationsByDateWithFilters();
         }
     });
 
     // Evento para cambio automático al seleccionar fechas
-    document.getElementById('fecha-inicio').addEventListener('change', function() {
+    document.getElementById('fecha-inicio').addEventListener('change', function () {
         if (this.value && document.getElementById('fecha-fin').value) {
             loadReservationsByDateWithFilters();
         }
     });
 
-    document.getElementById('fecha-fin').addEventListener('change', function() {
+    document.getElementById('fecha-fin').addEventListener('change', function () {
         if (this.value && document.getElementById('fecha-inicio').value) {
             loadReservationsByDateWithFilters();
         }
     });
 
     // Evento para cambio de filtro de canceladas
-    document.getElementById('incluir-canceladas').addEventListener('change', function() {
+    document.getElementById('incluir-canceladas').addEventListener('change', function () {
         if (document.getElementById('fecha-inicio').value && document.getElementById('fecha-fin').value) {
             loadReservationsByDateWithFilters();
         }
     });
 
-    document.getElementById('estado-filtro').addEventListener('change', function() {
-    if (document.getElementById('fecha-inicio').value && document.getElementById('fecha-fin').value) {
-        loadReservationsByDateWithFilters();
-    }
-});
+    document.getElementById('estado-filtro').addEventListener('change', function () {
+        if (document.getElementById('fecha-inicio').value && document.getElementById('fecha-fin').value) {
+            loadReservationsByDateWithFilters();
+        }
+    });
 }
 
 // ✅ FUNCIÓN PARA CAMBIAR PESTAÑAS
@@ -4561,39 +4561,43 @@ function renderAgenciesSection(agencies) {
             </div>
             
             <div class="agencies-stats">
-                <div class="stat-card">
-                    <h3>Total Agencias</h3>
-                    <div class="stat-number">${agencies.length}</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Agencias Activas</h3>
-                    <div class="stat-number">${agencies.filter(a => a.status === 'active').length}</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Agencias Inactivas</h3>
-                    <div class="stat-number">${agencies.filter(a => a.status !== 'active').length}</div>
-                </div>
-            </div>
+    <div class="stat-card">
+        <h3>Total Agencias</h3>
+        <div class="stat-number">${agencies.length}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Agencias Activas</h3>
+        <div class="stat-number">${agencies.filter(a => a.status === 'active').length}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Agencias Inactivas</h3>
+        <div class="stat-number">${agencies.filter(a => a.status !== 'active').length}</div>
+    </div>
+    <div class="stat-card">
+        <h3>Con Datos Fiscales</h3>
+        <div class="stat-number">${agencies.filter(a => a.cif && a.cif.length > 0).length}</div>
+    </div>
+</div>
             
             <div class="agencies-table-container">
                 <table class="agencies-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Nombre Agencia</th>
-                            <th>Contacto</th>
-                            <th>Email</th>
-                            <th>Usuario</th>
-                            <th>Comisión</th>
-                            <th>Estado</th>
-                            <th>Fecha Creación</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${renderAgenciesTableRows(agencies)}
-                    </tbody>
-                </table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nombre Agencia</th>
+            <th>Contacto</th>
+            <th>Email</th>
+            <th>Usuario</th>
+            <th>CIF</th>
+            <th>Estado</th>
+            <th>Fecha Creación</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        ${renderAgenciesTableRowsContent(agencies)}
+    </tbody>
+</table>
             </div>
         </div>
         
@@ -4751,6 +4755,47 @@ function renderAgenciesSection(agencies) {
     jQuery('.dashboard-content').html(content);
 }
 
+
+function renderAgenciesTableRowsContent(agencies) {
+    if (agencies.length === 0) {
+        return `
+            <tr>
+                <td colspan="9" style="text-align: center; padding: 40px; color: #666;">
+                    No hay agencias registradas. Crea la primera agencia usando el botón "Crear Nueva Agencia".
+                </td>
+            </tr>
+        `;
+    }
+
+    return agencies.map(agency => `
+        <tr>
+            <td>${agency.id}</td>
+            <td><strong>${escapeHtml(agency.agency_name)}</strong></td>
+            <td>${escapeHtml(agency.contact_person)}</td>
+            <td><a href="mailto:${agency.email}">${escapeHtml(agency.email)}</a></td>
+            <td><code>${escapeHtml(agency.username)}</code></td>
+            <td>${escapeHtml(agency.cif || '-')}</td>
+            <td>
+                <span class="status-badge status-${agency.status}">
+                    ${getStatusText(agency.status)}
+                </span>
+            </td>
+            <td>${formatDate(agency.created_at)}</td>
+            <td class="actions-cell">
+                <button class="btn-edit" onclick="editAgency(${agency.id})" title="Editar">
+                    ✏️
+                </button>
+                <button class="btn-toggle" onclick="toggleAgencyStatus(${agency.id}, '${agency.status}')" title="Cambiar Estado">
+                    ${agency.status === 'active' ? '⏸️' : '▶️'}
+                </button>
+                <button class="btn-delete" onclick="deleteAgency(${agency.id})" title="Eliminar">
+                    🗑️
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
 /**
  * Renderizar filas de la tabla de agencias
  */
@@ -4806,70 +4851,74 @@ function renderCreateAgencyModal() {
                     <span class="close" onclick="closeCreateAgencyModal()">&times;</span>
                 </div>
                 <form id="createAgencyForm">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="agency_name">Nombre de la Agencia *</label>
-                            <input type="text" name="agency_name" required placeholder="Ej: Viajes El Sol">
-                        </div>
-                        <div class="form-group">
-                            <label for="contact_person">Persona de Contacto *</label>
-                            <input type="text" name="contact_person" required placeholder="Ej: Juan Pérez">
-                        </div>
-                        <div class="form-group">
-                            <label for="email">Email *</label>
-                            <input type="email" name="email" required placeholder="contacto@agencia.com">
-                        </div>
-                        <div class="form-group">
-                            <label for="phone">Teléfono</label>
-                            <input type="tel" name="phone" placeholder="957 123 456">
-                        </div>
-                        <div class="form-group">
-                            <label for="username">Usuario de Acceso *</label>
-                            <input type="text" name="username" required placeholder="agencia_sol">
-                        </div>
-                        <div class="form-group">
-                            <label for="password">Contraseña *</label>
-                            <input type="password" name="password" required placeholder="Mínimo 6 caracteres">
-                        </div>
-                        <div class="form-group">
-                            <label for="commission_percentage">Comisión (%)</label>
-                            <input type="number" name="commission_percentage" min="0" max="100" step="0.1" value="0" placeholder="5.0">
-                        </div>
-                        <div class="form-group">
-                            <label for="max_credit_limit">Límite de Crédito (€)</label>
-                            <input type="number" name="max_credit_limit" min="0" step="0.01" value="0" placeholder="1000.00">
+                    
+                    <!-- ✅ ESTADO AL PRINCIPIO CON DISEÑO LLAMATIVO -->
+                    <div class="form-section status-section">
+                        <div class="form-group status-group">
+                            <select name="status" id="status" class="status-select">
+                                <option value="active">✅ Activa</option>
+                                <option value="inactive">⏸️ Inactiva</option>
+                                <option value="suspended">⚠️ Suspendida</option>
+                            </select>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="address">Dirección</label>
-                        <textarea name="address" rows="2" placeholder="Dirección completa de la agencia"></textarea>
+
+                    <!-- Información Básica -->
+                    <div class="form-section">
+                        <h4>👤 Información Básica</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="agency_name">Nombre de la Agencia *</label>
+                                <input type="text" name="agency_name" required placeholder="Ej: Viajes El Sol">
+                            </div>
+                            <div class="form-group">
+                                <label for="contact_person">Persona de Contacto *</label>
+                                <input type="text" name="contact_person" required placeholder="Ej: Juan Pérez">
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email *</label>
+                                <input type="email" name="email" required placeholder="contacto@agencia.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Teléfono</label>
+                                <input type="tel" name="phone" placeholder="957 123 456">
+                            </div>
+                            <div class="form-group">
+                                <label for="username">Usuario de Acceso *</label>
+                                <input type="text" name="username" required placeholder="agencia_sol">
+                            </div>
+                            <div class="form-group">
+                                <label for="password">Contraseña *</label>
+                                <input type="password" name="password" required placeholder="Mínimo 6 caracteres">
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="notes">Notas</label>
-                        <textarea name="notes" rows="3" placeholder="Información adicional sobre la agencia"></textarea>
+                    
+                    <!-- ✅ INFORMACIÓN FISCAL MEJORADA -->
+                    <div class="form-section">
+                        <h4>🏛️ Información Fiscal</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="razon_social">Razón Social</label>
+                                <input type="text" name="razon_social" placeholder="Denominación social oficial">
+                            </div>
+                            <div class="form-group">
+                                <label for="cif">CIF/NIF</label>
+                                <input type="text" name="cif" placeholder="B12345678">
+                            </div>
+                            <div class="form-group form-group-full">
+                                <label for="domicilio_fiscal">Domicilio Fiscal</label>
+                                <input type="text" name="domicilio_fiscal" placeholder="Dirección fiscal completa">
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="status">Estado</label>
-                        <select name="status">
-                            <option value="active">Activa</option>
-                            <option value="inactive">Inactiva</option>
-                            <option value="suspended">Suspendida</option>
-                        </select>
-                    </div>
+                    
                     <div class="form-actions">
                         <button type="submit" class="btn-primary">Crear Agencia</button>
                         <button type="button" class="btn-secondary" onclick="closeCreateAgencyModal()">Cancelar</button>
                     </div>
                 </form>
             </div>
-            <style>
-                .form-grid{
-                    display: grid
-;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 50px;
-                }
-            </style>
         </div>
     `;
 }
@@ -4888,62 +4937,188 @@ function renderEditAgencyModal() {
                 </div>
                 <form id="editAgencyForm">
                     <input type="hidden" name="agency_id" id="edit_agency_id">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="edit_agency_name">Nombre de la Agencia *</label>
-                            <input type="text" name="agency_name" id="edit_agency_name" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit_contact_person">Persona de Contacto *</label>
-                            <input type="text" name="contact_person" id="edit_contact_person" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit_email">Email *</label>
-                            <input type="email" name="email" id="edit_email" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit_phone">Teléfono</label>
-                            <input type="tel" name="phone" id="edit_phone">
-                        </div>
-                        <div class="form-group">
-                            <label for="edit_username">Usuario de Acceso *</label>
-                            <input type="text" name="username" id="edit_username" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit_password">Nueva Contraseña</label>
-                            <input type="password" name="password" id="edit_password" placeholder="Dejar vacío para no cambiar">
-                        </div>
-                        <div class="form-group">
-                            <label for="edit_commission_percentage">Comisión (%)</label>
-                            <input type="number" name="commission_percentage" id="edit_commission_percentage" min="0" max="100" step="0.1">
-                        </div>
-                        <div class="form-group">
-                            <label for="edit_max_credit_limit">Límite de Crédito (€)</label>
-                            <input type="number" name="max_credit_limit" id="edit_max_credit_limit" min="0" step="0.01">
+                    
+                    <!-- ✅ ESTADO MOVIDO AL PRINCIPIO CON DISEÑO LLAMATIVO -->
+                    <div class="form-section status-section">
+                        <div class="form-group status-group">
+                            
+                            <select name="status" id="edit_status" class="status-select">
+                                <option value="active">✅ Activa</option>
+                                <option value="inactive">⏸️ Inactiva</option>
+                                <option value="suspended">⚠️ Suspendida</option>
+                            </select>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="edit_address">Dirección</label>
-                        <textarea name="address" id="edit_address" rows="2"></textarea>
+
+                    <!-- Información Básica -->
+                    <div class="form-section">
+                        <h4>👤 Información Básica</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="edit_agency_name">Nombre de la Agencia *</label>
+                                <input type="text" name="agency_name" id="edit_agency_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_contact_person">Persona de Contacto *</label>
+                                <input type="text" name="contact_person" id="edit_contact_person" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_email">Email *</label>
+                                <input type="email" name="email" id="edit_email" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_phone">Teléfono</label>
+                                <input type="tel" name="phone" id="edit_phone">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_username">Usuario de Acceso *</label>
+                                <input type="text" name="username" id="edit_username" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_password">Nueva Contraseña</label>
+                                <input type="password" name="password" id="edit_password" placeholder="Dejar vacío para no cambiar">
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="edit_notes">Notas</label>
-                        <textarea name="notes" id="edit_notes" rows="3"></textarea>
+
+                    <!-- ✅ INFORMACIÓN FISCAL MEJORADA -->
+                    <div class="form-section">
+                        <h4>🏛️ Información Fiscal</h4>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="edit_razon_social">Razón Social</label>
+                                <input type="text" name="razon_social" id="edit_razon_social" placeholder="Denominación social oficial">
+                            </div>
+                            <div class="form-group">
+                                <label for="edit_cif">CIF/NIF</label>
+                                <input type="text" name="cif" id="edit_cif" placeholder="B12345678">
+                            </div>
+                            <div class="form-group form-group-full">
+                                <label for="edit_domicilio_fiscal">Domicilio Fiscal</label>
+                                <input type="text" name="domicilio_fiscal" id="edit_domicilio_fiscal" placeholder="Dirección fiscal completa">
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="edit_status">Estado</label>
-                        <select name="status" id="edit_status">
-                            <option value="active">Activa</option>
-                            <option value="inactive">Inactiva</option>
-                            <option value="suspended">Suspendida</option>
-                        </select>
-                    </div>
+                    
                     <div class="form-actions">
                         <button type="submit" class="btn-primary">Actualizar Agencia</button>
                         <button type="button" class="btn-secondary" onclick="closeEditAgencyModal()">Cancelar</button>
                     </div>
                 </form>
             </div>
+            
+            <style>
+                .form-section {
+                    margin-bottom: 25px;
+                    padding: 20px;
+                    border: 1px solid #e1e1e1;
+                    border-radius: 8px;
+                    background: #fafafa;
+                }
+                
+                /* ✅ ESTILOS ESPECIALES PARA LA SECCIÓN DE ESTADO */
+                .status-section {
+                    border: 1px solid #e1e1e1;
+    border-radius: 8px;
+    background: #fafafa;
+                    color: white;
+                    text-align: center;
+                    margin-bottom: 30px;
+                }
+                
+                .status-group {
+                    margin: 0;
+                }
+                
+                .status-group label {
+                    color: white;
+                    font-size: 18px;
+                    font-weight: bold;
+                    margin-bottom: 15px;
+                    display: block;
+                }
+                
+                .status-select {
+                    width: 100%;
+                    max-width: 300px;
+                    padding: 12px 15px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    border: 3px solid white;
+                    border-radius: 8px;
+                    background: white;
+                    color: #333;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                }
+                
+                .status-select:focus {
+                    outline: none;
+                    border-color: #ffd700;
+                    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+                    transform: translateY(-2px);
+                }
+                
+                .status-select option {
+                    padding: 10px;
+                    font-weight: 600;
+                }
+                
+                .form-section h4 {
+                    margin: 0 0 15px 0;
+                    color: #333;
+                    font-size: 16px;
+                    font-weight: 600;
+                    border-bottom: 2px solid #0073aa;
+                    padding-bottom: 8px;
+                }
+                
+                .form-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 15px;
+                }
+                
+                /* ✅ CLASE PARA ELEMENTOS QUE OCUPAN TODO EL ANCHO */
+                .form-group-full {
+                    grid-column: 1 / -1;
+                }
+                
+                .form-group {
+                    display: flex;
+                    flex-direction: column;
+                }
+                
+                .form-group label {
+                    font-weight: 600;
+                    margin-bottom: 5px;
+                    color: #333;
+                }
+                
+                .form-group input, .form-group textarea {
+                    padding: 10px;
+                    border: 2px solid #ddd;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    transition: border-color 0.3s;
+                }
+                
+                .form-group input:focus, .form-group textarea:focus {
+                    outline: none;
+                    border-color: #0073aa;
+                    box-shadow: 0 0 5px rgba(0, 115, 170, 0.3);
+                }
+                
+                @media (max-width: 768px) {
+                    .form-grid {
+                        grid-template-columns: 1fr;
+                    }
+                    
+                    .status-select {
+                        max-width: 100%;
+                    }
+                }
+            </style>
         </div>
     `;
 }
@@ -4985,7 +5160,7 @@ function editAgency(agencyId) {
             if (response.success) {
                 const agency = response.data;
 
-                // Rellenar formulario de edición
+                // Rellenar campos básicos
                 jQuery('#edit_agency_id').val(agency.id);
                 jQuery('#edit_agency_name').val(agency.agency_name);
                 jQuery('#edit_contact_person').val(agency.contact_person);
@@ -4993,10 +5168,13 @@ function editAgency(agencyId) {
                 jQuery('#edit_phone').val(agency.phone || '');
                 jQuery('#edit_username').val(agency.username);
                 jQuery('#edit_password').val('');
-                jQuery('#edit_commission_percentage').val(agency.commission_percentage);
-                jQuery('#edit_max_credit_limit').val(agency.max_credit_limit);
-                jQuery('#edit_address').val(agency.address || '');
-                jQuery('#edit_notes').val(agency.notes || '');
+
+                // ✅ CAMPOS FISCALES (domicilio_fiscal ahora es input)
+                jQuery('#edit_razon_social').val(agency.razon_social || '');
+                jQuery('#edit_cif').val(agency.cif || '');
+                jQuery('#edit_domicilio_fiscal').val(agency.domicilio_fiscal || '');
+
+                // ✅ ESTADO (ahora al principio y más visible)
                 jQuery('#edit_status').val(agency.status);
 
                 // Mostrar modal
@@ -6162,6 +6340,31 @@ function renderAgencyProfile(agencyData) {
                         </div>
                     </div>
 
+                    <!-- Información Fiscal -->
+                    <div class="form-section">
+            <h3>🏛️ Información Fiscal</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="razon_social">Razón Social</label>
+                    <input type="text" id="razon_social" name="razon_social" 
+                           value="${escapeHtml(agencyData.razon_social || '')}" 
+                           placeholder="Denominación social oficial">
+                </div>
+                <div class="form-group">
+                    <label for="cif">CIF/NIF</label>
+                    <input type="text" id="cif" name="cif" 
+                           value="${escapeHtml(agencyData.cif || '')}" 
+                           placeholder="B12345678">
+                </div>
+                <div class="form-group form-group-full">
+                    <label for="domicilio_fiscal">Domicilio Fiscal</label>
+                    <input type="text" id="domicilio_fiscal" name="domicilio_fiscal" 
+                           value="${escapeHtml(agencyData.domicilio_fiscal || '')}"
+                           placeholder="Dirección fiscal completa">
+                </div>
+            </div>
+        </div>
+
                     <!-- Notificaciones -->
                     <div class="form-section">
                         <h3>🔔 Configuración de Notificaciones</h3>
@@ -6197,37 +6400,22 @@ function renderAgencyProfile(agencyData) {
 
                     <!-- Información de Solo Lectura -->
                     <div class="form-section readonly-section">
-                        <h3>ℹ️ Información de la Cuenta</h3>
-                        <div class="readonly-grid">
-                            <div class="readonly-item">
-                                <label>Usuario de Acceso:</label>
-                                <span class="readonly-value">${escapeHtml(agencyData.username)}</span>
-                            </div>
-                            <div class="readonly-item">
-                                <label>Comisión:</label>
-                                <span class="readonly-value">${parseFloat(agencyData.commission_percentage).toFixed(1)}%</span>
-                            </div>
-                            <div class="readonly-item">
-                                <label>Límite de Crédito:</label>
-                                <span class="readonly-value">${parseFloat(agencyData.max_credit_limit).toFixed(2)}€</span>
-                            </div>
-                            <div class="readonly-item">
-                                <label>Balance Actual:</label>
-                                <span class="readonly-value">${parseFloat(agencyData.current_balance).toFixed(2)}€</span>
-                            </div>
-                            <div class="readonly-item">
-                                <label>Estado:</label>
-                                <span class="readonly-value status-${agencyData.status}">${getStatusText(agencyData.status)}</span>
-                            </div>
-                            <div class="readonly-item">
-                                <label>Fecha de Creación:</label>
-                                <span class="readonly-value">${formatDate(agencyData.created_at)}</span>
-                            </div>
-                        </div>
-                        <div class="readonly-note">
-                            <p><strong>Nota:</strong> Para cambios en usuario de acceso, comisión o límite de crédito, contacta con el administrador.</p>
-                        </div>
-                    </div>
+            <h3>ℹ️ Información de la Cuenta</h3>
+            <div class="readonly-grid">
+                <div class="readonly-item">
+                    <label>Usuario de Acceso:</label>
+                    <span class="readonly-value">${escapeHtml(agencyData.username)}</span>
+                </div>
+                <div class="readonly-item">
+                    <label>Estado:</label>
+                    <span class="readonly-value status-${agencyData.status}">${getStatusText(agencyData.status)}</span>
+                </div>
+                <div class="readonly-item">
+                    <label>Fecha de Creación:</label>
+                    <span class="readonly-value">${formatDate(agencyData.created_at)}</span>
+                </div>
+            </div>
+        </div>
 
                 </form>
             </div>

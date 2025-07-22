@@ -80,129 +80,138 @@ class ReservasAgencyProfileAdmin
      * Guardar cambios del perfil de la agencia
      */
     public function save_agency_profile()
-    {
-        error_log('=== SAVE AGENCY PROFILE START ===');
-        header('Content-Type: application/json');
+{
+    error_log('=== SAVE AGENCY PROFILE START ===');
+    header('Content-Type: application/json');
 
-        try {
-            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-                wp_send_json_error('Error de seguridad');
-                return;
-            }
-
-            if (!session_id()) {
-                session_start();
-            }
-
-            if (!isset($_SESSION['reservas_user'])) {
-                wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
-                return;
-            }
-
-            $user = $_SESSION['reservas_user'];
-
-            // Solo las agencias pueden modificar su perfil
-            if ($user['role'] !== 'agencia') {
-                wp_send_json_error('Sin permisos para modificar el perfil de agencia');
-                return;
-            }
-
-            global $wpdb;
-            $table_name = $wpdb->prefix . 'reservas_agencies';
-
-            // Sanitizar datos
-            $agency_name = sanitize_text_field($_POST['agency_name']);
-            $contact_person = sanitize_text_field($_POST['contact_person']);
-            $email = sanitize_email($_POST['email']);
-            $phone = sanitize_text_field($_POST['phone']);
-            $email_notificaciones = sanitize_email($_POST['email_notificaciones']);
-            $address = sanitize_textarea_field($_POST['address']);
-            $notes = sanitize_textarea_field($_POST['notes']);
-
-            // Validaciones
-            if (empty($agency_name) || strlen($agency_name) < 2) {
-                wp_send_json_error('El nombre de la agencia debe tener al menos 2 caracteres');
-                return;
-            }
-
-            if (empty($contact_person) || strlen($contact_person) < 2) {
-                wp_send_json_error('El nombre del contacto debe tener al menos 2 caracteres');
-                return;
-            }
-
-            if (empty($email) || !is_email($email)) {
-                wp_send_json_error('Email de contacto no válido');
-                return;
-            }
-
-            // Validar email de notificaciones si está presente
-            if (!empty($email_notificaciones) && !is_email($email_notificaciones)) {
-                wp_send_json_error('El email de notificaciones no es válido');
-                return;
-            }
-
-            // Validar teléfono si está presente
-            if (!empty($phone) && strlen($phone) < 9) {
-                wp_send_json_error('El teléfono debe tener al menos 9 dígitos');
-                return;
-            }
-
-            // Verificar que el email no esté siendo usado por otra agencia
-            $existing_email = $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM $table_name WHERE email = %s AND id != %d",
-                $email, $user['id']
-            ));
-
-            if ($existing_email > 0) {
-                wp_send_json_error('Ya existe otra agencia con ese email');
-                return;
-            }
-
-            $update_data = array(
-    'agency_name' => $agency_name,
-    'contact_person' => $contact_person,
-    'email' => $email,
-    'phone' => $phone,
-    'address' => $address,
-    'notes' => $notes,
-    'updated_at' => current_time('mysql')
-);
-
-global $wpdb;
-$table_name = $wpdb->prefix . 'reservas_agencies';
-$column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'email_notificaciones'");
-
-if (!empty($column_exists)) {
-    $update_data['email_notificaciones'] = $email_notificaciones;
-}
-
-            // Actualizar en la base de datos
-            $result = $wpdb->update(
-                $table_name,
-                $update_data,
-                array('id' => $user['id']),
-                array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s'),
-                array('%d')
-            );
-
-            if ($result === false) {
-                error_log('❌ Database error updating agency profile: ' . $wpdb->last_error);
-                wp_send_json_error('Error actualizando el perfil: ' . $wpdb->last_error);
-                return;
-            }
-
-            // Actualizar datos de sesión
-            $_SESSION['reservas_user']['agency_name'] = $agency_name;
-            $_SESSION['reservas_user']['email'] = $email;
-
-            error_log('✅ Agency profile updated successfully');
-            wp_send_json_success('Perfil actualizado correctamente');
-
-        } catch (Exception $e) {
-            error_log('❌ SAVE AGENCY PROFILE EXCEPTION: ' . $e->getMessage());
-            wp_send_json_error('Error del servidor: ' . $e->getMessage());
+    try {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+            wp_send_json_error('Error de seguridad');
+            return;
         }
+
+        if (!session_id()) {
+            session_start();
+        }
+
+        if (!isset($_SESSION['reservas_user'])) {
+            wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
+            return;
+        }
+
+        $user = $_SESSION['reservas_user'];
+
+        if ($user['role'] !== 'agencia') {
+            wp_send_json_error('Sin permisos para modificar el perfil de agencia');
+            return;
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'reservas_agencies';
+
+        // Sanitizar datos (SIN address y notes)
+        $agency_name = sanitize_text_field($_POST['agency_name']);
+        $contact_person = sanitize_text_field($_POST['contact_person']);
+        $email = sanitize_email($_POST['email']);
+        $phone = sanitize_text_field($_POST['phone']);
+        $email_notificaciones = sanitize_email($_POST['email_notificaciones']);
+        
+        // ✅ CAMPOS FISCALES
+        $razon_social = sanitize_text_field($_POST['razon_social']);
+        $cif = sanitize_text_field($_POST['cif']);
+        $domicilio_fiscal = sanitize_text_field($_POST['domicilio_fiscal']); // ✅ Ahora es input, no textarea
+
+        // Validaciones
+        if (empty($agency_name) || strlen($agency_name) < 2) {
+            wp_send_json_error('El nombre de la agencia debe tener al menos 2 caracteres');
+            return;
+        }
+
+        if (empty($contact_person) || strlen($contact_person) < 2) {
+            wp_send_json_error('El nombre del contacto debe tener al menos 2 caracteres');
+            return;
+        }
+
+        if (empty($email) || !is_email($email)) {
+            wp_send_json_error('Email de contacto no válido');
+            return;
+        }
+
+        if (!empty($email_notificaciones) && !is_email($email_notificaciones)) {
+            wp_send_json_error('El email de notificaciones no es válido');
+            return;
+        }
+
+        if (!empty($phone) && strlen($phone) < 9) {
+            wp_send_json_error('El teléfono debe tener al menos 9 dígitos');
+            return;
+        }
+
+        // ✅ VALIDACIONES FISCALES
+        if (!empty($cif) && strlen($cif) < 8) {
+            wp_send_json_error('El CIF debe tener al menos 8 caracteres');
+            return;
+        }
+
+        if (!empty($razon_social) && strlen($razon_social) < 3) {
+            wp_send_json_error('La razón social debe tener al menos 3 caracteres');
+            return;
+        }
+
+        // Verificar email único
+        $existing_email = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_name WHERE email = %s AND id != %d",
+            $email, $user['id']
+        ));
+
+        if ($existing_email > 0) {
+            wp_send_json_error('Ya existe otra agencia con ese email');
+            return;
+        }
+
+        // ✅ DATOS SIN address y notes
+        $update_data = array(
+            'agency_name' => $agency_name,
+            'contact_person' => $contact_person,
+            'email' => $email,
+            'phone' => $phone,
+            'razon_social' => $razon_social,
+            'cif' => $cif,
+            'domicilio_fiscal' => $domicilio_fiscal,
+            'updated_at' => current_time('mysql')
+        );
+
+        // ✅ AÑADIR email_notificaciones SI LA COLUMNA EXISTE
+        $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'email_notificaciones'");
+        if (!empty($column_exists)) {
+            $update_data['email_notificaciones'] = $email_notificaciones;
+        }
+
+        // Actualizar en la base de datos
+        $result = $wpdb->update(
+            $table_name,
+            $update_data,
+            array('id' => $user['id'])
+        );
+
+        if ($result === false) {
+            error_log('❌ Database error updating agency profile: ' . $wpdb->last_error);
+            wp_send_json_error('Error actualizando el perfil: ' . $wpdb->last_error);
+            return;
+        }
+
+        // Actualizar datos de sesión
+        $_SESSION['reservas_user']['agency_name'] = $agency_name;
+        $_SESSION['reservas_user']['email'] = $email;
+
+        error_log('✅ Agency profile updated successfully');
+        wp_send_json_success('Perfil actualizado correctamente');
+
+    } catch (Exception $e) {
+        error_log('❌ SAVE AGENCY PROFILE EXCEPTION: ' . $e->getMessage());
+        wp_send_json_error('Error del servidor: ' . $e->getMessage());
     }
+}
 
     /**
      * Refrescar datos de sesión

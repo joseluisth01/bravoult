@@ -120,18 +120,18 @@ class ReservasDashboard
             <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
             <script src="<?php echo RESERVAS_PLUGIN_URL; ?>assets/js/dashboard-script.js"></script>
             <script>
-    const reservasAjax = {
-        ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
-        nonce: '<?php echo wp_create_nonce('reservas_nonce'); ?>'
-    };
-    
-    // ✅ AÑADIR INFORMACIÓN DEL USUARIO ACTUAL
-    window.reservasUser = {
-        role: '<?php echo esc_js($user['role']); ?>',
-        username: '<?php echo esc_js($user['username']); ?>',
-        user_type: '<?php echo esc_js($user['user_type'] ?? 'admin'); ?>'
-    };
-</script>
+                const reservasAjax = {
+                    ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                    nonce: '<?php echo wp_create_nonce('reservas_nonce'); ?>'
+                };
+
+                // ✅ AÑADIR INFORMACIÓN DEL USUARIO ACTUAL
+                window.reservasUser = {
+                    role: '<?php echo esc_js($user['role']); ?>',
+                    username: '<?php echo esc_js($user['username']); ?>',
+                    user_type: '<?php echo esc_js($user['user_type'] ?? 'admin'); ?>'
+                };
+            </script>
 
             <style>
                 <?php
@@ -242,24 +242,19 @@ class ReservasDashboard
 
                     <div class="agency-stats">
                         <div class="agency-stat-card">
-                            <h3>Comisión</h3>
-                            <div class="stat-number"><?php echo number_format($user['commission_percentage'] ?? 0, 1); ?>%</div>
-                            <p>Porcentaje de comisión</p>
-                        </div>
-                        <div class="agency-stat-card">
-                            <h3>Límite de Crédito</h3>
-                            <div class="stat-number"><?php echo number_format($user['max_credit_limit'] ?? 0, 2); ?>€</div>
-                            <p>Límite disponible</p>
-                        </div>
-                        <div class="agency-stat-card">
-                            <h3>Balance Actual</h3>
-                            <div class="stat-number"><?php echo number_format($user['current_balance'] ?? 0, 2); ?>€</div>
-                            <p>Saldo actual</p>
-                        </div>
-                        <div class="agency-stat-card">
                             <h3>Estado</h3>
                             <div class="stat-number">✓</div>
                             <p>Agencia activa</p>
+                        </div>
+                        <div class="agency-stat-card">
+                            <h3>CIF</h3>
+                            <div class="stat-number"><?php echo !empty($user['cif']) ? esc_html($user['cif']) : '-'; ?></div>
+                            <p>Identificación fiscal</p>
+                        </div>
+                        <div class="agency-stat-card">
+                            <h3>Datos Fiscales</h3>
+                            <div class="stat-number"><?php echo (!empty($user['cif']) && !empty($user['razon_social'])) ? '✓' : '⚠️'; ?></div>
+                            <p><?php echo (!empty($user['cif']) && !empty($user['razon_social'])) ? 'Completos' : 'Incompletos'; ?></p>
                         </div>
                     </div>
 
