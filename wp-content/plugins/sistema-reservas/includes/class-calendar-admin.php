@@ -159,7 +159,6 @@ class ReservasCalendarAdmin
         $descuento_acumulable = isset($_POST['descuento_acumulable']) ? 1 : 0;
         $descuento_prioridad = sanitize_text_field($_POST['descuento_prioridad'] ?? 'servicio');
 
-        // Validar días de anticipación mínima
         if (!class_exists('ReservasConfigurationAdmin')) {
             require_once RESERVAS_PLUGIN_PATH . 'includes/class-configuration-admin.php';
         }
@@ -167,10 +166,10 @@ class ReservasCalendarAdmin
         $dias_anticipacion = ReservasConfigurationAdmin::get_dias_anticipacion_minima();
         $fecha_minima = date('Y-m-d', strtotime("+$dias_anticipacion days"));
 
-        if ($fecha < $fecha_minima) {
-            // ✅ AÑADIR EXCEPCIÓN PARA SUPER_ADMIN:
-            if ($user['role'] !== 'super_admin') {
-                wp_send_json_error("No se puede crear servicios para fechas anteriores a $fecha_minima (mínimo $dias_anticipacion días de anticipación)");
+        // ✅ CAMBIO AQUÍ: Solo validar si NO es super_admin
+        if ($user['role'] !== 'super_admin') {
+            if ($fecha < $fecha_minima) {
+                wp_send_json_error("No se pueden crear servicios para fechas anteriores a $fecha_minima (mínimo $dias_anticipacion días de anticipación)");
                 return;
             }
         }

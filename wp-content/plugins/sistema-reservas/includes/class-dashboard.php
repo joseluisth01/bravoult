@@ -120,11 +120,18 @@ class ReservasDashboard
             <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
             <script src="<?php echo RESERVAS_PLUGIN_URL; ?>assets/js/dashboard-script.js"></script>
             <script>
-                const reservasAjax = {
-                    ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
-                    nonce: '<?php echo wp_create_nonce('reservas_nonce'); ?>'
-                };
-            </script>
+    const reservasAjax = {
+        ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
+        nonce: '<?php echo wp_create_nonce('reservas_nonce'); ?>'
+    };
+    
+    // ✅ AÑADIR INFORMACIÓN DEL USUARIO ACTUAL
+    window.reservasUser = {
+        role: '<?php echo esc_js($user['role']); ?>',
+        username: '<?php echo esc_js($user['username']); ?>',
+        user_type: '<?php echo esc_js($user['user_type'] ?? 'admin'); ?>'
+    };
+</script>
 
             <style>
                 <?php

@@ -343,6 +343,10 @@ function renderCalendar() {
     const fechaMinima = new Date();
     fechaMinima.setDate(fechaMinima.getDate() + parseInt(diasAnticiapcion));
 
+    // ✅ OBTENER ROL DEL USUARIO ACTUAL
+    const currentUser = window.reservasUser || {};
+    const isSuper = currentUser.role === 'super_admin';
+
     // Días del mes actual
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -350,8 +354,8 @@ function renderCalendar() {
         const isToday = dateStr === new Date().toISOString().split('T')[0];
         const todayClass = isToday ? ' today' : '';
 
-        // Verificar si el día está bloqueado por días de anticipación
-        const isBlocked = dayDate < fechaMinima;
+        // ✅ CAMBIO AQUÍ: Solo verificar días de anticipación si NO es super_admin
+        const isBlocked = !isSuper && dayDate < fechaMinima;
 
         // ✅ ANÁLISIS MEJORADO DE SERVICIOS
         let hasDiscount = false;
@@ -414,11 +418,11 @@ function renderCalendar() {
             dayClass += ' day-with-disabled';
         }
 
-        // Agregar clase y comportamiento para días bloqueados
+        // ✅ CAMBIO AQUÍ: Agregar clase y comportamiento para días bloqueados
         let clickHandler = `onclick="addService('${dateStr}')"`;
         if (isBlocked) {
             dayClass += ' blocked-day';
-            clickHandler = `onclick="showBlockedDayMessage()"`;
+            clickHandler = `onclick="showBlockedDayMessage('${dateStr}')"`;
         }
 
         calendarHTML += `<div class="${dayClass}" ${clickHandler}>
@@ -438,12 +442,17 @@ function renderCalendar() {
     initModalEvents();
 }
 
-function showBlockedDayMessage() {
-    // ✅ Verificar rol del usuario actual
-    const isSuper = window.reservasUser && window.reservasUser.role === 'super_admin';
+function showBlockedDayMessage(dateStr = null) {
+    // ✅ OBTENER ROL DEL USUARIO ACTUAL
+    const currentUser = window.reservasUser || {};
+    const isSuper = currentUser.role === 'super_admin';
 
     if (isSuper) {
-        // Super admin puede crear servicios en cualquier fecha
+        // ✅ Super admin puede crear servicios en cualquier fecha
+        console.log('Super admin detectado - permitiendo acceso a cualquier fecha');
+        if (dateStr) {
+            addService(dateStr); // Llamar directamente a addService
+        }
         return true;
     } else {
         const diasAnticiapcion = defaultConfig?.servicios?.dias_anticipacion_minima?.value || '1';
@@ -896,7 +905,11 @@ function addService(fecha) {
     fechaMinima.setDate(fechaMinima.getDate() + parseInt(diasAnticiapcion));
     const fechaSeleccionada = new Date(fecha);
 
-    if (fechaSeleccionada < fechaMinima) {
+    // ✅ OBTENER ROL DEL USUARIO ACTUAL
+    const currentUser = window.reservasUser || {};
+    const isSuper = currentUser.role === 'super_admin';
+
+    if (!isSuper && fechaSeleccionada < fechaMinima) {
         showBlockedDayMessage();
         return;
     }
@@ -3376,27 +3389,27 @@ function renderAdminCalendar() {
         calendarHTML += `<div class="calendar-day other-month">${dayNum}</div>`;
     }
 
-    // Calcular fecha mínima basada en configuración
     const today = new Date();
-    const fechaMinima = new Date();
-    fechaMinima.setDate(today.getDate() + adminDiasAnticiapcionMinima);
+const fechaMinima = new Date();
+fechaMinima.setDate(today.getDate() + adminDiasAnticiapcionMinima);
 
-    // Días del mes actual
-    for (let day = 1; day <= daysInMonth; day++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const dayDate = new Date(year, month, day);
+// Días del mes actual
+for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dayDate = new Date(year, month, day);
 
-        let dayClass = 'calendar-day';
-        let clickHandler = '';
+    let dayClass = 'calendar-day';
+    let clickHandler = '';
 
-        const currentUser = window.reservasUser || {};
-        const isSuper = currentUser.role === 'super_admin';
-        const isBlockedByAnticipacion = !isSuper && dayDate < fechaMinima;
+    // ✅ CAMBIO AQUÍ TAMBIÉN
+    const currentUser = window.reservasUser || {};
+    const isSuper = currentUser.role === 'super_admin';
+    const isBlockedByAnticipacion = !isSuper && dayDate < fechaMinima;
 
-        if (isBlockedByAnticipacion) {
-            dayClass += ' blocked-day';
-            clickHandler = `onclick="showBlockedDayMessage()"`;
-        }
+    if (isBlockedByAnticipacion) {
+        dayClass += ' blocked-day';
+        clickHandler = `onclick="showBlockedDayMessage()"`;
+    }
 
         if (isBlockedByAnticipacion) {
             dayClass += ' no-disponible';

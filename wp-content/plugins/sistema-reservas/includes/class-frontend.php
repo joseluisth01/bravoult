@@ -205,18 +205,35 @@ class ReservasFrontend
     $first_day = sprintf('%04d-%02d-01', $year, $month);
     $last_day = date('Y-m-t', strtotime($first_day));
 
-    // ✅ ACTUALIZAR CONSULTA PARA INCLUIR SOLO SERVICIOS HABILITADOS
+    // ✅ OBTENER CONFIGURACIÓN DE DÍAS DE ANTICIPACIÓN
+    if (!class_exists('ReservasConfigurationAdmin')) {
+        require_once RESERVAS_PLUGIN_PATH . 'includes/class-configuration-admin.php';
+    }
+    
+    $dias_anticipacion = ReservasConfigurationAdmin::get_dias_anticipacion_minima();
+    
+    // ✅ CORREGIR CÁLCULO DE FECHA MÍNIMA
+    // Si días_anticipacion = 0, fecha_minima = hoy
+    // Si días_anticipacion = 1, fecha_minima = mañana
+    $fecha_minima = date('Y-m-d');
+    if ($dias_anticipacion > 0) {
+        $fecha_minima = date('Y-m-d', strtotime("+$dias_anticipacion days"));
+    }
+
+    // ✅ AÑADIR FILTRO POR FECHA MÍNIMA EN LA CONSULTA
     $servicios = $wpdb->get_results($wpdb->prepare(
         "SELECT id, fecha, hora, hora_vuelta, plazas_disponibles, precio_adulto, precio_nino, precio_residente, 
             tiene_descuento, porcentaje_descuento, descuento_tipo, descuento_minimo_personas
         FROM $table_name 
         WHERE fecha BETWEEN %s AND %s 
+        AND fecha >= %s
         AND status = 'active'
         AND enabled = 1
         AND plazas_disponibles > 0
         ORDER BY fecha, hora",
         $first_day,
-        $last_day
+        $last_day,
+        $fecha_minima
     ));
 
     // Organizar por fecha
@@ -244,195 +261,192 @@ class ReservasFrontend
     wp_send_json_success($calendar_data);
 }
 
-public function calculate_price()
-{
-    if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-        wp_die('Error de seguridad');
-    }
+    public function calculate_price()
+    {
+        if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+            wp_die('Error de seguridad');
+        }
 
-    $service_id = intval($_POST['service_id']);
-    $adultos = intval($_POST['adultos']);
-    $residentes = intval($_POST['residentes']);
-    $ninos_5_12 = intval($_POST['ninos_5_12']);
-    $ninos_menores = intval($_POST['ninos_menores']);
+        $service_id = intval($_POST['service_id']);
+        $adultos = intval($_POST['adultos']);
+        $residentes = intval($_POST['residentes']);
+        $ninos_5_12 = intval($_POST['ninos_5_12']);
+        $ninos_menores = intval($_POST['ninos_menores']);
 
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'reservas_servicios';
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'reservas_servicios';
 
-    // Obtener datos del servicio
-    $servicio = $wpdb->get_row($wpdb->prepare(
-        "SELECT *, tiene_descuento, porcentaje_descuento, descuento_tipo, descuento_minimo_personas,
+        // Obtener datos del servicio
+        $servicio = $wpdb->get_row($wpdb->prepare(
+            "SELECT *, tiene_descuento, porcentaje_descuento, descuento_tipo, descuento_minimo_personas,
                 descuento_acumulable, descuento_prioridad
          FROM $table_name WHERE id = %d",
-        $service_id
-    ));
+            $service_id
+        ));
 
-    if (!$servicio) {
-        wp_send_json_error('Servicio no encontrado');
-    }
-
-    // ✅ CALCULAR TOTAL DE PERSONAS QUE OCUPAN PLAZA
-    $total_personas_con_plaza = $adultos + $residentes + $ninos_5_12;
-
-    // ✅ CALCULAR PRECIO BASE (todos pagan precio de adulto inicialmente)
-    $precio_base = 0;
-    $precio_base += $adultos * $servicio->precio_adulto;
-    $precio_base += $residentes * $servicio->precio_adulto;
-    $precio_base += $ninos_5_12 * $servicio->precio_adulto;
-
-    // ✅ CALCULAR DESCUENTOS INDIVIDUALES
-    $descuento_total = 0;
-
-    // Descuento por ser residente
-    $descuento_residentes = $residentes * ($servicio->precio_adulto - $servicio->precio_residente);
-    $descuento_total += $descuento_residentes;
-
-    // Descuento por ser niño
-    $descuento_ninos = $ninos_5_12 * ($servicio->precio_adulto - $servicio->precio_nino);
-    $descuento_total += $descuento_ninos;
-
-    // ✅ INICIALIZAR VARIABLES DE DESCUENTO
-    $descuento_grupo = 0;
-    $descuento_servicio = 0;
-    $regla_aplicada = null;
-    $aplicar_descuento_servicio = false;
-
-    // ✅ PASO 1: CALCULAR DESCUENTO POR GRUPO (REGLAS GLOBALES)
-    if ($total_personas_con_plaza > 0) {
-        if (!class_exists('ReservasDiscountsAdmin')) {
-            require_once RESERVAS_PLUGIN_PATH . 'includes/class-discounts-admin.php';
+        if (!$servicio) {
+            wp_send_json_error('Servicio no encontrado');
         }
 
-        $subtotal_para_grupo = $precio_base - $descuento_total;
+        // ✅ CALCULAR TOTAL DE PERSONAS QUE OCUPAN PLAZA
+        $total_personas_con_plaza = $adultos + $residentes + $ninos_5_12;
 
-        $discount_info = ReservasDiscountsAdmin::calculate_discount(
-            $total_personas_con_plaza,
-            $subtotal_para_grupo,
-            'total'
+        // ✅ CALCULAR PRECIO BASE (todos pagan precio de adulto inicialmente)
+        $precio_base = 0;
+        $precio_base += $adultos * $servicio->precio_adulto;
+        $precio_base += $residentes * $servicio->precio_adulto;
+        $precio_base += $ninos_5_12 * $servicio->precio_adulto;
+
+        // ✅ CALCULAR DESCUENTOS INDIVIDUALES
+        $descuento_total = 0;
+
+        // Descuento por ser residente
+        $descuento_residentes = $residentes * ($servicio->precio_adulto - $servicio->precio_residente);
+        $descuento_total += $descuento_residentes;
+
+        // Descuento por ser niño
+        $descuento_ninos = $ninos_5_12 * ($servicio->precio_adulto - $servicio->precio_nino);
+        $descuento_total += $descuento_ninos;
+
+        // ✅ INICIALIZAR VARIABLES DE DESCUENTO
+        $descuento_grupo = 0;
+        $descuento_servicio = 0;
+        $regla_aplicada = null;
+        $aplicar_descuento_servicio = false;
+
+        // ✅ PASO 1: CALCULAR DESCUENTO POR GRUPO (REGLAS GLOBALES)
+        if ($total_personas_con_plaza > 0) {
+            if (!class_exists('ReservasDiscountsAdmin')) {
+                require_once RESERVAS_PLUGIN_PATH . 'includes/class-discounts-admin.php';
+            }
+
+            $subtotal_para_grupo = $precio_base - $descuento_total;
+
+            $discount_info = ReservasDiscountsAdmin::calculate_discount(
+                $total_personas_con_plaza,
+                $subtotal_para_grupo,
+                'total'
+            );
+
+            if ($discount_info['discount_applied']) {
+                $descuento_grupo = $discount_info['discount_amount'];
+                $regla_aplicada = array(
+                    'rule_name' => $discount_info['rule_name'],
+                    'discount_percentage' => $discount_info['discount_percentage'],
+                    'minimum_persons' => $discount_info['minimum_persons']
+                );
+            }
+        }
+
+        // ✅ PASO 2: CALCULAR DESCUENTO ESPECÍFICO DEL SERVICIO
+        if ($servicio->tiene_descuento && floatval($servicio->porcentaje_descuento) > 0) {
+            if ($servicio->descuento_tipo === 'fijo') {
+                $aplicar_descuento_servicio = true;
+            } elseif ($servicio->descuento_tipo === 'por_grupo') {
+                $minimo_requerido = intval($servicio->descuento_minimo_personas);
+                if ($total_personas_con_plaza >= $minimo_requerido) {
+                    $aplicar_descuento_servicio = true;
+                }
+            }
+
+            if ($aplicar_descuento_servicio) {
+                // Calcular descuento del servicio sobre el subtotal actual
+                $subtotal_actual = $precio_base - $descuento_total;
+                $descuento_servicio = ($subtotal_actual * floatval($servicio->porcentaje_descuento)) / 100;
+            }
+        }
+
+        // ✅ PASO 3: APLICAR LÓGICA DE ACUMULACIÓN/PRIORIDAD
+        $descuento_final_grupo = 0;
+        $descuento_final_servicio = 0;
+        $regla_final_aplicada = null;
+
+        if ($aplicar_descuento_servicio && $descuento_grupo > 0) {
+            // ✅ HAY AMBOS DESCUENTOS: APLICAR LÓGICA DE ACUMULACIÓN
+            $acumulable = $servicio->descuento_acumulable == '1';
+
+            if ($acumulable) {
+                // ✅ ACUMULAR: Aplicar ambos descuentos
+                $descuento_final_grupo = $descuento_grupo;
+                $descuento_final_servicio = $descuento_servicio;
+                $regla_final_aplicada = $regla_aplicada;
+
+                // Sumar ambos al total
+                $descuento_total += $descuento_grupo + $descuento_servicio;
+            } else {
+                // ✅ NO ACUMULAR: Aplicar prioridad
+                $prioridad = $servicio->descuento_prioridad ?? 'servicio';
+
+                if ($prioridad === 'servicio') {
+                    // Prioridad al descuento del servicio
+                    $descuento_final_servicio = $descuento_servicio;
+                    $descuento_total += $descuento_servicio;
+                    // No aplicar descuento por grupo
+                } else {
+                    // Prioridad al descuento por grupo
+                    $descuento_final_grupo = $descuento_grupo;
+                    $regla_final_aplicada = $regla_aplicada;
+                    $descuento_total += $descuento_grupo;
+                    // No aplicar descuento de servicio
+                }
+            }
+        } elseif ($aplicar_descuento_servicio) {
+            // ✅ SOLO HAY DESCUENTO DE SERVICIO
+            $descuento_final_servicio = $descuento_servicio;
+            $descuento_total += $descuento_servicio;
+        } elseif ($descuento_grupo > 0) {
+            // ✅ SOLO HAY DESCUENTO POR GRUPO
+            $descuento_final_grupo = $descuento_grupo;
+            $regla_final_aplicada = $regla_aplicada;
+            $descuento_total += $descuento_grupo;
+        }
+
+        // ✅ CALCULAR TOTAL FINAL
+        $total = $precio_base - $descuento_total;
+        if ($total < 0) $total = 0;
+
+        // ✅ PREPARAR RESPUESTA DETALLADA
+        $response_data = array(
+            'precio_base' => round($precio_base, 2),
+            'descuento' => round($descuento_final_grupo + $descuento_final_servicio, 2),
+            'descuento_residentes' => round($descuento_residentes, 2),
+            'descuento_ninos' => round($descuento_ninos, 2),
+            'descuento_grupo' => round($descuento_final_grupo, 2),
+            'descuento_servicio' => round($descuento_final_servicio, 2),
+            'total' => round($total, 2),
+            'precio_adulto' => $servicio->precio_adulto,
+            'precio_nino' => $servicio->precio_nino,
+            'precio_residente' => $servicio->precio_residente,
+            'total_personas_con_plaza' => $total_personas_con_plaza,
+            'regla_descuento_aplicada' => $regla_final_aplicada,
+            'servicio_con_descuento' => array(
+                'tiene_descuento' => $servicio->tiene_descuento,
+                'porcentaje_descuento' => $servicio->porcentaje_descuento,
+                'descuento_tipo' => $servicio->descuento_tipo ?? 'fijo',
+                'descuento_minimo_personas' => $servicio->descuento_minimo_personas ?? 1,
+                'descuento_acumulable' => $servicio->descuento_acumulable ?? 0,
+                'descuento_prioridad' => $servicio->descuento_prioridad ?? 'servicio',
+                'descuento_aplicado' => $aplicar_descuento_servicio
+            ),
+            // ✅ INFORMACIÓN DE DEBUG MEJORADA
+            'debug' => array(
+                'adultos' => $adultos,
+                'residentes' => $residentes,
+                'ninos_5_12' => $ninos_5_12,
+                'ninos_menores' => $ninos_menores,
+                'total_personas_con_plaza' => $total_personas_con_plaza,
+                'precio_base_calculado' => $precio_base,
+                'descuento_grupo_calculado' => $descuento_grupo,
+                'descuento_servicio_calculado' => $descuento_servicio,
+                'descuento_grupo_aplicado' => $descuento_final_grupo,
+                'descuento_servicio_aplicado' => $descuento_final_servicio,
+                'es_acumulable' => $servicio->descuento_acumulable == '1',
+                'prioridad' => $servicio->descuento_prioridad ?? 'servicio'
+            )
         );
 
-        if ($discount_info['discount_applied']) {
-            $descuento_grupo = $discount_info['discount_amount'];
-            $regla_aplicada = array(
-                'rule_name' => $discount_info['rule_name'],
-                'discount_percentage' => $discount_info['discount_percentage'],
-                'minimum_persons' => $discount_info['minimum_persons']
-            );
-        }
+        wp_send_json_success($response_data);
     }
-
-    // ✅ PASO 2: CALCULAR DESCUENTO ESPECÍFICO DEL SERVICIO
-    if ($servicio->tiene_descuento && floatval($servicio->porcentaje_descuento) > 0) {
-        if ($servicio->descuento_tipo === 'fijo') {
-            $aplicar_descuento_servicio = true;
-        } elseif ($servicio->descuento_tipo === 'por_grupo') {
-            $minimo_requerido = intval($servicio->descuento_minimo_personas);
-            if ($total_personas_con_plaza >= $minimo_requerido) {
-                $aplicar_descuento_servicio = true;
-            }
-        }
-
-        if ($aplicar_descuento_servicio) {
-            // Calcular descuento del servicio sobre el subtotal actual
-            $subtotal_actual = $precio_base - $descuento_total;
-            $descuento_servicio = ($subtotal_actual * floatval($servicio->porcentaje_descuento)) / 100;
-        }
-    }
-
-    // ✅ PASO 3: APLICAR LÓGICA DE ACUMULACIÓN/PRIORIDAD
-    $descuento_final_grupo = 0;
-    $descuento_final_servicio = 0;
-    $regla_final_aplicada = null;
-
-    if ($aplicar_descuento_servicio && $descuento_grupo > 0) {
-        // ✅ HAY AMBOS DESCUENTOS: APLICAR LÓGICA DE ACUMULACIÓN
-        $acumulable = $servicio->descuento_acumulable == '1';
-        
-        if ($acumulable) {
-            // ✅ ACUMULAR: Aplicar ambos descuentos
-            $descuento_final_grupo = $descuento_grupo;
-            $descuento_final_servicio = $descuento_servicio;
-            $regla_final_aplicada = $regla_aplicada;
-            
-            // Sumar ambos al total
-            $descuento_total += $descuento_grupo + $descuento_servicio;
-            
-        } else {
-            // ✅ NO ACUMULAR: Aplicar prioridad
-            $prioridad = $servicio->descuento_prioridad ?? 'servicio';
-            
-            if ($prioridad === 'servicio') {
-                // Prioridad al descuento del servicio
-                $descuento_final_servicio = $descuento_servicio;
-                $descuento_total += $descuento_servicio;
-                // No aplicar descuento por grupo
-            } else {
-                // Prioridad al descuento por grupo
-                $descuento_final_grupo = $descuento_grupo;
-                $regla_final_aplicada = $regla_aplicada;
-                $descuento_total += $descuento_grupo;
-                // No aplicar descuento de servicio
-            }
-        }
-        
-    } elseif ($aplicar_descuento_servicio) {
-        // ✅ SOLO HAY DESCUENTO DE SERVICIO
-        $descuento_final_servicio = $descuento_servicio;
-        $descuento_total += $descuento_servicio;
-        
-    } elseif ($descuento_grupo > 0) {
-        // ✅ SOLO HAY DESCUENTO POR GRUPO
-        $descuento_final_grupo = $descuento_grupo;
-        $regla_final_aplicada = $regla_aplicada;
-        $descuento_total += $descuento_grupo;
-    }
-
-    // ✅ CALCULAR TOTAL FINAL
-    $total = $precio_base - $descuento_total;
-    if ($total < 0) $total = 0;
-
-    // ✅ PREPARAR RESPUESTA DETALLADA
-    $response_data = array(
-        'precio_base' => round($precio_base, 2),
-        'descuento' => round($descuento_final_grupo + $descuento_final_servicio, 2),
-        'descuento_residentes' => round($descuento_residentes, 2),
-        'descuento_ninos' => round($descuento_ninos, 2),
-        'descuento_grupo' => round($descuento_final_grupo, 2),
-        'descuento_servicio' => round($descuento_final_servicio, 2),
-        'total' => round($total, 2),
-        'precio_adulto' => $servicio->precio_adulto,
-        'precio_nino' => $servicio->precio_nino,
-        'precio_residente' => $servicio->precio_residente,
-        'total_personas_con_plaza' => $total_personas_con_plaza,
-        'regla_descuento_aplicada' => $regla_final_aplicada,
-        'servicio_con_descuento' => array(
-            'tiene_descuento' => $servicio->tiene_descuento,
-            'porcentaje_descuento' => $servicio->porcentaje_descuento,
-            'descuento_tipo' => $servicio->descuento_tipo ?? 'fijo',
-            'descuento_minimo_personas' => $servicio->descuento_minimo_personas ?? 1,
-            'descuento_acumulable' => $servicio->descuento_acumulable ?? 0,
-            'descuento_prioridad' => $servicio->descuento_prioridad ?? 'servicio',
-            'descuento_aplicado' => $aplicar_descuento_servicio
-        ),
-        // ✅ INFORMACIÓN DE DEBUG MEJORADA
-        'debug' => array(
-            'adultos' => $adultos,
-            'residentes' => $residentes,
-            'ninos_5_12' => $ninos_5_12,
-            'ninos_menores' => $ninos_menores,
-            'total_personas_con_plaza' => $total_personas_con_plaza,
-            'precio_base_calculado' => $precio_base,
-            'descuento_grupo_calculado' => $descuento_grupo,
-            'descuento_servicio_calculado' => $descuento_servicio,
-            'descuento_grupo_aplicado' => $descuento_final_grupo,
-            'descuento_servicio_aplicado' => $descuento_final_servicio,
-            'es_acumulable' => $servicio->descuento_acumulable == '1',
-            'prioridad' => $servicio->descuento_prioridad ?? 'servicio'
-        )
-    );
-
-    wp_send_json_success($response_data);
-}
 
     public function render_details_form()
     {

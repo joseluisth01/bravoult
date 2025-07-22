@@ -261,19 +261,22 @@ class SistemaReservas
     }
 
     public function activate()
-    {
-        // Crear tablas de base de datos
-        $this->create_tables();
+{
+    // Crear tablas de base de datos
+    $this->create_tables();
 
-        // Flush rewrite rules para activar las nuevas URLs
-        flush_rewrite_rules();
+    // ✅ FORZAR ACTUALIZACIÓN DE TABLAS EXISTENTES
+    $this->maybe_update_existing_tables();
 
-        // ✅ PROGRAMAR CRON JOB PARA RECORDATORIOS
-        if (!wp_next_scheduled('reservas_send_reminders')) {
-            wp_schedule_event(time(), 'hourly', 'reservas_send_reminders');
-            error_log('✅ Cron job de recordatorios programado');
-        }
+    // Flush rewrite rules para activar las nuevas URLs
+    flush_rewrite_rules();
+
+    // ✅ PROGRAMAR CRON JOB PARA RECORDATORIOS
+    if (!wp_next_scheduled('reservas_send_reminders')) {
+        wp_schedule_event(time(), 'hourly', 'reservas_send_reminders');
+        error_log('✅ Cron job de recordatorios programado');
     }
+}
 
     public function deactivate()
     {
