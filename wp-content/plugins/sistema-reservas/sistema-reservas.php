@@ -268,6 +268,8 @@ class SistemaReservas
     // ✅ FORZAR ACTUALIZACIÓN DE TABLAS EXISTENTES
     $this->maybe_update_existing_tables();
 
+    $this->init_localizador_counter();
+
     // Flush rewrite rules para activar las nuevas URLs
     flush_rewrite_rules();
 
@@ -276,6 +278,12 @@ class SistemaReservas
         wp_schedule_event(time(), 'hourly', 'reservas_send_reminders');
         error_log('✅ Cron job de recordatorios programado');
     }
+
+    if (!wp_next_scheduled('reservas_reset_localizadores')) {
+    $next_year = mktime(0, 0, 0, 1, 1, date('Y') + 1); // 1 de enero del próximo año
+    wp_schedule_event($next_year, 'yearly', 'reservas_reset_localizadores');
+    error_log('✅ Programado reinicio anual de localizadores para: ' . date('Y-m-d H:i:s', $next_year));
+}
 }
 
     public function deactivate()
@@ -787,6 +795,35 @@ class SistemaReservas
             }
         }
     }
+
+    private function init_localizador_counter()
+{
+    global $wpdb;
+    
+    $table_config = $wpdb->prefix . 'reservas_configuration';
+    $año_actual = date('Y');
+    $config_key = "ultimo_localizador_$año_actual";
+    
+    // Verificar si ya existe configuración para este año
+    $exists = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM $table_config WHERE config_key = %s",
+        $config_key
+    ));
+    
+    if ($exists == 0) {
+        // Insertar configuración inicial para el año actual
+        $wpdb->insert(
+            $table_config,
+            array(
+                'config_key' => $config_key,
+                'config_value' => '0',
+                'config_group' => 'localizadores',
+                'description' => "Último número de localizador usado en el año $año_actual (se reinicia cada año)"
+            )
+        );
+        error_log("✅ Inicializado contador de localizadores para el año $año_actual");
+    }
+}
 }
 
 // ✅ SHORTCODE PARA PÁGINA DE CONFIRMACIÓN ACTUALIZADA - EXACTO AL DISEÑO
@@ -1388,6 +1425,35 @@ function delete_temporary_pdf_file($pdf_path)
         unlink($pdf_path);
         error_log('PDF temporal eliminado: ' . $pdf_path);
     }
+}
+
+
+// ✅ AÑADIR DESPUÉS DE LA CLASE SistemaReservas
+
+// Hook para reiniciar contadores de localizadores cada año
+add_action('reservas_reset_localizadores', 'reset_yearly_localizadores');
+
+function reset_yearly_localizadores() {
+    global $wpdb;
+    
+    $table_config = $wpdb->prefix . 'reservas_configuration';
+    $año_actual = date('Y');
+    $config_key = "ultimo_localizador_$año_actual";
+    
+    // Insertar o actualizar contador para el nuevo año
+    $wpdb->query($wpdb->prepare(
+        "INSERT INTO $table_config (config_key, config_value, config_group, description) 
+         VALUES (%s, '0', 'localizadores', %s)
+         ON DUPLICATE KEY UPDATE config_value = '0', updated_at = NOW()",
+        $config_key,
+        "Último número de localizador usado en el año $año_actual (se reinicia cada año)"
+    ));
+    
+    // Programar para el siguiente año
+    $next_year = mktime(0, 0, 0, 1, 1, date('Y') + 1);
+    wp_schedule_event($next_year, 'yearly', 'reservas_reset_localizadores');
+    
+    error_log("✅ Contador de localizadores reiniciado para el año $año_actual");
 }
 
 // ✅ SHORTCODES SIN CAMBIOS

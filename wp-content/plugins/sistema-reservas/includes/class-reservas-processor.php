@@ -67,8 +67,8 @@ class ReservasProcessor
 
             // ✅ CREAR LA RESERVA DIRECTAMENTE
             $resultado_reserva = $this->crear_reserva(
-                $datos_personales['datos'], 
-                $datos_reserva['datos'], 
+                $datos_personales['datos'],
+                $datos_reserva['datos'],
                 $calculo_precio['precio']
             );
 
@@ -79,7 +79,7 @@ class ReservasProcessor
 
             // Actualizar plazas disponibles
             $actualizacion = $this->actualizar_plazas_disponibles(
-                $datos_reserva['datos']['service_id'], 
+                $datos_reserva['datos']['service_id'],
                 $datos_reserva['datos']['total_personas']
             );
 
@@ -107,7 +107,6 @@ class ReservasProcessor
 
             error_log('SUCCESS: Reserva completada con emails enviados');
             wp_send_json_success($response_data);
-
         } catch (Exception $e) {
             error_log('EXCEPTION: ' . $e->getMessage());
             wp_send_json_error('Error interno del servidor: ' . $e->getMessage());
@@ -117,7 +116,8 @@ class ReservasProcessor
     /**
      * ✅ FUNCIÓN PARA ENVIAR EMAILS DE CONFIRMACIÓN
      */
-    private function send_confirmation_emails($reserva_id) {
+    private function send_confirmation_emails($reserva_id)
+    {
         error_log('=== ENVIANDO EMAILS DE CONFIRMACIÓN ===');
 
         // Cargar clase de emails
@@ -128,7 +128,7 @@ class ReservasProcessor
         // Obtener datos de la reserva
         global $wpdb;
         $table_reservas = $wpdb->prefix . 'reservas_reservas';
-        
+
         $reserva = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM $table_reservas WHERE id = %d",
             $reserva_id
@@ -412,72 +412,72 @@ class ReservasProcessor
      * Crear reserva en la base de datos
      */
     private function crear_reserva($datos_personales, $datos_reserva, $calculo_precio)
-{
-    error_log('=== CREANDO RESERVA ===');
+    {
+        error_log('=== CREANDO RESERVA ===');
 
-    global $wpdb;
-    $table_reservas = $wpdb->prefix . 'reservas_reservas';
+        global $wpdb;
+        $table_reservas = $wpdb->prefix . 'reservas_reservas';
 
-    // Verificar que la tabla existe
-    if ($wpdb->get_var("SHOW TABLES LIKE '$table_reservas'") != $table_reservas) {
-        return array('exito' => false, 'error' => 'Tabla de reservas no existe');
+        // Verificar que la tabla existe
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table_reservas'") != $table_reservas) {
+            return array('exito' => false, 'error' => 'Tabla de reservas no existe');
+        }
+
+        // Generar localizador único
+        $localizador = $this->generar_localizador();
+        error_log('Localizador generado: ' . $localizador);
+
+        // ✅ OBTENER HORA_VUELTA DEL SERVICIO
+        $table_servicios = $wpdb->prefix . 'reservas_servicios';
+        $servicio = $wpdb->get_row($wpdb->prepare(
+            "SELECT hora_vuelta FROM $table_servicios WHERE id = %d",
+            $datos_reserva['service_id']
+        ));
+
+        // Preparar datos para insertar
+        $reserva_data = array(
+            'localizador' => $localizador,
+            'servicio_id' => $datos_reserva['service_id'],
+            'fecha' => $datos_reserva['fecha'],
+            'hora' => $datos_reserva['hora_ida'],
+            // ✅ AÑADIR ESTA LÍNEA
+            'hora_vuelta' => $servicio ? $servicio->hora_vuelta : null,
+            'nombre' => $datos_personales['nombre'],
+            'apellidos' => $datos_personales['apellidos'],
+            'email' => $datos_personales['email'],
+            'telefono' => $datos_personales['telefono'],
+            'adultos' => $datos_reserva['adultos'],
+            'residentes' => $datos_reserva['residentes'],
+            'ninos_5_12' => $datos_reserva['ninos_5_12'],
+            'ninos_menores' => $datos_reserva['ninos_menores'],
+            'total_personas' => $datos_reserva['total_personas'],
+            'precio_base' => $calculo_precio['precio_base'],
+            'descuento_total' => $calculo_precio['descuento_total'],
+            'precio_final' => $calculo_precio['precio_final'],
+            'regla_descuento_aplicada' => $calculo_precio['regla_descuento_aplicada'] ? json_encode($calculo_precio['regla_descuento_aplicada']) : null,
+            'estado' => 'confirmada',
+            'metodo_pago' => 'directo'
+        );
+
+        error_log('Datos de reserva a insertar: ' . print_r($reserva_data, true));
+
+        $resultado = $wpdb->insert($table_reservas, $reserva_data);
+
+        if ($resultado === false) {
+            error_log('ERROR DB: ' . $wpdb->last_error);
+            error_log('QUERY: ' . $wpdb->last_query);
+            return array('exito' => false, 'error' => 'Error guardando la reserva: ' . $wpdb->last_error);
+        }
+
+        $reserva_id = $wpdb->insert_id;
+        error_log('Reserva insertada con ID: ' . $reserva_id);
+
+        return array(
+            'exito' => true,
+            'reserva_id' => $reserva_id,
+            'localizador' => $localizador
+        );
     }
-
-    // Generar localizador único
-    $localizador = $this->generar_localizador();
-    error_log('Localizador generado: ' . $localizador);
-
-    // ✅ OBTENER HORA_VUELTA DEL SERVICIO
-    $table_servicios = $wpdb->prefix . 'reservas_servicios';
-    $servicio = $wpdb->get_row($wpdb->prepare(
-        "SELECT hora_vuelta FROM $table_servicios WHERE id = %d",
-        $datos_reserva['service_id']
-    ));
-
-    // Preparar datos para insertar
-    $reserva_data = array(
-        'localizador' => $localizador,
-        'servicio_id' => $datos_reserva['service_id'],
-        'fecha' => $datos_reserva['fecha'],
-        'hora' => $datos_reserva['hora_ida'],
-        // ✅ AÑADIR ESTA LÍNEA
-        'hora_vuelta' => $servicio ? $servicio->hora_vuelta : null,
-        'nombre' => $datos_personales['nombre'],
-        'apellidos' => $datos_personales['apellidos'],
-        'email' => $datos_personales['email'],
-        'telefono' => $datos_personales['telefono'],
-        'adultos' => $datos_reserva['adultos'],
-        'residentes' => $datos_reserva['residentes'],
-        'ninos_5_12' => $datos_reserva['ninos_5_12'],
-        'ninos_menores' => $datos_reserva['ninos_menores'],
-        'total_personas' => $datos_reserva['total_personas'],
-        'precio_base' => $calculo_precio['precio_base'],
-        'descuento_total' => $calculo_precio['descuento_total'],
-        'precio_final' => $calculo_precio['precio_final'],
-        'regla_descuento_aplicada' => $calculo_precio['regla_descuento_aplicada'] ? json_encode($calculo_precio['regla_descuento_aplicada']) : null,
-        'estado' => 'confirmada',
-        'metodo_pago' => 'directo'
-    );
-
-    error_log('Datos de reserva a insertar: ' . print_r($reserva_data, true));
-
-    $resultado = $wpdb->insert($table_reservas, $reserva_data);
-
-    if ($resultado === false) {
-        error_log('ERROR DB: ' . $wpdb->last_error);
-        error_log('QUERY: ' . $wpdb->last_query);
-        return array('exito' => false, 'error' => 'Error guardando la reserva: ' . $wpdb->last_error);
-    }
-
-    $reserva_id = $wpdb->insert_id;
-    error_log('Reserva insertada con ID: ' . $reserva_id);
-
-    return array(
-        'exito' => true,
-        'reserva_id' => $reserva_id,
-        'localizador' => $localizador
-    );
-}
 
     /**
      * Actualizar plazas disponibles del servicio
@@ -540,14 +540,128 @@ class ReservasProcessor
         global $wpdb;
 
         $table_reservas = $wpdb->prefix . 'reservas_reservas';
+        $table_config = $wpdb->prefix . 'reservas_configuration';
 
-        do {
-            $localizador = strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
-            $exists = $wpdb->get_var($wpdb->prepare(
+        $año_actual = date('Y');
+
+        // Obtener el último número de localizador para este año
+        $config_key = "ultimo_localizador_$año_actual";
+
+        $ultimo_numero = $wpdb->get_var($wpdb->prepare(
+            "SELECT config_value FROM $table_config WHERE config_key = %s",
+            $config_key
+        ));
+
+        if ($ultimo_numero === null) {
+            // Primer localizador del año, empezar desde 1
+            $nuevo_numero = 1;
+
+            // Insertar configuración inicial para este año
+            $wpdb->insert(
+                $table_config,
+                array(
+                    'config_key' => $config_key,
+                    'config_value' => '1',
+                    'config_group' => 'localizadores',
+                    'description' => "Último número de localizador usado en el año $año_actual"
+                )
+            );
+        } else {
+            $nuevo_numero = intval($ultimo_numero) + 1;
+
+            // Verificar que no exceda 100000
+            if ($nuevo_numero > 100000) {
+                // Si se alcanza el límite, buscar números disponibles
+                $nuevo_numero = $this->buscar_numero_disponible($año_actual);
+                if ($nuevo_numero === false) {
+                    throw new Exception('Se ha alcanzado el límite máximo de reservas para este año (100000)');
+                }
+            }
+
+            // Actualizar el contador
+            $wpdb->update(
+                $table_config,
+                array('config_value' => $nuevo_numero),
+                array('config_key' => $config_key)
+            );
+        }
+
+        // Generar localizador con formato de 6 cifras
+        $localizador = str_pad($nuevo_numero, 6, '0', STR_PAD_LEFT);
+
+        // Verificar que no exista ya (por seguridad)
+        $existe = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_reservas WHERE localizador = %s",
+            $localizador
+        ));
+
+        if ($existe > 0) {
+            // Si por alguna razón ya existe, buscar el siguiente disponible
+            return $this->generar_localizador_recursivo($año_actual, $nuevo_numero + 1);
+        }
+
+        error_log("Localizador generado: $localizador (número $nuevo_numero para año $año_actual)");
+
+        return $localizador;
+    }
+
+    private function buscar_numero_disponible($año)
+    {
+        global $wpdb;
+
+        $table_reservas = $wpdb->prefix . 'reservas_reservas';
+
+        // Buscar el primer número no usado entre 1 y 100000
+        for ($i = 1; $i <= 100000; $i++) {
+            $localizador_test = str_pad($i, 6, '0', STR_PAD_LEFT);
+
+            $existe = $wpdb->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM $table_reservas WHERE localizador = %s",
-                $localizador
+                $localizador_test
             ));
-        } while ($exists > 0);
+
+            if ($existe == 0) {
+                return $i;
+            }
+        }
+
+        return false; // No hay números disponibles
+    }
+
+    private function generar_localizador_recursivo($año, $numero)
+    {
+        global $wpdb;
+
+        $table_reservas = $wpdb->prefix . 'reservas_reservas';
+        $table_config = $wpdb->prefix . 'reservas_configuration';
+
+        if ($numero > 100000) {
+            // Buscar hueco disponible
+            $numero_disponible = $this->buscar_numero_disponible($año);
+            if ($numero_disponible === false) {
+                throw new Exception('Se ha alcanzado el límite máximo de reservas para este año (100000)');
+            }
+            $numero = $numero_disponible;
+        }
+
+        $localizador = str_pad($numero, 6, '0', STR_PAD_LEFT);
+
+        $existe = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table_reservas WHERE localizador = %s",
+            $localizador
+        ));
+
+        if ($existe > 0) {
+            return $this->generar_localizador_recursivo($año, $numero + 1);
+        }
+
+        // Actualizar contador
+        $config_key = "ultimo_localizador_$año";
+        $wpdb->update(
+            $table_config,
+            array('config_value' => $numero),
+            array('config_key' => $config_key)
+        );
 
         return $localizador;
     }

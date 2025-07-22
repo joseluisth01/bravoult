@@ -405,10 +405,11 @@ class ReservasPDFGenerator
         $pdf->Cell(66, 3, 'INGENIERO BARBUDO, S/N - CORDOBA - CIF: B14485817 - Teléfono: 957429034', 0, 1, 'L');
 
 
-        // ✅ AÑADIR AL FINAL DE generate_stub_section(), después de la información de la empresa:
-        $pdf->SetFont('helvetica', '', 7);
-        $pdf->SetXY(127, $y_start + 63);
-        $pdf->Cell(66, 3, 'Código: ' . $this->reserva_data['localizador'] . date('Ymd', strtotime($this->reserva_data['fecha'])), 0, 1, 'C');
+$pdf->SetFont('helvetica', '', 7);
+$pdf->SetXY(127, $y_start + 63);
+$fecha_formato = date('Ymd', strtotime($this->reserva_data['fecha']));
+$codigo_completo = $this->reserva_data['localizador'] . $fecha_formato;
+$pdf->Cell(66, 3, 'Código: ' . $codigo_completo, 0, 1, 'C');
     }
 
     /**
@@ -436,35 +437,38 @@ class ReservasPDFGenerator
     /**
      * Generar código de barras simple en el pie del billete
      */
-    private function generate_simple_barcode($pdf, $y_start)
-    {
-        // Generar código único basado en el localizador
-        $barcode_data = $this->reserva_data['localizador'] . date('Ymd', strtotime($this->reserva_data['fecha']));
+private function generate_simple_barcode($pdf, $y_start)
+{
+    // ✅ USAR LOCALIZADOR NUMÉRICO + FECHA (formato YYYYMMDD)
+    $fecha_formato = date('Ymd', strtotime($this->reserva_data['fecha']));
+    $barcode_data = $this->reserva_data['localizador'] . $fecha_formato;
+    
+    error_log("Generando código de barras: Localizador=" . $this->reserva_data['localizador'] . " + Fecha=" . $fecha_formato . " = " . $barcode_data);
 
-        // Posicionar código de barras
-        $pdf->SetXY(15, $y_start);
+    // Posicionar código de barras
+    $pdf->SetXY(15, $y_start);
 
-        // ✅ USAR write1DBarcode de TCPDF
-        $style = array(
-            'border' => false,
-            'hpadding' => 0,
-            'vpadding' => 0,
-            'fgcolor' => array(0, 0, 0),
-            'bgcolor' => false,
-            'text' => true,
-            'font' => 'helvetica',
-            'fontsize' => 8,
-            'stretchtext' => 4
-        );
+    // ✅ USAR CODE 128 (mejor para combinación de números)
+    $style = array(
+        'border' => false,
+        'hpadding' => 0,
+        'vpadding' => 0,
+        'fgcolor' => array(0, 0, 0),
+        'bgcolor' => false,
+        'text' => true,
+        'font' => 'helvetica',
+        'fontsize' => 8,
+        'stretchtext' => 4
+    );
 
-        // Generar código de barras CODE 39 (soporta letras y números)
-        $pdf->write1DBarcode($barcode_data, 'C39', 15, $y_start, 120, 15, 0.4, $style, 'N');
+    // Generar código de barras CODE 128 (mejor para números largos)
+    $pdf->write1DBarcode($barcode_data, 'C128', 15, $y_start, 120, 15, 0.4, $style, 'N');
 
-        // Total a la derecha del código de barras
-        $pdf->SetFont('helvetica', 'B', 12);
-        $pdf->SetXY(150, $y_start + 5);
-        $pdf->Cell(40, 6, 'Total: ' . number_format($this->reserva_data['precio_final'], 2) . ' €', 0, 1, 'R');
-    }
+    // Total a la derecha del código de barras
+    $pdf->SetFont('helvetica', 'B', 12);
+    $pdf->SetXY(150, $y_start + 5);
+    $pdf->Cell(40, 6, 'Total: ' . number_format($this->reserva_data['precio_final'], 2) . ' €', 0, 1, 'R');
+}
 
     /**
      * Métodos auxiliares
