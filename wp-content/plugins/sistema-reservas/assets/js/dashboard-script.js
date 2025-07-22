@@ -102,7 +102,7 @@ function loadCalendarSection() {
             }
         </style>
     `;
-    
+
 
     // ✅ CARGAR CONFIGURACIÓN PRIMERO, LUEGO INICIALIZAR CALENDARIO
     loadDefaultConfiguration().then(() => {
@@ -358,16 +358,16 @@ function renderCalendar() {
         let hasDisabledServices = false;
         let hasEnabledServices = false;
         let totalServices = 0;
-        
+
         if (servicesData[dateStr]) {
             totalServices = servicesData[dateStr].length;
-            
+
             servicesData[dateStr].forEach(service => {
                 // Verificar descuentos
                 if (service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0) {
                     hasDiscount = true;
                 }
-                
+
                 // Verificar estado de habilitación
                 if (service.enabled === 0 || service.enabled === '0') {
                     hasDisabledServices = true;
@@ -400,12 +400,12 @@ function renderCalendar() {
         }
 
         let dayClass = `calendar-day${todayClass}`;
-        
+
         // ✅ LÓGICA MEJORADA PARA CLASES DE DÍA
         if (hasDiscount) {
             dayClass += ' day-with-discount';
         }
-        
+
         if (hasDisabledServices && !hasEnabledServices) {
             // Todos los servicios están deshabilitados - rojo intenso
             dayClass += ' day-all-disabled';
@@ -438,10 +438,18 @@ function renderCalendar() {
     initModalEvents();
 }
 
-// ✅ NUEVA FUNCIÓN PARA MOSTRAR MENSAJE DE DÍA BLOQUEADO
 function showBlockedDayMessage() {
-    const diasAnticiapcion = defaultConfig?.servicios?.dias_anticipacion_minima?.value || '1';
-    alert(`No se pueden crear servicios para esta fecha. Se requiere un mínimo de ${diasAnticiapcion} días de anticipación.`);
+    // ✅ Verificar rol del usuario actual
+    const isSuper = window.reservasUser && window.reservasUser.role === 'super_admin';
+
+    if (isSuper) {
+        // Super admin puede crear servicios en cualquier fecha
+        return true;
+    } else {
+        const diasAnticiapcion = defaultConfig?.servicios?.dias_anticipacion_minima?.value || '1';
+        alert(`No se pueden crear servicios para esta fecha. Se requiere un mínimo de ${diasAnticiapcion} días de anticipación.`);
+        return false;
+    }
 }
 
 function getModalHTML() {
@@ -729,7 +737,7 @@ function initModalEvents() {
                 document.getElementById('tipoDescuento').value = 'fijo';
                 document.getElementById('minimoPersonas').value = 1;
                 document.getElementById('minimoPersonasGroup').style.display = 'none';
-                
+
                 const preview = document.getElementById('discountPreview');
                 if (preview) preview.style.display = 'none';
             }
@@ -805,12 +813,12 @@ function initModalEvents() {
 function togglePrioridadField(checkboxId, groupId) {
     const checkbox = document.getElementById(checkboxId);
     const group = document.getElementById(groupId);
-    
+
     if (!checkbox || !group) {
         console.warn(`No se encontraron elementos: ${checkboxId} o ${groupId}`);
         return;
     }
-    
+
     // Si NO es acumulable, mostrar campo de prioridad
     if (!checkbox.checked) {
         group.style.display = 'block';
@@ -842,19 +850,19 @@ function updateDiscountPreview() {
     const prioridad = document.getElementById('descuentoPrioridad').value;
     const preview = document.getElementById('discountPreview');
     const previewText = document.getElementById('discountPreviewText');
-    
+
     if (!preview || !previewText) {
         console.warn('Elementos de vista previa no encontrados');
         return;
     }
-    
+
     if (!porcentaje || porcentaje <= 0) {
         preview.style.display = 'none';
         return;
     }
-    
+
     let texto = '';
-    
+
     // Texto base del descuento
     if (tipo === 'fijo') {
         texto = `Se aplicará un ${porcentaje}% de descuento a todas las reservas de este servicio`;
@@ -864,7 +872,7 @@ function updateDiscountPreview() {
         preview.style.display = 'none';
         return;
     }
-    
+
     // Añadir información sobre acumulación
     if (acumulable) {
         texto += '. <br><strong>Se acumulará</strong> con cualquier descuento por grupo que aplique.';
@@ -875,7 +883,7 @@ function updateDiscountPreview() {
             texto += '. <br><strong>Los descuentos por grupo tendrán prioridad</strong> sobre este descuento.';
         }
     }
-    
+
     previewText.innerHTML = texto;
     preview.style.display = 'block';
 }
@@ -895,7 +903,7 @@ function addService(fecha) {
 
     document.getElementById('serviceModalTitle').textContent = 'Añadir Servicio';
     document.getElementById('serviceForm').reset();
-    
+
     // Configurar campos con verificación
     const serviceId = document.getElementById('serviceId');
     const serviceFecha = document.getElementById('serviceFecha');
@@ -947,168 +955,168 @@ function editService(serviceId) {
         body: formData,
         credentials: 'same-origin'
     })
-    .then(response => response.text().then(text => {
-        console.log('Response text:', text);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText} - ${text}`);
-        }
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            console.error('JSON Parse Error:', e);
-            throw new Error('Invalid JSON response: ' + text);
-        }
-    }))
-    .then(data => {
-        console.log('Service details response:', data);
-        if (data.success) {
-            const service = data.data;
-            
-            // Configurar modal para edición
-            document.getElementById('serviceModalTitle').textContent = 'Editar Servicio';
-            
-            // Rellenar campos básicos
-            const serviceId = document.getElementById('serviceId');
-            const serviceFecha = document.getElementById('serviceFecha');
-            const serviceHora = document.getElementById('serviceHora');
-            const serviceHoraVuelta = document.getElementById('serviceHoraVuelta');
-            const servicePlazas = document.getElementById('servicePlazas');
-            const precioAdulto = document.getElementById('precioAdulto');
-            const precioNino = document.getElementById('precioNino');
-            const precioResidente = document.getElementById('precioResidente');
-
-            if (serviceId) serviceId.value = service.id;
-            if (serviceFecha) serviceFecha.value = service.fecha;
-            if (serviceHora) serviceHora.value = service.hora;
-            if (serviceHoraVuelta) serviceHoraVuelta.value = service.hora_vuelta || '';
-            if (servicePlazas) servicePlazas.value = service.plazas_totales;
-            if (precioAdulto) precioAdulto.value = service.precio_adulto;
-            if (precioNino) precioNino.value = service.precio_nino;
-            if (precioResidente) precioResidente.value = service.precio_residente;
-
-            // ✅ CONFIGURAR CAMPO ENABLED
-            const serviceEnabled = document.getElementById('serviceEnabled');
-            if (serviceEnabled) {
-                // Si el campo enabled no existe en el servicio, asumir que está habilitado
-                serviceEnabled.checked = service.enabled !== undefined ? service.enabled == '1' : true;
+        .then(response => response.text().then(text => {
+            console.log('Response text:', text);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText} - ${text}`);
             }
-
-            // Configurar campos de descuento
-            const tieneDescuento = service.tiene_descuento == '1';
-            const tieneDescuentoEl = document.getElementById('tieneDescuento');
-            if (tieneDescuentoEl) {
-                tieneDescuentoEl.checked = tieneDescuento;
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('JSON Parse Error:', e);
+                throw new Error('Invalid JSON response: ' + text);
             }
+        }))
+        .then(data => {
+            console.log('Service details response:', data);
+            if (data.success) {
+                const service = data.data;
 
-            if (tieneDescuento) {
-                // Mostrar sección de descuento
-                const discountFields = document.getElementById('discountFields');
-                if (discountFields) {
-                    discountFields.style.display = 'block';
+                // Configurar modal para edición
+                document.getElementById('serviceModalTitle').textContent = 'Editar Servicio';
+
+                // Rellenar campos básicos
+                const serviceId = document.getElementById('serviceId');
+                const serviceFecha = document.getElementById('serviceFecha');
+                const serviceHora = document.getElementById('serviceHora');
+                const serviceHoraVuelta = document.getElementById('serviceHoraVuelta');
+                const servicePlazas = document.getElementById('servicePlazas');
+                const precioAdulto = document.getElementById('precioAdulto');
+                const precioNino = document.getElementById('precioNino');
+                const precioResidente = document.getElementById('precioResidente');
+
+                if (serviceId) serviceId.value = service.id;
+                if (serviceFecha) serviceFecha.value = service.fecha;
+                if (serviceHora) serviceHora.value = service.hora;
+                if (serviceHoraVuelta) serviceHoraVuelta.value = service.hora_vuelta || '';
+                if (servicePlazas) servicePlazas.value = service.plazas_totales;
+                if (precioAdulto) precioAdulto.value = service.precio_adulto;
+                if (precioNino) precioNino.value = service.precio_nino;
+                if (precioResidente) precioResidente.value = service.precio_residente;
+
+                // ✅ CONFIGURAR CAMPO ENABLED
+                const serviceEnabled = document.getElementById('serviceEnabled');
+                if (serviceEnabled) {
+                    // Si el campo enabled no existe en el servicio, asumir que está habilitado
+                    serviceEnabled.checked = service.enabled !== undefined ? service.enabled == '1' : true;
                 }
-                
-                // Rellenar valores de descuento
-                const porcentajeDescuento = document.getElementById('porcentajeDescuento');
-                if (porcentajeDescuento) {
-                    porcentajeDescuento.value = service.porcentaje_descuento || '';
+
+                // Configurar campos de descuento
+                const tieneDescuento = service.tiene_descuento == '1';
+                const tieneDescuentoEl = document.getElementById('tieneDescuento');
+                if (tieneDescuentoEl) {
+                    tieneDescuentoEl.checked = tieneDescuento;
                 }
-                
-                const tipoDescuento = service.descuento_tipo || 'fijo';
-                const tipoDescuentoEl = document.getElementById('tipoDescuento');
-                if (tipoDescuentoEl) {
-                    tipoDescuentoEl.value = tipoDescuento;
-                }
-                
-                const minimoPersonas = document.getElementById('minimoPersonas');
-                if (minimoPersonas) {
-                    minimoPersonas.value = service.descuento_minimo_personas || 1;
-                }
-                
-                const minimoPersonasGroup = document.getElementById('minimoPersonasGroup');
-                if (minimoPersonasGroup) {
-                    if (tipoDescuento === 'por_grupo') {
-                        minimoPersonasGroup.style.display = 'block';
-                    } else {
-                        minimoPersonasGroup.style.display = 'none';
+
+                if (tieneDescuento) {
+                    // Mostrar sección de descuento
+                    const discountFields = document.getElementById('discountFields');
+                    if (discountFields) {
+                        discountFields.style.display = 'block';
                     }
-                }
 
-                const acumulable = service.descuento_acumulable == '1';
-                const descuentoAcumulableEl = document.getElementById('descuentoAcumulable');
-                if (descuentoAcumulableEl) {
-                    descuentoAcumulableEl.checked = acumulable;
-                }
-                
-                const prioridad = service.descuento_prioridad || 'servicio';
-                const descuentoPrioridadEl = document.getElementById('descuentoPrioridad');
-                if (descuentoPrioridadEl) {
-                    descuentoPrioridadEl.value = prioridad;
-                }
-                
-                const prioridadGroup = document.getElementById('prioridadGroup');
-                if (prioridadGroup) {
-                    if (!acumulable) {
-                        prioridadGroup.style.display = 'block';
-                    } else {
-                        prioridadGroup.style.display = 'none';
+                    // Rellenar valores de descuento
+                    const porcentajeDescuento = document.getElementById('porcentajeDescuento');
+                    if (porcentajeDescuento) {
+                        porcentajeDescuento.value = service.porcentaje_descuento || '';
                     }
-                }
-                
-                updateDiscountPreview();
-            } else {
-                // Ocultar sección de descuento y resetear valores
-                const discountFields = document.getElementById('discountFields');
-                if (discountFields) {
-                    discountFields.style.display = 'none';
-                }
 
-                // Resetear valores
-                const elements = [
-                    'porcentajeDescuento', 'tipoDescuento', 'minimoPersonas', 
-                    'descuentoAcumulable', 'descuentoPrioridad'
-                ];
-                
-                elements.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) {
-                        if (el.type === 'checkbox') {
-                            el.checked = false;
+                    const tipoDescuento = service.descuento_tipo || 'fijo';
+                    const tipoDescuentoEl = document.getElementById('tipoDescuento');
+                    if (tipoDescuentoEl) {
+                        tipoDescuentoEl.value = tipoDescuento;
+                    }
+
+                    const minimoPersonas = document.getElementById('minimoPersonas');
+                    if (minimoPersonas) {
+                        minimoPersonas.value = service.descuento_minimo_personas || 1;
+                    }
+
+                    const minimoPersonasGroup = document.getElementById('minimoPersonasGroup');
+                    if (minimoPersonasGroup) {
+                        if (tipoDescuento === 'por_grupo') {
+                            minimoPersonasGroup.style.display = 'block';
                         } else {
-                            el.value = (id === 'tipoDescuento' || id === 'descuentoPrioridad') ? 
-                                      (id === 'tipoDescuento' ? 'fijo' : 'servicio') : 
-                                      (id === 'minimoPersonas' ? 1 : '');
+                            minimoPersonasGroup.style.display = 'none';
                         }
                     }
-                });
 
-                const groups = ['minimoPersonasGroup', 'prioridadGroup'];
-                groups.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.style.display = 'none';
-                });
-                
-                const preview = document.getElementById('discountPreview');
-                if (preview) preview.style.display = 'none';
-            }
+                    const acumulable = service.descuento_acumulable == '1';
+                    const descuentoAcumulableEl = document.getElementById('descuentoAcumulable');
+                    if (descuentoAcumulableEl) {
+                        descuentoAcumulableEl.checked = acumulable;
+                    }
 
-            // Mostrar botón de eliminar y abrir modal
-            const deleteBtn = document.getElementById('deleteServiceBtn');
-            if (deleteBtn) {
-                deleteBtn.style.display = 'block';
+                    const prioridad = service.descuento_prioridad || 'servicio';
+                    const descuentoPrioridadEl = document.getElementById('descuentoPrioridad');
+                    if (descuentoPrioridadEl) {
+                        descuentoPrioridadEl.value = prioridad;
+                    }
+
+                    const prioridadGroup = document.getElementById('prioridadGroup');
+                    if (prioridadGroup) {
+                        if (!acumulable) {
+                            prioridadGroup.style.display = 'block';
+                        } else {
+                            prioridadGroup.style.display = 'none';
+                        }
+                    }
+
+                    updateDiscountPreview();
+                } else {
+                    // Ocultar sección de descuento y resetear valores
+                    const discountFields = document.getElementById('discountFields');
+                    if (discountFields) {
+                        discountFields.style.display = 'none';
+                    }
+
+                    // Resetear valores
+                    const elements = [
+                        'porcentajeDescuento', 'tipoDescuento', 'minimoPersonas',
+                        'descuentoAcumulable', 'descuentoPrioridad'
+                    ];
+
+                    elements.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) {
+                            if (el.type === 'checkbox') {
+                                el.checked = false;
+                            } else {
+                                el.value = (id === 'tipoDescuento' || id === 'descuentoPrioridad') ?
+                                    (id === 'tipoDescuento' ? 'fijo' : 'servicio') :
+                                    (id === 'minimoPersonas' ? 1 : '');
+                            }
+                        }
+                    });
+
+                    const groups = ['minimoPersonasGroup', 'prioridadGroup'];
+                    groups.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.style.display = 'none';
+                    });
+
+                    const preview = document.getElementById('discountPreview');
+                    if (preview) preview.style.display = 'none';
+                }
+
+                // Mostrar botón de eliminar y abrir modal
+                const deleteBtn = document.getElementById('deleteServiceBtn');
+                if (deleteBtn) {
+                    deleteBtn.style.display = 'block';
+                }
+
+                document.getElementById('serviceModal').style.display = 'block';
+
+                console.log('✅ Modal de edición configurado correctamente');
+            } else {
+                console.error('Error del servidor:', data.data);
+                alert('Error al cargar el servicio: ' + data.data);
             }
-            
-            document.getElementById('serviceModal').style.display = 'block';
-            
-            console.log('✅ Modal de edición configurado correctamente');
-        } else {
-            console.error('Error del servidor:', data.data);
-            alert('Error al cargar el servicio: ' + data.data);
-        }
-    })
-    .catch(error => {
-        console.error('Error loading service details:', error);
-        alert('Error de conexión: ' + error.message);
-    });
+        })
+        .catch(error => {
+            console.error('Error loading service details:', error);
+            alert('Error de conexión: ' + error.message);
+        });
 }
 
 function saveService() {
@@ -3381,8 +3389,14 @@ function renderAdminCalendar() {
         let dayClass = 'calendar-day';
         let clickHandler = '';
 
-        // Verificar si el día está bloqueado por días de anticipación
-        const isBlockedByAnticipacion = dayDate < fechaMinima;
+        const currentUser = window.reservasUser || {};
+        const isSuper = currentUser.role === 'super_admin';
+        const isBlockedByAnticipacion = !isSuper && dayDate < fechaMinima;
+
+        if (isBlockedByAnticipacion) {
+            dayClass += ' blocked-day';
+            clickHandler = `onclick="showBlockedDayMessage()"`;
+        }
 
         if (isBlockedByAnticipacion) {
             dayClass += ' no-disponible';
@@ -3538,22 +3552,22 @@ function updateAdminPricingDisplay(result) {
 
     // Manejar mensaje de descuento
     let mensajeDescuento = '';
-    
+
     if (result.regla_descuento_aplicada && result.regla_descuento_aplicada.rule_name && result.descuento_grupo > 0) {
         const regla = result.regla_descuento_aplicada;
         mensajeDescuento = `Descuento del ${regla.discount_percentage}% por ${regla.rule_name.toLowerCase()}`;
     }
-    
+
     if (result.servicio_con_descuento && result.servicio_con_descuento.descuento_aplicado && result.descuento_servicio > 0) {
         const servicio = result.servicio_con_descuento;
         let mensajeServicio = '';
-        
+
         if (servicio.descuento_tipo === 'fijo') {
             mensajeServicio = `Descuento del ${servicio.porcentaje_descuento}% aplicado a este servicio`;
         } else if (servicio.descuento_tipo === 'por_grupo') {
             mensajeServicio = `Descuento del ${servicio.porcentaje_descuento}% por alcanzar ${servicio.descuento_minimo_personas} personas`;
         }
-        
+
         if (mensajeDescuento && mensajeServicio) {
             if (servicio.descuento_acumulable == '1') {
                 mensajeDescuento += ` + ${mensajeServicio}`;
