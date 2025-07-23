@@ -1079,15 +1079,29 @@ public static function send_agency_self_notification($reserva_data, $agency_user
 {
     $config = self::get_email_config();
 
-    // Obtener email de notificaciones de la agencia
-    $agency_email = $agency_user['email_notificaciones'] ?? $agency_user['email'];
+    // ✅ OBTENER EMAIL DE NOTIFICACIONES DE LA AGENCIA
+    $agency_email = null;
+    
+    if (is_array($agency_user)) {
+        $agency_email = !empty($agency_user['email_notificaciones']) ? 
+                       $agency_user['email_notificaciones'] : 
+                       $agency_user['email'];
+    } else {
+        // Si es objeto
+        $agency_email = !empty($agency_user->email_notificaciones) ? 
+                       $agency_user->email_notificaciones : 
+                       $agency_user->email;
+    }
     
     if (empty($agency_email)) {
-        error_log("❌ No hay email de notificaciones configurado para la agencia");
+        error_log("❌ No hay email configurado para la agencia");
         return array('success' => false, 'message' => 'Email de agencia no configurado');
     }
 
-    $subject = "Confirmación de Reserva Rápida - " . $reserva_data['localizador'] . " - " . $agency_user['agency_name'];
+    error_log("📧 Enviando email a agencia: " . $agency_email);
+
+    $agency_name = is_array($agency_user) ? $agency_user['agency_name'] : $agency_user->agency_name;
+    $subject = "Confirmación de Reserva Rápida - " . $reserva_data['localizador'] . " - " . $agency_name;
 
     $message = self::build_agency_self_notification_template($reserva_data, $agency_user);
 
@@ -1099,10 +1113,10 @@ public static function send_agency_self_notification($reserva_data, $agency_user
     $sent = wp_mail($agency_email, $subject, $message, $headers);
 
     if ($sent) {
-        error_log("✅ Email enviado a la agencia sobre su propia reserva");
+        error_log("✅ Email enviado a la agencia: " . $agency_email);
         return array('success' => true, 'message' => 'Email enviado a la agencia');
     } else {
-        error_log("❌ Error enviando email a la agencia");
+        error_log("❌ Error enviando email a la agencia: " . $agency_email);
         return array('success' => false, 'message' => 'Error enviando email a la agencia');
     }
 }

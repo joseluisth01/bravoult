@@ -681,6 +681,12 @@ jQuery(document).ready(function ($) {
 function processReservation() {
     console.log("=== PROCESANDO RESERVA SIMPLIFICADA ===");
 
+    const checkbox = document.getElementById("privacy-policy");
+    if (!checkbox || !checkbox.checked) {
+        alert("Debes aceptar la política de privacidad para continuar.");
+        checkbox.focus();
+        return;
+    }
     // Verificar que reservasAjax está definido
     if (typeof reservasAjax === "undefined") {
         console.error("reservasAjax no está definido");
