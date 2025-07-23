@@ -59,6 +59,13 @@ class ReservasAgenciesAdmin
             error_log('✅ Columna email_notificaciones añadida a tabla de agencias');
         }
 
+        $inicial_localizador_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'inicial_localizador'");
+
+if (empty($inicial_localizador_exists)) {
+    $wpdb->query("ALTER TABLE $table_name ADD COLUMN inicial_localizador varchar(5) DEFAULT 'A' AFTER domicilio_fiscal");
+    error_log('✅ Campo inicial_localizador añadido a tabla de agencias');
+}
+
         // ✅ NUEVO: Verificar y añadir campos fiscales
         $fiscal_fields = [
             'razon_social' => 'varchar(150)',
@@ -86,28 +93,30 @@ private function create_agencies_table()
     $charset_collate = $wpdb->get_charset_collate();
 
     $sql = "CREATE TABLE $table_name (
-        id mediumint(9) NOT NULL AUTO_INCREMENT,
-        agency_name varchar(100) NOT NULL,
-        contact_person varchar(100) NOT NULL,
-        email varchar(100) NOT NULL UNIQUE,
-        email_notificaciones varchar(100),
-        phone varchar(20),
-        address text,
-        razon_social varchar(150),
-        cif varchar(20),
-        domicilio_fiscal text,
-        username varchar(50) NOT NULL UNIQUE,
-        password varchar(255) NOT NULL,
-        status enum('active', 'inactive', 'suspended') DEFAULT 'active',
-        notes text,
-        created_at datetime DEFAULT CURRENT_TIMESTAMP,
-        updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
-        KEY username (username),
-        KEY email (email),
-        KEY status (status),
-        KEY cif (cif)
-    ) $charset_collate;";
+    id mediumint(9) NOT NULL AUTO_INCREMENT,
+    agency_name varchar(100) NOT NULL,
+    contact_person varchar(100) NOT NULL,
+    email varchar(100) NOT NULL UNIQUE,
+    email_notificaciones varchar(100),
+    phone varchar(20),
+    address text,
+    razon_social varchar(150),
+    cif varchar(20),
+    domicilio_fiscal text,
+    inicial_localizador varchar(5) DEFAULT 'A',
+    username varchar(50) NOT NULL UNIQUE,
+    password varchar(255) NOT NULL,
+    status enum('active', 'inactive', 'suspended') DEFAULT 'active',
+    notes text,
+    created_at datetime DEFAULT CURRENT_TIMESTAMP,
+    updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY username (username),
+    KEY email (email),
+    KEY status (status),
+    KEY cif (cif),
+    KEY inicial_localizador (inicial_localizador)
+) $charset_collate;";
 
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql);
@@ -213,7 +222,12 @@ public function save_agency()
         $razon_social = sanitize_text_field($_POST['razon_social']);
         $cif = sanitize_text_field($_POST['cif']);
         $domicilio_fiscal = sanitize_textarea_field($_POST['domicilio_fiscal']);
+$inicial_localizador = strtoupper(sanitize_text_field($_POST['inicial_localizador']));
 
+// En las validaciones (añadir esta validación):
+if (empty($inicial_localizador) || strlen($inicial_localizador) > 5) {
+    wp_send_json_error('La inicial del localizador debe tener entre 1 y 5 caracteres');
+}
         // Validaciones básicas
         if (empty($agency_name)) {
             wp_send_json_error('El nombre de la agencia es obligatorio');
@@ -282,21 +296,21 @@ public function save_agency()
             wp_send_json_error('Ya existe una agencia con ese nombre de usuario');
         }
 
-        // Preparar datos para insertar/actualizar (SIN campos financieros)
-        $data = array(
-            'agency_name' => $agency_name,
-            'contact_person' => $contact_person,
-            'email' => $email,
-            'phone' => $phone,
-            'address' => $address,
-            'razon_social' => $razon_social,       // ✅ NUEVO
-            'cif' => $cif,                         // ✅ NUEVO
-            'domicilio_fiscal' => $domicilio_fiscal, // ✅ NUEVO
-            'username' => $username,
-            'status' => $status,
-            'notes' => $notes,
-            'email_notificaciones' => $email_notificaciones
-        );
+$data = array(
+    'agency_name' => $agency_name,
+    'contact_person' => $contact_person,
+    'email' => $email,
+    'phone' => $phone,
+    'address' => $address,
+    'razon_social' => $razon_social,
+    'cif' => $cif,
+    'domicilio_fiscal' => $domicilio_fiscal,
+    'inicial_localizador' => $inicial_localizador, // ✅ AÑADIR ESTA LÍNEA
+    'username' => $username,
+    'status' => $status,
+    'notes' => $notes,
+    'email_notificaciones' => $email_notificaciones
+);
 
         // Manejar contraseña
         if (!empty($password)) {
@@ -477,19 +491,19 @@ public static function authenticate_agency($username, $password)
 
     if ($agency && password_verify($password, $agency->password)) {
         return array(
-            'success' => true,
-            'agency' => array(
-                'id' => $agency->id,
-                'username' => $agency->username,
-                'agency_name' => $agency->agency_name,
-                'email' => $agency->email,
-                'role' => 'agencia',
-                // ✅ CAMPOS FISCALES EN LUGAR DE FINANCIEROS
-                'razon_social' => $agency->razon_social ?? '',
-                'cif' => $agency->cif ?? '',
-                'domicilio_fiscal' => $agency->domicilio_fiscal ?? ''
-            )
-        );
+    'success' => true,
+    'agency' => array(
+        'id' => $agency->id,
+        'username' => $agency->username,
+        'agency_name' => $agency->agency_name,
+        'email' => $agency->email,
+        'role' => 'agencia',
+        'razon_social' => $agency->razon_social ?? '',
+        'cif' => $agency->cif ?? '',
+        'domicilio_fiscal' => $agency->domicilio_fiscal ?? '',
+        'inicial_localizador' => $agency->inicial_localizador ?? 'A' // ✅ NUEVO
+    )
+);
     }
 
     return array('success' => false, 'message' => 'Credenciales incorrectas');

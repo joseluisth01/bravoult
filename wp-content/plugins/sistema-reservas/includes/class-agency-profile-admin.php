@@ -171,21 +171,20 @@ class ReservasAgencyProfileAdmin
 
         // ✅ DATOS SIN address y notes
         $update_data = array(
-            'agency_name' => $agency_name,
-            'contact_person' => $contact_person,
-            'email' => $email,
-            'phone' => $phone,
-            'razon_social' => $razon_social,
-            'cif' => $cif,
-            'domicilio_fiscal' => $domicilio_fiscal,
-            'updated_at' => current_time('mysql')
-        );
+    'agency_name' => $agency_name,
+    'contact_person' => $contact_person,
+    'email' => $email,
+    'phone' => $phone,
+    'razon_social' => $razon_social,
+    'cif' => $cif,
+    'domicilio_fiscal' => $domicilio_fiscal,
+    'updated_at' => current_time('mysql')
+);
 
-        // ✅ AÑADIR email_notificaciones SI LA COLUMNA EXISTE
-        $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'email_notificaciones'");
-        if (!empty($column_exists)) {
-            $update_data['email_notificaciones'] = $email_notificaciones;
-        }
+$column_exists = $wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'email_notificaciones'");
+if (!empty($column_exists)) {
+    $update_data['email_notificaciones'] = $email_notificaciones;
+}
 
         // Actualizar en la base de datos
         $result = $wpdb->update(

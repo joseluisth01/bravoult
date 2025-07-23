@@ -4589,6 +4589,7 @@ function renderAgenciesSection(agencies) {
             <th>Email</th>
             <th>Usuario</th>
             <th>CIF</th>
+            <th>Inicial Loc.</th>  <!-- ✅ NUEVA COLUMNA -->
             <th>Estado</th>
             <th>Fecha Creación</th>
             <th>Acciones</th>
@@ -4758,42 +4759,43 @@ function renderAgenciesSection(agencies) {
 
 function renderAgenciesTableRowsContent(agencies) {
     if (agencies.length === 0) {
-        return `
-            <tr>
-                <td colspan="9" style="text-align: center; padding: 40px; color: #666;">
-                    No hay agencias registradas. Crea la primera agencia usando el botón "Crear Nueva Agencia".
-                </td>
-            </tr>
-        `;
-    }
-
-    return agencies.map(agency => `
+    return `
         <tr>
-            <td>${agency.id}</td>
-            <td><strong>${escapeHtml(agency.agency_name)}</strong></td>
-            <td>${escapeHtml(agency.contact_person)}</td>
-            <td><a href="mailto:${agency.email}">${escapeHtml(agency.email)}</a></td>
-            <td><code>${escapeHtml(agency.username)}</code></td>
-            <td>${escapeHtml(agency.cif || '-')}</td>
-            <td>
-                <span class="status-badge status-${agency.status}">
-                    ${getStatusText(agency.status)}
-                </span>
-            </td>
-            <td>${formatDate(agency.created_at)}</td>
-            <td class="actions-cell">
-                <button class="btn-edit" onclick="editAgency(${agency.id})" title="Editar">
-                    ✏️
-                </button>
-                <button class="btn-toggle" onclick="toggleAgencyStatus(${agency.id}, '${agency.status}')" title="Cambiar Estado">
-                    ${agency.status === 'active' ? '⏸️' : '▶️'}
-                </button>
-                <button class="btn-delete" onclick="deleteAgency(${agency.id})" title="Eliminar">
-                    🗑️
-                </button>
+            <td colspan="10" style="text-align: center; padding: 40px; color: #666;">
+                No hay agencias registradas. Crea la primera agencia usando el botón "Crear Nueva Agencia".
             </td>
         </tr>
-    `).join('');
+    `;
+}
+
+    return agencies.map(agency => `
+    <tr>
+        <td>${agency.id}</td>
+        <td><strong>${escapeHtml(agency.agency_name)}</strong></td>
+        <td>${escapeHtml(agency.contact_person)}</td>
+        <td><a href="mailto:${agency.email}">${escapeHtml(agency.email)}</a></td>
+        <td><code>${escapeHtml(agency.username)}</code></td>
+        <td>${escapeHtml(agency.cif || '-')}</td>
+        <td><code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-weight: bold; color: #0073aa;">${escapeHtml(agency.inicial_localizador || 'A')}</code></td>  <!-- ✅ NUEVA COLUMNA -->
+        <td>
+            <span class="status-badge status-${agency.status}">
+                ${getStatusText(agency.status)}
+            </span>
+        </td>
+        <td>${formatDate(agency.created_at)}</td>
+        <td class="actions-cell">
+            <button class="btn-edit" onclick="editAgency(${agency.id})" title="Editar">
+                ✏️
+            </button>
+            <button class="btn-toggle" onclick="toggleAgencyStatus(${agency.id}, '${agency.status}')" title="Cambiar Estado">
+                ${agency.status === 'active' ? '⏸️' : '▶️'}
+            </button>
+            <button class="btn-delete" onclick="deleteAgency(${agency.id})" title="Eliminar">
+                🗑️
+            </button>
+        </td>
+    </tr>
+`).join('');
 }
 
 /**
@@ -4895,23 +4897,31 @@ function renderCreateAgencyModal() {
                     </div>
                     
                     <!-- ✅ INFORMACIÓN FISCAL MEJORADA -->
-                    <div class="form-section">
-                        <h4>🏛️ Información Fiscal</h4>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="razon_social">Razón Social</label>
-                                <input type="text" name="razon_social" placeholder="Denominación social oficial">
-                            </div>
-                            <div class="form-group">
-                                <label for="cif">CIF/NIF</label>
-                                <input type="text" name="cif" placeholder="B12345678">
-                            </div>
-                            <div class="form-group form-group-full">
-                                <label for="domicilio_fiscal">Domicilio Fiscal</label>
-                                <input type="text" name="domicilio_fiscal" placeholder="Dirección fiscal completa">
-                            </div>
-                        </div>
-                    </div>
+<div class="form-section">
+    <h4>🏛️ Información Fiscal</h4>
+    <div class="form-grid">
+        <div class="form-group">
+            <label for="razon_social">Razón Social</label>
+            <input type="text" name="razon_social" placeholder="Denominación social oficial">
+        </div>
+        <div class="form-group">
+            <label for="cif">CIF/NIF</label>
+            <input type="text" name="cif" placeholder="B12345678">
+        </div>
+        <div class="form-group form-group-full">
+            <label for="domicilio_fiscal">Domicilio Fiscal</label>
+            <input type="text" name="domicilio_fiscal" placeholder="Dirección fiscal completa">
+        </div>
+        <!-- ✅ AÑADIR ESTE CAMPO: -->
+        <div class="form-group">
+            <label for="inicial_localizador">Inicial Localizador *</label>
+            <input type="text" name="inicial_localizador" id="inicial_localizador" 
+                   value="A" maxlength="5" required placeholder="Ej: A, B, MAD"
+                   style="text-transform: uppercase;">
+            <small>Letra(s) que aparecerán al inicio de los localizadores (máx. 5 caracteres)</small>
+        </div>
+    </div>
+</div>
                     
                     <div class="form-actions">
                         <button type="submit" class="btn-primary">Crear Agencia</button>
@@ -4982,23 +4992,31 @@ function renderEditAgencyModal() {
                     </div>
 
                     <!-- ✅ INFORMACIÓN FISCAL MEJORADA -->
-                    <div class="form-section">
-                        <h4>🏛️ Información Fiscal</h4>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="edit_razon_social">Razón Social</label>
-                                <input type="text" name="razon_social" id="edit_razon_social" placeholder="Denominación social oficial">
-                            </div>
-                            <div class="form-group">
-                                <label for="edit_cif">CIF/NIF</label>
-                                <input type="text" name="cif" id="edit_cif" placeholder="B12345678">
-                            </div>
-                            <div class="form-group form-group-full">
-                                <label for="edit_domicilio_fiscal">Domicilio Fiscal</label>
-                                <input type="text" name="domicilio_fiscal" id="edit_domicilio_fiscal" placeholder="Dirección fiscal completa">
-                            </div>
-                        </div>
-                    </div>
+<div class="form-section">
+    <h4>🏛️ Información Fiscal</h4>
+    <div class="form-grid">
+        <div class="form-group">
+            <label for="edit_razon_social">Razón Social</label>
+            <input type="text" name="razon_social" id="edit_razon_social" placeholder="Denominación social oficial">
+        </div>
+        <div class="form-group">
+            <label for="edit_cif">CIF/NIF</label>
+            <input type="text" name="cif" id="edit_cif" placeholder="B12345678">
+        </div>
+        <div class="form-group form-group-full">
+            <label for="edit_domicilio_fiscal">Domicilio Fiscal</label>
+            <input type="text" name="domicilio_fiscal" id="edit_domicilio_fiscal" placeholder="Dirección fiscal completa">
+        </div>
+        <!-- ✅ AÑADIR ESTE CAMPO: -->
+        <div class="form-group">
+            <label for="edit_inicial_localizador">Inicial Localizador *</label>
+            <input type="text" name="inicial_localizador" id="edit_inicial_localizador" 
+                   maxlength="5" required placeholder="Ej: A, B, MAD"
+                   style="text-transform: uppercase;">
+            <small>Letra(s) que aparecerán al inicio de los localizadores (máx. 5 caracteres)</small>
+        </div>
+    </div>
+</div>
                     
                     <div class="form-actions">
                         <button type="submit" class="btn-primary">Actualizar Agencia</button>
@@ -5169,12 +5187,15 @@ function editAgency(agencyId) {
                 jQuery('#edit_username').val(agency.username);
                 jQuery('#edit_password').val('');
 
-                // ✅ CAMPOS FISCALES (domicilio_fiscal ahora es input)
+                // ✅ CAMPOS FISCALES
                 jQuery('#edit_razon_social').val(agency.razon_social || '');
                 jQuery('#edit_cif').val(agency.cif || '');
                 jQuery('#edit_domicilio_fiscal').val(agency.domicilio_fiscal || '');
+                
+                // ✅ AÑADIR ESTA LÍNEA:
+                jQuery('#edit_inicial_localizador').val(agency.inicial_localizador || 'A');
 
-                // ✅ ESTADO (ahora al principio y más visible)
+                // ✅ ESTADO
                 jQuery('#edit_status').val(agency.status);
 
                 // Mostrar modal
@@ -6777,6 +6798,10 @@ function saveAgencyProfile() {
         email: jQuery('#email').val().trim(),
         phone: jQuery('#phone').val().trim(),
         email_notificaciones: jQuery('#email_notificaciones').val().trim(),
+        // ✅ AÑADIR ESTOS CAMPOS QUE FALTABAN:
+        razon_social: jQuery('#razon_social').val().trim(),
+        cif: jQuery('#cif').val().trim(),
+        domicilio_fiscal: jQuery('#domicilio_fiscal').val().trim(),
         address: jQuery('#address').val().trim(),
         notes: jQuery('#notes').val().trim(),
         nonce: reservasAjax.nonce
