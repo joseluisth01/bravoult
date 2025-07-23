@@ -230,17 +230,13 @@ public function calculate_price()
     }
 }
 
-    /**
-     * ✅ NUEVO: Obtener formulario de reserva rápida para AGENCIAS
-     */
-   public function get_agency_reserva_rapida_form()
+public function get_agency_reserva_rapida_form()
 {
     error_log('=== GET AGENCY RESERVA RAPIDA FORM START ===');
     header('Content-Type: application/json');
 
     try {
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-            error_log('❌ Nonce verification failed');
             wp_send_json_error('Error de seguridad');
             return;
         }
@@ -250,48 +246,31 @@ public function calculate_price()
         }
 
         if (!isset($_SESSION['reservas_user'])) {
-            error_log('❌ No session found');
             wp_send_json_error('Sesión expirada. Recarga la página e inicia sesión nuevamente.');
             return;
         }
 
         $user = $_SESSION['reservas_user'];
-        error_log('User data: ' . print_r($user, true));
 
         if ($user['role'] !== 'agencia') {
-            error_log('❌ User role not allowed: ' . $user['role']);
             wp_send_json_error('Sin permisos para usar reserva rápida de agencias');
             return;
         }
 
-        // ✅ OBTENER SERVICIOS ANTES DE RENDERIZAR
-        $servicios_disponibles = $this->get_upcoming_services();
-        error_log('Servicios disponibles encontrados: ' . count($servicios_disponibles));
-
-        // ✅ GENERAR HTML CON SERVICIOS Y VARIABLES JAVASCRIPT
-        ob_start();
+        // En lugar de generar HTML, devolver señal para inicializar JavaScript
+        wp_send_json_success(array(
+            'action' => 'initialize_agency_reserva_rapida',
+            'user' => $user,
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('reservas_nonce')
+        ));
         
-        // Pasar variables al template
-        $ajax_url = admin_url('admin-ajax.php');
-        $nonce = wp_create_nonce('reservas_nonce');
-        
-        include RESERVAS_PLUGIN_PATH . 'templates/agency-reserva-rapida-form.php';
-        $form_html = ob_get_clean();
-
-        if (empty($form_html)) {
-            error_log('❌ Form HTML is empty');
-            wp_send_json_error('Error generando formulario');
-            return;
-        }
-
-        error_log('✅ Form HTML generated successfully');
-        wp_send_json_success($form_html);
-
     } catch (Exception $e) {
         error_log('❌ AGENCY RESERVA RAPIDA FORM EXCEPTION: ' . $e->getMessage());
         wp_send_json_error('Error del servidor: ' . $e->getMessage());
     }
 }
+
 
     /**
      * Obtener servicios disponibles para los próximos días
@@ -398,52 +377,60 @@ public function calculate_price()
     }
 }
 
-    /**
-     * ✅ NUEVO: Procesar reserva rápida para AGENCIAS
-     */
-    public function process_agency_reserva_rapida()
-    {
-        // Limpiar cualquier output buffer
-        if (ob_get_level()) {
-            ob_clean();
-        }
-
-        header('Content-Type: application/json');
-
-        try {
-            error_log('=== INICIANDO PROCESS_AGENCY_RESERVA_RAPIDA ===');
-
-            // Verificar nonce
-            if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-                wp_send_json_error('Error de seguridad');
-                return;
-            }
-
-            // Verificar sesión y permisos
-            if (!session_id()) {
-                session_start();
-            }
-
-            if (!isset($_SESSION['reservas_user'])) {
-                wp_send_json_error('Sesión expirada');
-                return;
-            }
-
-            $user = $_SESSION['reservas_user'];
-
-            if ($user['role'] !== 'agencia') {
-                wp_send_json_error('Sin permisos para crear reservas rápidas de agencias');
-                return;
-            }
-
-            // Procesar reserva usando método común
-            $this->process_common_reserva_rapida($user, 'agency');
-
-        } catch (Exception $e) {
-            error_log('❌ RESERVA RAPIDA AGENCY EXCEPTION: ' . $e->getMessage());
-            wp_send_json_error('Error interno del servidor: ' . $e->getMessage());
-        }
+public function process_agency_reserva_rapida()
+{
+    // Limpiar cualquier output buffer
+    if (ob_get_level()) {
+        ob_clean();
     }
+
+    header('Content-Type: application/json');
+
+    try {
+        error_log('=== INICIANDO PROCESS_AGENCY_RESERVA_RAPIDA ===');
+
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+            wp_send_json_error('Error de seguridad');
+            return;
+        }
+
+        if (!session_id()) {
+            session_start();
+        }
+
+        if (!isset($_SESSION['reservas_user'])) {
+            wp_send_json_error('Sesión expirada');
+            return;
+        }
+
+        $user = $_SESSION['reservas_user'];
+
+        if ($user['role'] !== 'agencia') {
+            wp_send_json_error('Sin permisos para crear reservas rápidas de agencias');
+            return;
+        }
+
+        // ✅ USAR VALIDACIÓN COMÚN PERO CON DATOS DEL FORMULARIO AGENCIA
+        $datos = array(
+            'nombre' => sanitize_text_field($_POST['nombre'] ?? ''),
+            'apellidos' => sanitize_text_field($_POST['apellidos'] ?? ''),
+            'email' => sanitize_email($_POST['email'] ?? ''), // Puede estar vacío
+            'telefono' => sanitize_text_field($_POST['telefono'] ?? ''),
+            'service_id' => intval($_POST['service_id'] ?? 0),
+            'adultos' => intval($_POST['adultos'] ?? 0),
+            'residentes' => intval($_POST['residentes'] ?? 0),
+            'ninos_5_12' => intval($_POST['ninos_5_12'] ?? 0),
+            'ninos_menores' => intval($_POST['ninos_menores'] ?? 0)
+        );
+
+        // Procesar usando método común
+        $this->process_common_reserva_rapida($datos, $user, 'agency');
+
+    } catch (Exception $e) {
+        error_log('❌ RESERVA RAPIDA AGENCY EXCEPTION: ' . $e->getMessage());
+        wp_send_json_error('Error interno del servidor: ' . $e->getMessage());
+    }
+}
 
     /**
      * ✅ NUEVO: Método común para procesar reservas rápidas
@@ -511,84 +498,82 @@ public function calculate_price()
         wp_send_json_success($response_data);
     }
 
-    /**
-     * Validar datos de reserva rápida
-     */
     private function validate_reserva_rapida_data()
-    {
-        $nombre = sanitize_text_field($_POST['nombre'] ?? '');
-        $apellidos = sanitize_text_field($_POST['apellidos'] ?? '');
-        $email = sanitize_email($_POST['email'] ?? '');
-        $telefono = sanitize_text_field($_POST['telefono'] ?? '');
-        $service_id = intval($_POST['service_id'] ?? 0);
-        $adultos = intval($_POST['adultos'] ?? 0);
-        $residentes = intval($_POST['residentes'] ?? 0);
-        $ninos_5_12 = intval($_POST['ninos_5_12'] ?? 0);
-        $ninos_menores = intval($_POST['ninos_menores'] ?? 0);
+{
+    $nombre = sanitize_text_field($_POST['nombre'] ?? '');
+    $apellidos = sanitize_text_field($_POST['apellidos'] ?? '');
+    $email = sanitize_email($_POST['email'] ?? ''); // ✅ PUEDE ESTAR VACÍO PARA AGENCIAS
+    $telefono = sanitize_text_field($_POST['telefono'] ?? '');
+    $service_id = intval($_POST['service_id'] ?? 0);
+    $adultos = intval($_POST['adultos'] ?? 0);
+    $residentes = intval($_POST['residentes'] ?? 0);
+    $ninos_5_12 = intval($_POST['ninos_5_12'] ?? 0);
+    $ninos_menores = intval($_POST['ninos_menores'] ?? 0);
 
-        // Validaciones
-        if (empty($nombre) || strlen($nombre) < 2) {
-            return array('valid' => false, 'error' => 'El nombre es obligatorio (mínimo 2 caracteres)');
-        }
-
-        if (empty($apellidos) || strlen($apellidos) < 2) {
-            return array('valid' => false, 'error' => 'Los apellidos son obligatorios (mínimo 2 caracteres)');
-        }
-
-        if (empty($email) || !is_email($email)) {
-            return array('valid' => false, 'error' => 'Email no válido');
-        }
-
-        if (empty($telefono) || strlen($telefono) < 9) {
-            return array('valid' => false, 'error' => 'Teléfono no válido (mínimo 9 dígitos)');
-        }
-
-        if ($service_id <= 0) {
-            return array('valid' => false, 'error' => 'Debe seleccionar un servicio válido');
-        }
-
-        $total_personas = $adultos + $residentes + $ninos_5_12;
-
-        if ($total_personas <= 0) {
-            return array('valid' => false, 'error' => 'Debe haber al menos una persona que ocupe plaza');
-        }
-
-        if ($ninos_5_12 > 0 && ($adultos + $residentes) <= 0) {
-            return array('valid' => false, 'error' => 'Debe haber al menos un adulto si hay niños');
-        }
-
-        // Obtener datos del servicio
-        global $wpdb;
-        $table_servicios = $wpdb->prefix . 'reservas_servicios';
-
-        $servicio = $wpdb->get_row($wpdb->prepare(
-            "SELECT fecha, hora FROM $table_servicios WHERE id = %d AND status = 'active'",
-            $service_id
-        ));
-
-        if (!$servicio) {
-            return array('valid' => false, 'error' => 'Servicio seleccionado no válido');
-        }
-
-        return array(
-            'valid' => true,
-            'data' => array(
-                'nombre' => $nombre,
-                'apellidos' => $apellidos,
-                'email' => $email,
-                'telefono' => $telefono,
-                'service_id' => $service_id,
-                'fecha' => $servicio->fecha,
-                'hora' => $servicio->hora,
-                'adultos' => $adultos,
-                'residentes' => $residentes,
-                'ninos_5_12' => $ninos_5_12,
-                'ninos_menores' => $ninos_menores,
-                'total_personas' => $total_personas,
-                'total_viajeros' => $total_personas + $ninos_menores
-            )
-        );
+    // Validaciones
+    if (empty($nombre) || strlen($nombre) < 2) {
+        return array('valid' => false, 'error' => 'El nombre es obligatorio (mínimo 2 caracteres)');
     }
+
+    if (empty($apellidos) || strlen($apellidos) < 2) {
+        return array('valid' => false, 'error' => 'Los apellidos son obligatorios (mínimo 2 caracteres)');
+    }
+
+    // ✅ EMAIL OPCIONAL PARA AGENCIAS
+    if (!empty($email) && !is_email($email)) {
+        return array('valid' => false, 'error' => 'Email no válido');
+    }
+
+    if (empty($telefono) || strlen($telefono) < 9) {
+        return array('valid' => false, 'error' => 'Teléfono debe tener al menos 9 dígitos');
+    }
+
+    if ($service_id <= 0) {
+        return array('valid' => false, 'error' => 'Debe seleccionar un servicio válido');
+    }
+
+    $total_personas = $adultos + $residentes + $ninos_5_12;
+
+    if ($total_personas <= 0) {
+        return array('valid' => false, 'error' => 'Debe haber al menos una persona que ocupe plaza');
+    }
+
+    if ($ninos_5_12 > 0 && ($adultos + $residentes) <= 0) {
+        return array('valid' => false, 'error' => 'Debe haber al menos un adulto si hay niños');
+    }
+
+    // Obtener datos del servicio
+    global $wpdb;
+    $table_servicios = $wpdb->prefix . 'reservas_servicios';
+
+    $servicio = $wpdb->get_row($wpdb->prepare(
+        "SELECT fecha, hora FROM $table_servicios WHERE id = %d AND status = 'active'",
+        $service_id
+    ));
+
+    if (!$servicio) {
+        return array('valid' => false, 'error' => 'Servicio seleccionado no válido');
+    }
+
+    return array(
+        'valid' => true,
+        'data' => array(
+            'nombre' => $nombre,
+            'apellidos' => $apellidos,
+            'email' => $email, // ✅ PUEDE SER VACÍO
+            'telefono' => $telefono,
+            'service_id' => $service_id,
+            'fecha' => $servicio->fecha,
+            'hora' => $servicio->hora,
+            'adultos' => $adultos,
+            'residentes' => $residentes,
+            'ninos_5_12' => $ninos_5_12,
+            'ninos_menores' => $ninos_menores,
+            'total_personas' => $total_personas,
+            'total_viajeros' => $total_personas + $ninos_menores
+        )
+    );
+}
 
     /**
      * Verificar disponibilidad del servicio
@@ -775,9 +760,6 @@ public function calculate_price()
         $wpdb->delete($table_reservas, array('id' => $reservation_id));
     }
 
- /**
- * ✅ ACTUALIZADO: Enviar emails de confirmación (diferente para admin/agency)
- */
 private function send_confirmation_emails($reservation_id, $user, $user_type)
 {
     error_log('=== ENVIANDO EMAILS DE RESERVA RAPIDA (' . strtoupper($user_type) . ') ===');
@@ -815,12 +797,16 @@ private function send_confirmation_emails($reservation_id, $user, $user_type)
         $reserva_array['precio_residente'] = $servicio->precio_residente;
     }
 
-    // 1. Email al cliente (siempre)
-    $customer_result = ReservasEmailService::send_customer_confirmation($reserva_array);
-    if ($customer_result['success']) {
-        error_log('✅ Email enviado al cliente correctamente');
+    // 1. Email al cliente (SOLO SI TIENE EMAIL)
+    if (!empty($reserva->email)) {
+        $customer_result = ReservasEmailService::send_customer_confirmation($reserva_array);
+        if ($customer_result['success']) {
+            error_log('✅ Email enviado al cliente correctamente');
+        } else {
+            error_log('❌ Error enviando email al cliente: ' . $customer_result['message']);
+        }
     } else {
-        error_log('❌ Error enviando email al cliente: ' . $customer_result['message']);
+        error_log('ℹ️ No se envió email al cliente (email vacío)');
     }
 
     // 2. Emails específicos según tipo de usuario
@@ -844,22 +830,36 @@ private function send_confirmation_emails($reservation_id, $user, $user_type)
             // Convertir objeto a array y añadir datos de sesión
             $agency_array = (array) $agency_data;
             $agency_array['agency_name'] = $agency_array['agency_name'] ?? $user['agency_name'];
-            $agency_array['commission_percentage'] = $agency_array['commission_percentage'] ?? $user['commission_percentage'];
 
-            // Email al super_admin sobre reserva de agencia
-            $super_admin_result = ReservasEmailService::send_agency_reservation_notification($reserva_array, $agency_array);
+            // ✅ ENVIAR EMAIL A LA AGENCIA (usando plantilla de admin)
+            $agency_email = !empty($agency_data->email_notificaciones) ? $agency_data->email_notificaciones : $agency_data->email;
+            
+            // Crear datos para el email a la agencia (mismo formato que admin)
+            $agency_notification_data = $reserva_array;
+            $agency_notification_data['admin_email'] = $agency_email;
+            $agency_notification_data['admin_name'] = $agency_data->agency_name;
+            
+            $agency_result = ReservasEmailService::send_admin_agency_reservation_notification($agency_notification_data, array(
+                'username' => $agency_data->agency_name,
+                'email' => $agency_email
+            ));
+            
+            if ($agency_result['success']) {
+                error_log('✅ Email enviado a la agencia');
+            } else {
+                error_log('❌ Error enviando email a la agencia: ' . $agency_result['message']);
+            }
+
+            // ✅ ENVIAR MISMO EMAIL AL SUPER_ADMIN
+            $super_admin_result = ReservasEmailService::send_admin_agency_reservation_notification($reserva_array, array(
+                'username' => 'Super Admin',
+                'agency_name' => $agency_data->agency_name
+            ));
+            
             if ($super_admin_result['success']) {
                 error_log('✅ Email enviado al super_admin sobre agencia');
             } else {
                 error_log('❌ Error enviando email al super_admin sobre agencia: ' . $super_admin_result['message']);
-            }
-
-            // Email a la propia agencia
-            $agency_self_result = ReservasEmailService::send_agency_self_notification($reserva_array, $agency_array);
-            if ($agency_self_result['success']) {
-                error_log('✅ Email enviado a la agencia');
-            } else {
-                error_log('❌ Error enviando email a la agencia: ' . $agency_self_result['message']);
             }
         } else {
             error_log('❌ No se pudieron obtener datos completos de la agencia');

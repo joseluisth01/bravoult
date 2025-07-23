@@ -218,14 +218,131 @@ add_action('acf/init', 'textosemaforoslider_acf');
 
 function textosemaforoslider_scripts()
 {
-    if (!is_admin()) {
+    // ✅ SOLO CARGAR SCRIPTS SI NO ES AJAX Y NO ES ADMIN
+    if (!is_admin() && !wp_doing_ajax()) {
         wp_enqueue_style('textosemaforoslider', get_stylesheet_directory_uri() . '/assets/functions/blocks/textosemaforoslider/textosemaforoslider.min.css');
+        
+        // ✅ REGISTRAR EL SCRIPT JAVASCRIPT DE FORMA CORRECTA
+        wp_enqueue_script('textosemaforoslider-js', get_stylesheet_directory_uri() . '/assets/js/textosemaforoslider.js', array('jquery'), '1.0.0', true);
+        
+        // ✅ SI NO TIENES ARCHIVO SEPARADO, USAR INLINE SCRIPT
+        $semaforo_js = "
+        window.semaforoSliders = window.semaforoSliders || {};
+
+        function initSemaforoSlider(blockId) {
+            const container = document.getElementById(blockId);
+            if (!container) return;
+
+            const slides = container.querySelectorAll('.textosemaforoslider-slide');
+            if (!slides.length) return;
+
+            window.semaforoSliders[blockId] = {
+                currentSlideIndex: 0,
+                totalSlides: slides.length,
+                semaforoIntervals: []
+            };
+
+            startSemaforoAnimation(blockId, 0);
+            updateSemaforoSlider(blockId);
+        }
+
+        function changeSemaforoSlide(blockId, direction) {
+            const sliderData = window.semaforoSliders[blockId];
+            if (!sliderData) return;
+
+            clearAllSemaforoIntervals(blockId);
+            
+            sliderData.currentSlideIndex += direction;
+            
+            if (sliderData.currentSlideIndex >= sliderData.totalSlides) {
+                sliderData.currentSlideIndex = 0;
+            } else if (sliderData.currentSlideIndex < 0) {
+                sliderData.currentSlideIndex = sliderData.totalSlides - 1;
+            }
+            
+            updateSemaforoSlider(blockId);
+            startSemaforoAnimation(blockId, sliderData.currentSlideIndex);
+        }
+
+        function updateSemaforoSlider(blockId) {
+            const container = document.getElementById(blockId);
+            const sliderData = window.semaforoSliders[blockId];
+            if (!container || !sliderData) return;
+
+            const track = container.querySelector('.textosemaforoslider-track');
+            if (!track) return;
+            
+            track.style.transform = 'translateX(-' + (sliderData.currentSlideIndex * 100) + '%)';
+        }
+
+        function clearAllSemaforoIntervals(blockId) {
+            const sliderData = window.semaforoSliders[blockId];
+            if (!sliderData) return;
+
+            sliderData.semaforoIntervals.forEach(interval => clearInterval(interval));
+            sliderData.semaforoIntervals = [];
+            
+            const container = document.getElementById(blockId);
+            if (container) {
+                container.querySelectorAll('.semaforo-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+            }
+        }
+
+        function startSemaforoAnimation(blockId, slideIndex) {
+            const container = document.getElementById(blockId);
+            const sliderData = window.semaforoSliders[blockId];
+            if (!container || !sliderData) return;
+
+            const currentSlide = container.querySelector('[data-slide=\"' + slideIndex + '\"]');
+            if (!currentSlide) return;
+
+            const items = currentSlide.querySelectorAll('.semaforo-item');
+            let index = 0;
+
+            function resetItems() {
+                items.forEach((item, i) => {
+                    item.classList.remove('active');
+                });
+            }
+
+            function activateNext() {
+                if (index < items.length) {
+                    items[index].classList.add('active');
+                    index++;
+                    const timeoutId = setTimeout(activateNext, 1500);
+                    sliderData.semaforoIntervals.push(timeoutId);
+                } else {
+                    const timeoutId = setTimeout(() => {
+                        resetItems();
+                        const timeoutId2 = setTimeout(() => {
+                            index = 0;
+                            activateNext();
+                        }, 1500);
+                        sliderData.semaforoIntervals.push(timeoutId2);
+                    }, 1500);
+                    sliderData.semaforoIntervals.push(timeoutId);
+                }
+            }
+
+            if (items.length > 0) {
+                activateNext();
+            }
+        }";
+        
+        wp_add_inline_script('jquery', $semaforo_js);
     }
 }
 add_action('wp_enqueue_scripts', 'textosemaforoslider_scripts');
 
 function textosemaforoslider($block)
 {
+    // ✅ NO RENDERIZAR SI ES AJAX
+    if (wp_doing_ajax()) {
+        return;
+    }
+
     $titulo = get_field("titulo_textosemaforoslider");
     $parrafo_inicial = get_field("parrafo_inicial");
     $slides = get_field("slider_semaforo");
@@ -466,7 +583,6 @@ function textosemaforoslider($block)
             height: 80px;
         }
 
-
         /* Responsive */
         @media (max-width: 768px) {
             .textosemaforoslider {
@@ -509,121 +625,11 @@ function textosemaforoslider($block)
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            initSemaforoSlider('<?= $semaforo_block_id ?>');
+            if (typeof initSemaforoSlider === 'function') {
+                initSemaforoSlider('<?= $semaforo_block_id ?>');
+            }
         });
     </script>
 <?php
 }
-
-// Scripts globales para el slider de semáforo
 ?>
-<script>
-    // Variables globales para cada instancia del slider semáforo
-    window.semaforoSliders = window.semaforoSliders || {};
-
-    function initSemaforoSlider(blockId) {
-        const container = document.getElementById(blockId);
-        if (!container) return;
-
-        const slides = container.querySelectorAll('.textosemaforoslider-slide');
-        if (!slides.length) return;
-
-        // Inicializar estado para esta instancia
-        window.semaforoSliders[blockId] = {
-            currentSlideIndex: 0,
-            totalSlides: slides.length,
-            semaforoIntervals: []
-        };
-
-        // Iniciar animación en la primera slide
-        startSemaforoAnimation(blockId, 0);
-        updateSemaforoSlider(blockId);
-    }
-
-    function changeSemaforoSlide(blockId, direction) {
-        const sliderData = window.semaforoSliders[blockId];
-        if (!sliderData) return;
-
-        // Limpiar intervalos anteriores
-        clearAllSemaforoIntervals(blockId);
-        
-        sliderData.currentSlideIndex += direction;
-        
-        if (sliderData.currentSlideIndex >= sliderData.totalSlides) {
-            sliderData.currentSlideIndex = 0;
-        } else if (sliderData.currentSlideIndex < 0) {
-            sliderData.currentSlideIndex = sliderData.totalSlides - 1;
-        }
-        
-        updateSemaforoSlider(blockId);
-        startSemaforoAnimation(blockId, sliderData.currentSlideIndex);
-    }
-
-    function updateSemaforoSlider(blockId) {
-        const container = document.getElementById(blockId);
-        const sliderData = window.semaforoSliders[blockId];
-        if (!container || !sliderData) return;
-
-        const track = container.querySelector('.textosemaforoslider-track');
-        if (!track) return;
-        
-        track.style.transform = `translateX(-${sliderData.currentSlideIndex * 100}%)`;
-    }
-
-    function clearAllSemaforoIntervals(blockId) {
-        const sliderData = window.semaforoSliders[blockId];
-        if (!sliderData) return;
-
-        sliderData.semaforoIntervals.forEach(interval => clearInterval(interval));
-        sliderData.semaforoIntervals = [];
-        
-        // Resetear todos los semáforos de esta instancia
-        const container = document.getElementById(blockId);
-        if (container) {
-            container.querySelectorAll('.semaforo-item').forEach(item => {
-                item.classList.remove('active');
-            });
-        }
-    }
-
-    function startSemaforoAnimation(blockId, slideIndex) {
-        const container = document.getElementById(blockId);
-        const sliderData = window.semaforoSliders[blockId];
-        if (!container || !sliderData) return;
-
-        const currentSlide = container.querySelector(`[data-slide="${slideIndex}"]`);
-        if (!currentSlide) return;
-
-        const items = currentSlide.querySelectorAll('.semaforo-item');
-        let index = 0;
-
-        function resetItems() {
-            items.forEach((item, i) => {
-                item.classList.remove('active');
-            });
-        }
-
-        function activateNext() {
-            if (index < items.length) {
-                items[index].classList.add('active');
-                index++;
-                const timeoutId = setTimeout(activateNext, 1500);
-                sliderData.semaforoIntervals.push(timeoutId);
-            } else {
-                const timeoutId = setTimeout(() => {
-                    resetItems();
-                    const timeoutId2 = setTimeout(() => {
-                        index = 0;
-                        activateNext();
-                    }, 1500);
-                    sliderData.semaforoIntervals.push(timeoutId2);
-                }, 1500);
-                sliderData.semaforoIntervals.push(timeoutId);
-            }
-        }
-
-        if (items.length > 0) {
-            activateNext();
-        }
-    }
-</script>

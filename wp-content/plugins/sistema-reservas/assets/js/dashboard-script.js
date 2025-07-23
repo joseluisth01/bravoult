@@ -6199,14 +6199,9 @@ function loadAgencyReservaRapida() {
     console.log('=== CARGANDO RESERVA RÁPIDA PARA AGENCIA ===');
 
     // Mostrar indicador de carga
-    document.body.innerHTML = `
-        <div class="loading-container" style="text-align: center; padding: 50px;">
-            <h2>⚡ Cargando Reserva Rápida...</h2>
-            <p>Preparando el formulario de reserva para agencias...</p>
-        </div>
-    `;
+    showLoadingInContent();
 
-    // Cargar la sección de reserva rápida usando AJAX
+    // Cargar la reserva rápida usando AJAX
     jQuery.ajax({
         url: reservasAjax.ajax_url,
         type: 'POST',
@@ -6216,11 +6211,11 @@ function loadAgencyReservaRapida() {
         },
         success: function (response) {
             if (response.success) {
-                document.body.innerHTML = response.data;
-
-                // Inicializar la reserva rápida si la función existe
-                if (typeof initializeAgencyReservaRapida === 'function') {
-                    initializeAgencyReservaRapida();
+                if (response.data.action === 'initialize_agency_reserva_rapida') {
+                    // Inicializar reserva rápida con flujo de calendario
+                    initAgencyReservaRapida();
+                } else {
+                    showErrorInContent('Error: Respuesta inesperada del servidor');
                 }
             } else {
                 showErrorInContent('Error cargando reserva rápida: ' + response.data);
@@ -7511,4 +7506,830 @@ if (!document.getElementById('agency-profile-styles')) {
     style.id = 'agency-profile-styles';
     style.textContent = animationCSS;
     document.head.appendChild(style);
+}
+
+
+function initAgencyReservaRapida() {
+    console.log('=== INICIALIZANDO RESERVA RÁPIDA AGENCIA (NUEVO FLUJO) ===');
+
+    // Mostrar interfaz de reserva rápida (igual que admin pero con email opcional)
+    document.body.innerHTML = `
+        <div class="admin-reserva-rapida">
+            <div class="admin-header">
+                <h1>⚡ Reserva Rápida - Agencia</h1>
+                <div class="admin-actions">
+                    <button class="btn-secondary" onclick="goBackToDashboard()">← Volver al Dashboard</button>
+                </div>
+            </div>
+            
+            <div class="admin-steps-container">
+                <div class="admin-step-indicator">
+                    <div class="admin-step active" id="agency-step-1-indicator">
+                        <div class="admin-step-number">1</div>
+                        <div class="admin-step-title">Fecha y Hora</div>
+                    </div>
+                    <div class="admin-step" id="agency-step-2-indicator">
+                        <div class="admin-step-number">2</div>
+                        <div class="admin-step-title">Personas</div>
+                    </div>
+                    <div class="admin-step" id="agency-step-3-indicator">
+                        <div class="admin-step-number">3</div>
+                        <div class="admin-step-title">Datos Cliente</div>
+                    </div>
+                    <div class="admin-step" id="agency-step-4-indicator">
+                        <div class="admin-step-number">4</div>
+                        <div class="admin-step-title">Confirmar</div>
+                    </div>
+                </div>
+                
+                <!-- Paso 1: Seleccionar fecha y horario (igual que admin) -->
+                <div class="admin-step-content" id="agency-step-1">
+                    <h2>1. Selecciona fecha y horario</h2>
+                    
+                    <div class="admin-calendar-section">
+                        <div class="admin-calendar-controls">
+                            <button id="agency-prev-month">← Mes Anterior</button>
+                            <h3 id="agency-current-month-year"></h3>
+                            <button id="agency-next-month">Siguiente Mes →</button>
+                        </div>
+                        
+                        <div class="admin-calendar-container">
+                            <div id="agency-calendar-grid">
+                                <!-- Calendario se cargará aquí -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-schedule-section">
+                        <label for="agency-horarios-select">Horarios disponibles:</label>
+                        <select id="agency-horarios-select" disabled>
+                            <option value="">Selecciona primero una fecha</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Paso 2: Seleccionar personas (igual que admin) -->
+                <div class="admin-step-content" id="agency-step-2" style="display: none;">
+                    <h2>2. Selecciona el número de personas</h2>
+                    
+                    <div class="admin-persons-grid">
+                        <div class="admin-person-selector">
+                            <label for="agency-adultos">Adultos:</label>
+                            <input type="number" id="agency-adultos" min="0" max="50" value="0">
+                            <span id="agency-price-adultos" class="admin-price">10€</span>
+                        </div>
+                        
+                        <div class="admin-person-selector">
+                            <label for="agency-residentes">Residentes:</label>
+                            <input type="number" id="agency-residentes" min="0" max="50" value="0">
+                            <span class="admin-price">5€</span>
+                        </div>
+                        
+                        <div class="admin-person-selector">
+                            <label for="agency-ninos-5-12">Niños (5-12 años):</label>
+                            <input type="number" id="agency-ninos-5-12" min="0" max="50" value="0">
+                            <span id="agency-price-ninos" class="admin-price">5€</span>
+                        </div>
+                        
+                        <div class="admin-person-selector">
+                            <label for="agency-ninos-menores">Niños (-5 años):</label>
+                            <input type="number" id="agency-ninos-menores" min="0" max="50" value="0">
+                            <span class="admin-price">GRATIS</span>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-pricing-summary">
+                        <div class="admin-discount-row" id="agency-discount-row" style="display: none;">
+                            <span>Descuento:</span>
+                            <span id="agency-total-discount">-0€</span>
+                        </div>
+                        <div class="admin-total-row">
+                            <span>Total:</span>
+                            <span id="agency-total-price">0€</span>
+                        </div>
+                    </div>
+                    
+                    <div class="admin-discount-message" id="agency-discount-message">
+                        <span id="agency-discount-text"></span>
+                    </div>
+                </div>
+                
+                <!-- Paso 3: Datos del cliente (CON EMAIL OPCIONAL) -->
+                <div class="admin-step-content" id="agency-step-3" style="display: none;">
+                    <h2>3. Datos del cliente</h2>
+                    
+                    <form id="agency-client-form" class="admin-client-form">
+                        <div class="admin-form-row">
+                            <div class="admin-form-group">
+                                <label for="agency-nombre">Nombre *</label>
+                                <input type="text" id="agency-nombre" name="nombre" required>
+                            </div>
+                            <div class="admin-form-group">
+                                <label for="agency-apellidos">Apellidos *</label>
+                                <input type="text" id="agency-apellidos" name="apellidos" required>
+                            </div>
+                        </div>
+                        
+                        <div class="admin-form-row">
+                            <div class="admin-form-group">
+                                <label for="agency-email">Email (opcional)</label>
+                                <input type="email" id="agency-email" name="email">
+                                <small style="color: #666; font-style: italic;">Si se deja vacío, no se enviará confirmación por email al cliente</small>
+                            </div>
+                            <div class="admin-form-group">
+                                <label for="agency-telefono">Teléfono *</label>
+                                <input type="tel" id="agency-telefono" name="telefono" required>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Paso 4: Confirmación (igual que admin) -->
+                <div class="admin-step-content" id="agency-step-4" style="display: none;">
+                    <h2>4. Confirmar reserva</h2>
+                    
+                    <div class="admin-confirmation-details">
+                        <div class="admin-confirm-row">
+                            <strong>Fecha:</strong> <span id="agency-confirm-fecha"></span>
+                        </div>
+                        <div class="admin-confirm-row">
+                            <strong>Hora:</strong> <span id="agency-confirm-hora"></span>
+                        </div>
+                        <div class="admin-confirm-row">
+                            <strong>Personas:</strong> <span id="agency-confirm-personas"></span>
+                        </div>
+                        <div class="admin-confirm-row">
+                            <strong>Cliente:</strong> <span id="agency-confirm-cliente"></span>
+                        </div>
+                        <div class="admin-confirm-row">
+                            <strong>Email:</strong> <span id="agency-confirm-email"></span>
+                        </div>
+                        <div class="admin-confirm-row">
+                            <strong>Total:</strong> <span id="agency-confirm-total"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Navegación -->
+                <div class="admin-navigation">
+                    <button id="agency-btn-anterior" class="btn-secondary" onclick="agencyPreviousStep()" style="display: none;">← Anterior</button>
+                    <div class="admin-step-info">
+                        <span id="agency-step-text">Paso 1 de 4: Seleccionar fecha y horario</span>
+                    </div>
+                    <button id="agency-btn-siguiente" class="btn-primary" onclick="agencyNextStep()" disabled>Siguiente →</button>
+                    <button id="agency-btn-confirmar" class="btn-success" onclick="agencyConfirmReservation()" style="display: none;">Confirmar Reserva</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Inicializar calendario y eventos (reutilizar funciones de admin con prefijo agency-)
+    loadAgencySystemConfiguration().then(() => {
+        loadAgencyCalendar();
+        setupAgencyEventListeners();
+    });
+}
+
+// Variables para agencia (igual que admin pero con prefijo agency-)
+let agencyCurrentDate = new Date();
+let agencySelectedDate = null;
+let agencySelectedServiceId = null;
+let agencyServicesData = {};
+let agencyCurrentStep = 1;
+let agencyDiasAnticiapcionMinima = 1;
+
+// Funciones para agencia (copiar las de admin y cambiar prefijos)
+function loadAgencySystemConfiguration() {
+    return loadAdminSystemConfiguration(); // Reutilizar la misma función
+}
+
+function setupAgencyEventListeners() {
+    // Navegación del calendario
+    document.getElementById('agency-prev-month').addEventListener('click', function () {
+        agencyCurrentDate.setMonth(agencyCurrentDate.getMonth() - 1);
+        loadAgencyCalendar();
+    });
+
+    document.getElementById('agency-next-month').addEventListener('click', function () {
+        agencyCurrentDate.setMonth(agencyCurrentDate.getMonth() + 1);
+        loadAgencyCalendar();
+    });
+
+    // Selección de horario
+    document.getElementById('agency-horarios-select').addEventListener('change', function () {
+        agencySelectedServiceId = this.value;
+        if (agencySelectedServiceId) {
+            document.getElementById('agency-btn-siguiente').disabled = false;
+            loadAgencyPrices();
+        } else {
+            document.getElementById('agency-btn-siguiente').disabled = true;
+            document.getElementById('agency-total-price').textContent = '0€';
+        }
+    });
+
+    // Eventos para inputs de personas
+    ['agency-adultos', 'agency-residentes', 'agency-ninos-5-12', 'agency-ninos-menores'].forEach(id => {
+        const input = document.getElementById(id);
+        ['input', 'change', 'keyup', 'blur'].forEach(eventType => {
+            input.addEventListener(eventType, function () {
+                setTimeout(() => {
+                    calculateAgencyTotalPrice();
+                    validateAgencyPersonSelectionForNext();
+                }, 100);
+            });
+        });
+    });
+}
+
+// Resto de funciones copiadas de admin pero con prefijo agency- y adaptadas para agencias
+function loadAgencyCalendar() {
+    updateAgencyCalendarHeader();
+    
+    const formData = new FormData();
+    formData.append('action', 'get_available_services');
+    formData.append('month', agencyCurrentDate.getMonth() + 1);
+    formData.append('year', agencyCurrentDate.getFullYear());
+    formData.append('nonce', reservasAjax.nonce);
+
+    fetch(reservasAjax.ajax_url, {
+        method: 'POST',
+        body: formData
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                agencyServicesData = data.data;
+                renderAgencyCalendar();
+            } else {
+                console.error('Error cargando servicios agency:', data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+}
+
+function updateAgencyCalendarHeader() {
+    const monthNames = [
+        'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+        'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+    ];
+
+    const monthYear = monthNames[agencyCurrentDate.getMonth()] + ' ' + agencyCurrentDate.getFullYear();
+    document.getElementById('agency-current-month-year').textContent = monthYear;
+}
+
+function renderAgencyCalendar() {
+    // Copiar exactamente la función renderAdminCalendar pero cambiar IDs por agency-
+    // ... (implementar igual que renderAdminCalendar)
+}
+
+function agencyNextStep() {
+    console.log('Agency: Avanzando al siguiente paso desde', agencyCurrentStep);
+
+    if (agencyCurrentStep === 1) {
+        if (!agencySelectedDate || !agencySelectedServiceId) {
+            alert('Por favor, selecciona una fecha y horario.');
+            return;
+        }
+
+        document.getElementById('agency-step-1').style.display = 'none';
+        document.getElementById('agency-step-2').style.display = 'block';
+        
+        document.getElementById('agency-step-1-indicator').classList.remove('active');
+        document.getElementById('agency-step-2-indicator').classList.add('active');
+        
+        document.getElementById('agency-btn-anterior').style.display = 'block';
+        document.getElementById('agency-btn-siguiente').disabled = true;
+        document.getElementById('agency-step-text').textContent = 'Paso 2 de 4: Seleccionar personas';
+
+        agencyCurrentStep = 2;
+        loadAgencyPrices();
+
+    } else if (agencyCurrentStep === 2) {
+        const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
+        const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
+        const ninos512 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
+        const ninosMenores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
+
+        const totalPersonas = adultos + residentes + ninos512 + ninosMenores;
+
+        if (totalPersonas === 0) {
+            alert('Debe seleccionar al menos una persona.');
+            return;
+        }
+
+        if (!validateAgencyPersonSelection()) {
+            return;
+        }
+
+        document.getElementById('agency-step-2').style.display = 'none';
+        document.getElementById('agency-step-3').style.display = 'block';
+        
+        document.getElementById('agency-step-2-indicator').classList.remove('active');
+        document.getElementById('agency-step-3-indicator').classList.add('active');
+        
+        document.getElementById('agency-btn-siguiente').disabled = true;
+        document.getElementById('agency-step-text').textContent = 'Paso 3 de 4: Datos del cliente';
+
+        agencyCurrentStep = 3;
+        setupAgencyFormValidation();
+
+    } else if (agencyCurrentStep === 3) {
+        const form = document.getElementById('agency-client-form');
+        if (!form) {
+            alert('Error: No se encontró el formulario. Recarga la página e inténtalo de nuevo.');
+            return;
+        }
+
+        const formData = new FormData(form);
+        const nombre = formData.get('nombre') ? formData.get('nombre').trim() : '';
+        const apellidos = formData.get('apellidos') ? formData.get('apellidos').trim() : '';
+        const email = formData.get('email') ? formData.get('email').trim() : ''; // ✅ PUEDE SER VACÍO
+        const telefono = formData.get('telefono') ? formData.get('telefono').trim() : '';
+
+        if (!nombre || !apellidos || !telefono) {
+            alert('Por favor, completa todos los campos obligatorios (nombre, apellidos, teléfono).');
+            return;
+        }
+
+        // ✅ VALIDAR EMAIL SOLO SI NO ESTÁ VACÍO
+        if (email && !isValidEmail(email)) {
+            alert('Por favor, introduce un email válido o déjalo vacío.');
+            return;
+        }
+
+        document.getElementById('agency-step-3').style.display = 'none';
+        document.getElementById('agency-step-4').style.display = 'block';
+        
+        document.getElementById('agency-step-3-indicator').classList.remove('active');
+        document.getElementById('agency-step-4-indicator').classList.add('active');
+        
+        document.getElementById('agency-btn-siguiente').style.display = 'none';
+        document.getElementById('agency-btn-confirmar').style.display = 'block';
+        document.getElementById('agency-step-text').textContent = 'Paso 4 de 4: Confirmar reserva';
+
+        agencyCurrentStep = 4;
+
+        setTimeout(() => {
+            fillAgencyConfirmationData();
+        }, 100);
+    }
+}
+
+function agencyConfirmReservation() {
+   console.log('=== CONFIRMANDO RESERVA RÁPIDA AGENCIA ===');
+
+   if (!confirm('¿Estás seguro de que quieres procesar esta reserva?\n\nSe enviará confirmación por email según corresponda.')) {
+       return;
+   }
+
+   const confirmBtn = document.getElementById('agency-btn-confirmar');
+   const originalText = confirmBtn.textContent;
+   confirmBtn.disabled = true;
+   confirmBtn.textContent = '⏳ Procesando...';
+
+   // Preparar datos de la reserva
+   const service = findAgencyServiceById(agencySelectedServiceId);
+   const form = document.getElementById('agency-client-form');
+   const formData = new FormData(form);
+
+   const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
+   const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
+   const ninos_5_12 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
+   const ninos_menores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
+
+   const totalPrice = document.getElementById('agency-total-price').textContent.replace('€', '').trim();
+
+   // Enviar solicitud AJAX usando la nueva acción para agencias
+   const ajaxData = {
+       action: 'process_agency_reserva_rapida',
+       nonce: reservasAjax.nonce,
+       nombre: formData.get('nombre'),
+       apellidos: formData.get('apellidos'),
+       email: formData.get('email') || '', // ✅ PUEDE SER VACÍO
+       telefono: formData.get('telefono'),
+       service_id: agencySelectedServiceId,
+       adultos: adultos,
+       residentes: residentes,
+       ninos_5_12: ninos_5_12,
+       ninos_menores: ninos_menores
+   };
+
+   fetch(reservasAjax.ajax_url, {
+       method: 'POST',
+       headers: {
+           'Content-Type': 'application/x-www-form-urlencoded',
+       },
+       body: new URLSearchParams(ajaxData)
+   })
+       .then(response => response.json())
+       .then(data => {
+           confirmBtn.disabled = false;
+           confirmBtn.textContent = originalText;
+
+           if (data && data.success) {
+               console.log('Reserva de agencia procesada exitosamente:', data.data);
+
+               const detalles = data.data.detalles;
+               const emailInfo = formData.get('email') ? 
+                   "\n📧 El cliente recibirá la confirmación por email." : 
+                   "\nℹ️ No se envió email al cliente (email no proporcionado).";
+               
+               const mensaje = "🎉 ¡RESERVA CREADA EXITOSAMENTE! 🎉\n\n" +
+                   "📋 LOCALIZADOR: " + data.data.localizador + "\n\n" +
+                   "📅 DETALLES:\n" +
+                   "• Fecha: " + detalles.fecha + "\n" +
+                   "• Hora: " + detalles.hora + "\n" +
+                   "• Personas: " + detalles.personas + "\n" +
+                   "• Precio: " + detalles.precio_final + "€\n\n" +
+                   "✅ La reserva ha sido procesada correctamente." + emailInfo + "\n" +
+                   "📧 Tu agencia y el administrador han sido notificados.\n\n" +
+                   "¡Reserva de agencia completada!";
+
+               alert(mensaje);
+
+               setTimeout(() => {
+                   goBackToDashboard();
+               }, 2000);
+
+           } else {
+               console.error('Error procesando reserva de agencia:', data);
+               const errorMsg = data && data.data ? data.data : 'Error desconocido';
+               alert('❌ Error procesando la reserva: ' + errorMsg);
+           }
+       })
+       .catch(error => {
+           console.error('Error de conexión:', error);
+           confirmBtn.disabled = false;
+           confirmBtn.textContent = originalText;
+           alert('❌ Error de conexión al procesar la reserva.\n\nPor favor, inténtalo de nuevo.');
+       });
+}
+
+// Funciones auxiliares para agencias (copiar de admin y adaptar)
+function agencyPreviousStep() {
+   // Implementar igual que adminPreviousStep pero con IDs de agencia
+}
+
+function validateAgencyPersonSelection() {
+   const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
+   const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
+   const ninos512 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
+   const ninosMenores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
+
+   const totalAdults = adultos + residentes;
+   const totalChildren = ninos512 + ninosMenores;
+
+   if (totalChildren > 0 && totalAdults === 0) {
+       alert('Debe haber al menos un adulto si hay niños en la reserva.');
+       document.getElementById('agency-ninos-5-12').value = 0;
+       document.getElementById('agency-ninos-menores').value = 0;
+       calculateAgencyTotalPrice();
+       return false;
+   }
+
+   return true;
+}
+
+function validateAgencyPersonSelectionForNext() {
+   const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
+   const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
+   const ninos512 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
+   const ninosMenores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
+
+   const totalAdults = adultos + residentes;
+   const totalChildren = ninos512 + ninosMenores;
+   const totalPersonas = totalAdults + totalChildren;
+
+   if (totalPersonas === 0) {
+       document.getElementById('agency-btn-siguiente').disabled = true;
+       return false;
+   }
+
+   if (totalChildren > 0 && totalAdults === 0) {
+       alert('Debe haber al menos un adulto si hay niños en la reserva.');
+       document.getElementById('agency-ninos-5-12').value = 0;
+       document.getElementById('agency-ninos-menores').value = 0;
+       calculateAgencyTotalPrice();
+       document.getElementById('agency-btn-siguiente').disabled = true;
+       return false;
+   }
+
+   document.getElementById('agency-btn-siguiente').disabled = false;
+   return true;
+}
+
+function loadAgencyPrices() {
+   if (!agencySelectedServiceId) return;
+
+   const service = findAgencyServiceById(agencySelectedServiceId);
+   if (service) {
+       document.getElementById('agency-price-adultos').textContent = service.precio_adulto + '€';
+       document.getElementById('agency-price-ninos').textContent = service.precio_nino + '€';
+       calculateAgencyTotalPrice();
+   }
+}
+
+function findAgencyServiceById(serviceId) {
+   for (let date in agencyServicesData) {
+       for (let service of agencyServicesData[date]) {
+           if (service.id == serviceId) {
+               return service;
+           }
+       }
+   }
+   return null;
+}
+
+function calculateAgencyTotalPrice() {
+   if (!agencySelectedServiceId) {
+       clearAgencyPricing();
+       return;
+   }
+
+   const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
+   const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
+   const ninos512 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
+   const ninosMenores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
+
+   const totalPersonas = adultos + residentes + ninos512 + ninosMenores;
+
+   if (totalPersonas === 0) {
+       document.getElementById('agency-total-discount').text('');
+       document.getElementById('agency-total-price').textContent = '0€';
+       document.getElementById('agency-discount-row').style.display = 'none';
+       document.getElementById('agency-discount-message').classList.remove('show');
+       return;
+   }
+
+   const formData = new FormData();
+   formData.append('action', 'calculate_price');
+   formData.append('service_id', agencySelectedServiceId);
+   formData.append('adultos', adultos);
+   formData.append('residentes', residentes);
+   formData.append('ninos_5_12', ninos512);
+   formData.append('ninos_menores', ninosMenores);
+   formData.append('nonce', reservasAjax.nonce);
+
+   fetch(reservasAjax.ajax_url, {
+       method: 'POST',
+       body: formData
+   })
+       .then(response => response.json())
+       .then(data => {
+           if (data.success) {
+               const result = data.data;
+               updateAgencyPricingDisplay(result);
+           } else {
+               console.error('Error calculando precio agency:', data);
+               document.getElementById('agency-total-price').textContent = '0€';
+               document.getElementById('agency-total-discount').textContent = '';
+               document.getElementById('agency-discount-row').style.display = 'none';
+               document.getElementById('agency-discount-message').classList.remove('show');
+           }
+       })
+       .catch(error => {
+           console.error('Error calculando precio agency:', error);
+           document.getElementById('agency-total-price').textContent = '0€';
+           document.getElementById('agency-total-discount').textContent = '';
+           document.getElementById('agency-discount-row').style.display = 'none';
+           document.getElementById('agency-discount-message').classList.remove('show');
+       });
+}
+
+function updateAgencyPricingDisplay(result) {
+   // Calcular descuento total
+   const descuentoTotal = (result.descuento_grupo || 0) + (result.descuento_servicio || 0);
+
+   // Manejar descuentos
+   if (descuentoTotal > 0) {
+       document.getElementById('agency-total-discount').textContent = '-' + descuentoTotal.toFixed(2) + '€';
+       document.getElementById('agency-discount-row').style.display = 'block';
+   } else {
+       document.getElementById('agency-discount-row').style.display = 'none';
+   }
+
+   // Mensaje de descuento (igual que admin)
+   let mensajeDescuento = '';
+
+   if (result.regla_descuento_aplicada && result.regla_descuento_aplicada.rule_name && result.descuento_grupo > 0) {
+       const regla = result.regla_descuento_aplicada;
+       mensajeDescuento = `Descuento del ${regla.discount_percentage}% por ${regla.rule_name.toLowerCase()}`;
+   }
+
+   if (result.servicio_con_descuento && result.servicio_con_descuento.descuento_aplicado && result.descuento_servicio > 0) {
+       const servicio = result.servicio_con_descuento;
+       let mensajeServicio = '';
+
+       if (servicio.descuento_tipo === 'fijo') {
+           mensajeServicio = `Descuento del ${servicio.porcentaje_descuento}% aplicado a este servicio`;
+       } else if (servicio.descuento_tipo === 'por_grupo') {
+           mensajeServicio = `Descuento del ${servicio.porcentaje_descuento}% por alcanzar ${servicio.descuento_minimo_personas} personas`;
+       }
+
+       if (mensajeDescuento && mensajeServicio) {
+           if (servicio.descuento_acumulable == '1') {
+               mensajeDescuento += ` + ${mensajeServicio}`;
+           } else {
+               const prioridad = servicio.descuento_prioridad || 'servicio';
+               if (prioridad === 'servicio') {
+                   mensajeDescuento = mensajeServicio;
+               }
+           }
+       } else if (mensajeServicio) {
+           mensajeDescuento = mensajeServicio;
+       }
+   }
+
+   if (mensajeDescuento) {
+       document.getElementById('agency-discount-text').textContent = mensajeDescuento;
+       document.getElementById('agency-discount-message').classList.add('show');
+   } else {
+       document.getElementById('agency-discount-message').classList.remove('show');
+   }
+
+   window.agencyLastDiscountRule = result.regla_descuento_aplicada;
+
+   const totalPrice = parseFloat(result.total) || 0;
+   document.getElementById('agency-total-price').textContent = totalPrice.toFixed(2) + '€';
+}
+
+function clearAgencyPricing() {
+   document.getElementById('agency-total-discount').textContent = '';
+   document.getElementById('agency-total-price').textContent = '0€';
+   document.getElementById('agency-discount-row').style.display = 'none';
+   document.getElementById('agency-discount-message').classList.remove('show');
+}
+
+function setupAgencyFormValidation() {
+   const inputs = document.querySelectorAll('#agency-client-form input[required]'); // Solo campos requeridos
+
+   function validateForm() {
+       let allValid = true;
+       inputs.forEach(input => {
+           if (!input.value.trim()) {
+               allValid = false;
+           }
+       });
+
+       // Validar email específicamente SOLO SI NO ESTÁ VACÍO
+       const emailInput = document.querySelector('#agency-client-form input[name="email"]');
+       if (emailInput.value.trim()) {
+           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+           if (!emailRegex.test(emailInput.value.trim())) {
+               allValid = false;
+           }
+       }
+
+       document.getElementById('agency-btn-siguiente').disabled = !allValid;
+   }
+
+   inputs.forEach(input => {
+       input.addEventListener('input', validateForm);
+       input.addEventListener('blur', validateForm);
+   });
+
+   // También validar email opcional
+   const emailInput = document.querySelector('#agency-client-form input[name="email"]');
+   if (emailInput) {
+       emailInput.addEventListener('input', validateForm);
+       emailInput.addEventListener('blur', validateForm);
+   }
+
+   validateForm();
+}
+
+function fillAgencyConfirmationData() {
+   console.log('=== LLENANDO DATOS DE CONFIRMACIÓN AGENCIA ===');
+
+   if (!agencySelectedServiceId || !agencySelectedDate) {
+       console.error('❌ Faltan datos básicos:', {
+           serviceId: agencySelectedServiceId,
+           selectedDate: agencySelectedDate
+       });
+       return;
+   }
+
+   const service = findAgencyServiceById(agencySelectedServiceId);
+   if (!service) {
+       console.error('❌ No se encontró el servicio');
+       return;
+   }
+
+   const nombreInput = document.getElementById('agency-nombre');
+   const apellidosInput = document.getElementById('agency-apellidos');
+   const emailInput = document.getElementById('agency-email');
+   const telefonoInput = document.getElementById('agency-telefono');
+
+   if (!nombreInput || !apellidosInput || !telefonoInput) {
+       console.error('❌ No se encontraron los campos del formulario');
+       return;
+   }
+
+   const nombre = nombreInput.value.trim();
+   const apellidos = apellidosInput.value.trim();
+   const email = emailInput.value.trim() || 'No proporcionado'; // ✅ MANEJAR EMAIL VACÍO
+   const telefono = telefonoInput.value.trim();
+
+   const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
+   const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
+   const ninos512 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
+   const ninosMenores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
+   const totalPersonas = adultos + residentes + ninos512 + ninosMenores;
+
+   // Formatear fecha
+   let fechaFormateada = agencySelectedDate;
+   try {
+       const fechaObj = new Date(agencySelectedDate + 'T00:00:00');
+       fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
+           weekday: 'long',
+           year: 'numeric',
+           month: 'long',
+           day: 'numeric'
+       });
+       fechaFormateada = fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1);
+   } catch (e) {
+       console.warn('No se pudo formatear la fecha, usando formato original');
+   }
+
+   // Crear detalle de personas
+   let personasDetalle = [];
+   if (adultos > 0) personasDetalle.push(`${adultos} adulto${adultos > 1 ? 's' : ''}`);
+   if (residentes > 0) personasDetalle.push(`${residentes} residente${residentes > 1 ? 's' : ''}`);
+   if (ninos512 > 0) personasDetalle.push(`${ninos512} niño${ninos512 > 1 ? 's' : ''} (5-12)`);
+   if (ninosMenores > 0) personasDetalle.push(`${ninosMenores} bebé${ninosMenores > 1 ? 's' : ''} (gratis)`);
+
+   const personasTexto = personasDetalle.length > 0 ?
+       `${totalPersonas} personas (${personasDetalle.join(', ')})` :
+       `${totalPersonas} personas`;
+
+   const totalPriceElement = document.getElementById('agency-total-price');
+   const precioTotal = totalPriceElement ? totalPriceElement.textContent : '0€';
+
+   // Actualizar elementos de confirmación
+   const confirmElements = {
+       'agency-confirm-fecha': fechaFormateada,
+       'agency-confirm-hora': service.hora,
+       'agency-confirm-personas': personasTexto,
+       'agency-confirm-cliente': `${nombre} ${apellidos}`,
+       'agency-confirm-email': email,
+       'agency-confirm-total': precioTotal
+   };
+
+   Object.keys(confirmElements).forEach(elementId => {
+       const element = document.getElementById(elementId);
+       if (element) {
+           element.textContent = confirmElements[elementId];
+       }
+   });
+}
+
+// Funciones auxiliares adicionales que faltan (selectAgencyDate, renderAgencyCalendar, etc.)
+function selectAgencyDate(dateStr) {
+   agencySelectedDate = dateStr;
+   agencySelectedServiceId = null;
+
+   // Actualizar visual del calendario
+   document.querySelectorAll('#agency-calendar-grid .calendar-day').forEach(day => {
+       day.classList.remove('selected');
+   });
+   event.target.classList.add('selected');
+
+   loadAgencyAvailableSchedules(dateStr);
+}
+
+function loadAgencyAvailableSchedules(dateStr) {
+   const services = agencyServicesData[dateStr] || [];
+
+   let optionsHTML = '<option value="">Selecciona un horario</option>';
+
+   services.forEach(service => {
+       let descuentoInfo = '';
+       if (service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0) {
+           descuentoInfo = ` (${service.porcentaje_descuento}% descuento)`;
+       }
+
+       optionsHTML += `<option value="${service.id}" 
+                          data-plazas="${service.plazas_disponibles}">
+                       ${service.hora} - ${service.plazas_disponibles} plazas disponibles${descuentoInfo}
+                   </option>`;
+   });
+
+   document.getElementById('agency-horarios-select').innerHTML = optionsHTML;
+   document.getElementById('agency-horarios-select').disabled = false;
+   document.getElementById('agency-btn-siguiente').disabled = true;
+}
+
+// Exponer funciones globalmente
+window.selectAgencyDate = selectAgencyDate;
+window.agencyNextStep = agencyNextStep;
+window.agencyPreviousStep = agencyPreviousStep;
+window.agencyConfirmReservation = agencyConfirmReservation;
+window.initAgencyReservaRapida = initAgencyReservaRapida;
+
+// Función auxiliar para email validation
+function isValidEmail(email) {
+   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+   return emailRegex.test(email);
 }
