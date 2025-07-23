@@ -13,7 +13,8 @@
   <link rel="icon" type="image/x-icon" href="<?= site_url('/favicon.ico'); ?>">
 
 
-
+  <script type="text/javascript" src="https://cache.consentframework.com/js/pa/48113/c/zLPp2/stub"></script>
+<script type="text/javascript" src="https://choices.consentframework.com/js/pa/48113/c/zLPp2/cmp" async></script>
 </head>
 <?php $post_slug = get_post_field('post_name', get_post()); ?>
 
@@ -35,12 +36,12 @@
   $upload_dir = wp_upload_dir();
   ?>
 
-
+  <a class="buttonreservar buttonreservarresponsive" href="https://autobusmedinaazahara.com/#procesocompra">RESERVAR<img style="width:20px" src="<?php echo $upload_dir['baseurl']; ?>/2025/07/87070a4063df51d50fd4bae645befbb94df703e2.gif"></a>
   <header id="header" class="navBar">
 
     <div class="divheader flex items-center justify-between">
 
-
+      <?php echo do_shortcode('[gtranslate]'); ?>
 
       <!-- Desktop Navigation - Cambiado de md:flex a xl:flex -->
       <nav class="hidden xl:flex flex-1 justify-center">
@@ -53,7 +54,7 @@
           'fallback_cb'   => false
         ));
         ?>
-        <a class="buttonreservar" href="#procesocompra">RESERVAR<img style="width:20px" src="<?php echo $upload_dir['baseurl']; ?>/2025/07/87070a4063df51d50fd4bae645befbb94df703e2.gif"></a>
+        <a class="buttonreservar" href="https://autobusmedinaazahara.com/#procesocompra">RESERVAR<img style="width:20px" src="<?php echo $upload_dir['baseurl']; ?>/2025/07/87070a4063df51d50fd4bae645befbb94df703e2.gif"></a>
       </nav>
 
       <!-- Mobile Menu Button - Cambiado de md:hidden a xl:hidden -->
@@ -63,7 +64,7 @@
           <span></span>
           <span></span>
         </div>
-        <?php echo do_shortcode('[gtranslate]'); ?>
+        
       </div>
 
     </div>
@@ -82,21 +83,6 @@
     </nav>
 
 
-    <!-- Panel de búsqueda a pantalla completa (para móviles) -->
-    <div id="search-panel" class="search-panel w-full bg-white">
-      <div class="search-form-container p-4">
-        <form role="search" method="get" class="woocommerce-product-search" action="<?php echo esc_url(get_permalink(wc_get_page_id('shop'))); ?>">
-          <div class="search-input-wrapper">
-            <button type="submit" class="search-submit">
-              <img src="<?php echo $upload_dir['baseurl']; ?>/2025/03/Vector-9.svg" alt="">
-            </button>
-            <input type="search" class="search-field" placeholder="Buscar" value="<?php echo get_search_query(); ?>" name="s" />
-            <input type="hidden" name="post_type" value="product" />
-            <input type="hidden" name="prevent_redirect" value="1" />
-          </div>
-        </form>
-      </div>
-    </div>
   </header>
 
   <style>
@@ -132,7 +118,9 @@
     .desktop-search .search-field::placeholder {
       color: #999;
     }
-
+.buttonreservarresponsive{
+  display: none;
+}
     .search-submit {
       background: transparent;
       border: none;
@@ -263,4 +251,45 @@
         });
       }
     });
+  </script>
+
+  <script>
+    // JavaScript para el menú móvil - Agregar al final del header.php o en un archivo JS separado
+
+document.addEventListener('DOMContentLoaded', function() {
+    const menuButton = document.querySelector('.menuOpen');
+    const mobileMenu = document.querySelector('#menu.menu-mobile');
+    
+    if (menuButton && mobileMenu) {
+        menuButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Toggle de las clases
+            menuButton.classList.toggle('opened');
+            mobileMenu.classList.toggle('opened');
+            
+            // Debug para verificar que funciona
+            console.log('Menu button clicked');
+            console.log('Menu opened:', mobileMenu.classList.contains('opened'));
+        });
+        
+        // Cerrar menú al hacer clic en un enlace (opcional)
+        const menuLinks = mobileMenu.querySelectorAll('a');
+        menuLinks.forEach(function(link) {
+            link.addEventListener('click', function() {
+                menuButton.classList.remove('opened');
+                mobileMenu.classList.remove('opened');
+            });
+        });
+        
+        // Cerrar menú al hacer clic fuera (opcional)
+        document.addEventListener('click', function(e) {
+            if (!menuButton.contains(e.target) && !mobileMenu.contains(e.target)) {
+                menuButton.classList.remove('opened');
+                mobileMenu.classList.remove('opened');
+            }
+        });
+    }
+});
   </script>

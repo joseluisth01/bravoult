@@ -41,7 +41,6 @@ $xl: 1100px;
         margin: 0 auto;
         display: flex;
         align-items: center;
-        padding: 15px;
     }
     .divheader nav ul{
         list-style: none;
@@ -451,20 +450,10 @@ body {
         display: none;
     }
 
-    #header .menuOpen {
-        right: 140px;
-        position: absolute;
-        top: 36px;
-    }
+
 }
 
-@media (max-width: 768px) {
-    #header .menuOpen {
-        position: absolute;
-        margin-left: auto;
-        margin-right: auto;
-    }
-}
+
 
 #header #menu.menu-horizontal .sub-menu {
     background: $white;

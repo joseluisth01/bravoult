@@ -86,6 +86,15 @@
     background-color: #DB7461;
     transform: scale(1.2);
 }
+@media (max-width: 800px) {
+    .textoslider-slide {
+        flex: 0 0 100%;
+    }
+
+    .textoslider-slide img {
+        height: 300px; /* opcional, según cómo quieras ajustar */
+    }
+}
 
 /* Responsive */
 @media (max-width: 768px) {
@@ -102,15 +111,7 @@
         font-size: 1rem;
     }
     
-    .textoslider-slide {
-        flex: 0 0 50%;
-        padding: 0 5px;
-    }
     
-    .textoslider-slide img {
-        height: 300px;
-        border-radius: 10px;
-    }
     
     .textoslider-pagination {
         gap: 8px;

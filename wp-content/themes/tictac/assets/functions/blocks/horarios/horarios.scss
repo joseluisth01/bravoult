@@ -94,6 +94,16 @@
             border-radius: 3px;
         }
 
+        .textoalternado-wrapper h3{
+            font-size: 25px;
+    color: #DB7461;
+    font-family: 'Duran-Medium';
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+    text-align: center;
+        }
+
         .leyenda-color.exclusivo {
             background-color: #DB7461;
         }
@@ -106,12 +116,13 @@
 
         .horarios-boton-container {
             text-align: center;
+            margin-top: 30px;
         }
 
         .horarios-boton {
             background-color: #EFCF4B;
             color: #2E2D2C;
-            padding: 15px 60px;
+            padding: 15px 100px;
             border-radius: 10px;
             text-decoration: none;
             font-family: 'Duran-Medium';

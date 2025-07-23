@@ -187,7 +187,8 @@ function textoslider($block)
             const track = document.querySelector('.textoslider-track');
             const slides = document.querySelectorAll('.textoslider-slide');
             const dots = document.querySelectorAll('.textoslider-dot');
-            const slidesPerView = 3;
+            const slidesPerView = window.innerWidth <= 800 ? 1 : 3;
+
             const totalSlides = slides.length;
             const maxSlideIndex = totalSlides - slidesPerView; // Máximo índice para mostrar 3 slides
             let currentSlide = 0;

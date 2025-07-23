@@ -409,7 +409,6 @@ color: black;
     }
     
     .calendar-legend {
-        flex-direction: column;
         align-items: center;
     }
     

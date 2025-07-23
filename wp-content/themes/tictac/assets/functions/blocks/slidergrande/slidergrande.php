@@ -139,7 +139,8 @@ function slidergrande($block)
             const track = document.querySelector('.slidergrande-track');
             const slides = document.querySelectorAll('.slidergrande-slide');
             const dots = document.querySelectorAll('.slidergrande-dot');
-            const slidesPerView = 3;
+            let slidesPerView = window.innerWidth <= 800 ? 1 : 3;
+
             const totalSlides = slides.length;
             const maxSlideIndex = totalSlides - slidesPerView; // Máximo índice para mostrar 3 slides
             let currentSlide = 0;

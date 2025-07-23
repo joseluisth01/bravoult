@@ -116,7 +116,7 @@ function textoaudio_render($block)
         <?php if ($parrafo_principal): ?>
             <div class="textoaudio-parrafo-principal"><?= wpautop($parrafo_principal) ?></div>
         <?php endif; ?>
-        <br><br>
+        
         <div class="textoaudio-contenido">
             <div class="textoaudio-texto">
                 <?php if ($subtitulo): ?>
@@ -150,7 +150,7 @@ function textoaudio_render($block)
 
 
         </div>
-        <br><br>
+        
         <?php if ($boton && $boton_url): ?>
             <div class="horarios-boton-container">
                 <a href="<?= esc_url($boton_url) ?>" class="horarios-boton"><?= esc_html($boton) ?></a>
@@ -163,7 +163,7 @@ function textoaudio_render($block)
             box-shadow: 0px 0px 15px 0px #2E2D2C33;
             backdrop-filter: blur(3px);
             border-radius: 20px;
-            padding: 50px !important;
+            padding: 50px;
             margin-top: 50px;
         }
 
@@ -444,7 +444,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 playIcon.src = "https://autobusmedinaazahara.com/wp-content/uploads/2025/07/Play.png";
             } else {
                 audio.play();
-                playIcon.src = "https://autobusmedinaazahara.com/wp-content/uploads/2025/07/ChatGPT_Image_21_jul_2025__14_09_23-removebg-preview-e1753099811575.png";
+                playIcon.src = "https://autobusmedinaazahara.com/wp-content/uploads/2025/07/Vector-14.png";
             }
             isPlaying = !isPlaying;
         });

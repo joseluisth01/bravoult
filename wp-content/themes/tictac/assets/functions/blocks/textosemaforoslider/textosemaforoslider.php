@@ -231,10 +231,13 @@ function textosemaforoslider($block)
     $slides = get_field("slider_semaforo");
     $parrafo_final = get_field("parrafo_final");
     $upload_dir = wp_upload_dir();
+    
+    // Generar un ID único para este bloque
+    $semaforo_block_id = 'textosemaforoslider-' . uniqid();
 
     if (empty($slides)) return;
 ?>
-    <div class="container textosemaforoslider">
+    <div class="container textosemaforoslider" id="<?= $semaforo_block_id ?>">
         <div class="textosemaforoslider-content">
             <?php if ($titulo): ?>
                 <h2 class="textosemaforoslider-titulo"><?= $titulo ?></h2>
@@ -264,7 +267,6 @@ function textosemaforoslider($block)
                                                         <div class="semaforo-titulo-paso"><?= $paso['titulo_paso'] ?></div>
                                                     <?php endif; ?>
                                                     <div class="divrayas">
-
                                                         <?php if ($paso['parrafo_paso']) : ?>
                                                             <p class="semaforo-parrafo-paso"><?= $paso['parrafo_paso'] ?></p>
                                                         <?php endif; ?>
@@ -282,11 +284,11 @@ function textosemaforoslider($block)
 
             <!-- Navegación del slider -->
             <div class="textosemaforoslider-navigation">
-                <button class="nav-btn prev-btn" onclick="changeSlide(-1)">
-                    <img src="<?php echo $upload_dir['baseurl']; ?>/2025/07/Vector-12.svg" alt="Anterior">
+                <button class="nav-btn prev-btn" onclick="changeSemaforoSlide('<?= $semaforo_block_id ?>', -1)">
+                    <img src="https://autobusmedinaazahara.com/wp-content/uploads/2025/07/Vector-12.svg" alt="Anterior">
                 </button>
-                <button class="nav-btn next-btn" onclick="changeSlide(1)">
-                    <img src="<?php echo $upload_dir['baseurl']; ?>/2025/07/Vector-13.svg" alt="Siguiente">
+                <button class="nav-btn next-btn" onclick="changeSemaforoSlide('<?= $semaforo_block_id ?>', 1)">
+                    <img src="https://autobusmedinaazahara.com/wp-content/uploads/2025/07/Vector-13.svg" alt="Siguiente">
                 </button>
             </div>
         </div>
@@ -298,96 +300,330 @@ function textosemaforoslider($block)
         <?php endif; ?>
     </div>
 
-    
+    <style>
+        .textosemaforoslider {
+            box-shadow: 0px 0px 15px 0px #2E2D2C33;
+            backdrop-filter: blur(3px);
+            border-radius: 20px;
+            padding: 50px !important;
+            margin-top: 50px;
+        }
+
+        .textosemaforoslider-content {
+            text-align: center;
+        }
+
+        .textosemaforoslider .divrayas{
+            height: 200px;
+        }
+
+        .textosemaforoslider-titulo {
+            color: #871727;
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            line-height: 1.2;
+            font-family: 'manhaj' !important;
+        }
+
+        .textosemaforoslider-parrafo-inicial,
+        .textosemaforoslider-parrafo-final {
+            margin: 0 auto;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: #2E2D2C;
+        }
+
+        .textosemaforoslider-parrafo-inicial p,
+        .textosemaforoslider-parrafo-final p {
+            margin-bottom: 20px;
+        }
+
+        .textosemaforoslider-slider-container {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .textosemaforoslider-slider {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .textosemaforoslider-track {
+            display: flex;
+            transition: transform 0.8s ease-in-out;
+            width: 100%;
+        }
+
+        .textosemaforoslider-slide {
+            flex: 0 0 100%;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        .slide-titulo {
+            color: #DB7461;
+            font-size: 30px;
+            margin-bottom: 50px;
+            margin-top: 30px;
+            text-align: center;
+            font-family: 'Duran-Medium' !important;
+            letter-spacing: 2px;
+        }
+
+        .slide-semaforo {
+            margin-bottom: 30px;
+        }
+
+        .semaforo-contenedor {
+            display: flex;
+            gap: 20px;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .semaforo-item {
+            display: flex;
+            align-items: center;
+            border-radius: 10px;
+            transition: all 0.5s ease;
+            flex: 1;
+            min-width: 200px;
+            margin-bottom: 20px;
+        }
+
+        .semaforo-textos {
+            flex: 1;
+        }
+
+        .semaforo-titulo-paso {
+            background-color: #B7B7B7;
+            color: white;
+            padding: 10px 20px;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+            transition: all 0.5s ease;
+        }
+
+        .divrayas {
+            border: 4px dashed #B7B7B7;
+            border-bottom-left-radius: 10px;
+            border-bottom-right-radius: 10px;
+            border-top: 0px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.5s ease;
+        }
+
+        .semaforo-parrafo-paso {
+            font-family: 'Duran-Medium' !important;
+            line-height: 1.4;
+            color: #000000 !important;
+            margin: 0;
+            transition: all 0.5s ease;
+            font-size: 14px !important;
+            text-align: center !important;
+            letter-spacing: 1px;
+        }
+
+        /* Estados activos del semáforo */
+        .semaforo-item.active {
+            transform: scale(1.02);
+        }
+
+        .semaforo-item.active .semaforo-titulo-paso {
+            background-color: #DB7461 !important;
+            color: #2E2D2C !important;
+        }
+
+        .semaforo-item.active .semaforo-parrafo-paso {
+            color: white !important;
+        }
+
+        .semaforo-item.active .divrayas {
+            background-color: #871727 !important;
+            border: none !important;
+        }
+
+        /* Navegación del slider */
+        .textosemaforoslider-navigation {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+            height: 80px;
+        }
+
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .textosemaforoslider {
+                padding: 40px 15px !important;
+            }
+
+            .textosemaforoslider-titulo {
+                font-size: 2rem;
+                margin-bottom: 20px;
+            }
+
+            .slide-titulo {
+                font-size: 25px;
+                margin-bottom: 20px;
+            }
+
+            .semaforo-contenedor {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .semaforo-item {
+                min-width: 100%;
+            }
+
+            .semaforo-titulo-paso {
+                font-size: 14px;
+                height: 35px;
+            }
+
+            .divrayas {
+                padding: 15px;
+            }
+
+            .semaforo-parrafo-paso {
+                font-size: 12px !important;
+            }
+        }
+    </style>
 
     <script>
-        let currentSlideIndex = 0;
-        const totalSlides = <?= count($slides) ?>;
-        let semaforoIntervals = [];
-
-        function updateSlider() {
-            const track = document.querySelector('.textosemaforoslider-track');
-            
-            track.style.transform = `translateX(-${currentSlideIndex * 100}%)`;
-
-            // Reiniciar animación del semáforo en la slide actual
-            startSemaforoAnimation(currentSlideIndex);
-        }
-
-        function changeSlide(direction) {
-            // Limpiar intervalos anteriores
-            clearAllSemaforoIntervals();
-            
-            currentSlideIndex += direction;
-            
-            if (currentSlideIndex >= totalSlides) {
-                currentSlideIndex = 0;
-            } else if (currentSlideIndex < 0) {
-                currentSlideIndex = totalSlides - 1;
-            }
-            
-            updateSlider();
-        }
-
-        function goToSlide(slideIndex) {
-            clearAllSemaforoIntervals();
-            currentSlideIndex = slideIndex;
-            updateSlider();
-        }
-
-        function clearAllSemaforoIntervals() {
-            semaforoIntervals.forEach(interval => clearInterval(interval));
-            semaforoIntervals = [];
-            
-            // Resetear todos los semáforos
-            document.querySelectorAll('.semaforo-item').forEach(item => {
-                item.classList.remove('active');
-            });
-        }
-
-        function startSemaforoAnimation(slideIndex) {
-            const currentSlide = document.querySelector(`[data-slide="${slideIndex}"]`);
-            if (!currentSlide) return;
-
-            const items = currentSlide.querySelectorAll('.semaforo-item');
-            let index = 0;
-
-            function resetItems() {
-                items.forEach((item, i) => {
-                    item.classList.remove('active');
-                });
-            }
-
-            function activateNext() {
-                if (index < items.length) {
-                    items[index].classList.add('active');
-                    index++;
-                    const timeoutId = setTimeout(activateNext, 1500); // Cambié de 2000 a 1500ms
-                    semaforoIntervals.push(timeoutId);
-                } else {
-                    const timeoutId = setTimeout(() => {
-                        resetItems();
-                        const timeoutId2 = setTimeout(() => {
-                            index = 0;
-                            activateNext();
-                        }, 1500); // Cambié de 2000 a 1500ms
-                        semaforoIntervals.push(timeoutId2);
-                    }, 1500); // Cambié de 2000 a 1500ms
-                    semaforoIntervals.push(timeoutId);
-                }
-            }
-
-            if (items.length > 0) {
-                activateNext();
-            }
-        }
-
         document.addEventListener('DOMContentLoaded', function() {
-            // Iniciar animación en la primera slide
-            startSemaforoAnimation(0);
-            
-            // Eliminé el auto-play del slider
+            initSemaforoSlider('<?= $semaforo_block_id ?>');
         });
     </script>
 <?php
 }
+
+// Scripts globales para el slider de semáforo
+?>
+<script>
+    // Variables globales para cada instancia del slider semáforo
+    window.semaforoSliders = window.semaforoSliders || {};
+
+    function initSemaforoSlider(blockId) {
+        const container = document.getElementById(blockId);
+        if (!container) return;
+
+        const slides = container.querySelectorAll('.textosemaforoslider-slide');
+        if (!slides.length) return;
+
+        // Inicializar estado para esta instancia
+        window.semaforoSliders[blockId] = {
+            currentSlideIndex: 0,
+            totalSlides: slides.length,
+            semaforoIntervals: []
+        };
+
+        // Iniciar animación en la primera slide
+        startSemaforoAnimation(blockId, 0);
+        updateSemaforoSlider(blockId);
+    }
+
+    function changeSemaforoSlide(blockId, direction) {
+        const sliderData = window.semaforoSliders[blockId];
+        if (!sliderData) return;
+
+        // Limpiar intervalos anteriores
+        clearAllSemaforoIntervals(blockId);
+        
+        sliderData.currentSlideIndex += direction;
+        
+        if (sliderData.currentSlideIndex >= sliderData.totalSlides) {
+            sliderData.currentSlideIndex = 0;
+        } else if (sliderData.currentSlideIndex < 0) {
+            sliderData.currentSlideIndex = sliderData.totalSlides - 1;
+        }
+        
+        updateSemaforoSlider(blockId);
+        startSemaforoAnimation(blockId, sliderData.currentSlideIndex);
+    }
+
+    function updateSemaforoSlider(blockId) {
+        const container = document.getElementById(blockId);
+        const sliderData = window.semaforoSliders[blockId];
+        if (!container || !sliderData) return;
+
+        const track = container.querySelector('.textosemaforoslider-track');
+        if (!track) return;
+        
+        track.style.transform = `translateX(-${sliderData.currentSlideIndex * 100}%)`;
+    }
+
+    function clearAllSemaforoIntervals(blockId) {
+        const sliderData = window.semaforoSliders[blockId];
+        if (!sliderData) return;
+
+        sliderData.semaforoIntervals.forEach(interval => clearInterval(interval));
+        sliderData.semaforoIntervals = [];
+        
+        // Resetear todos los semáforos de esta instancia
+        const container = document.getElementById(blockId);
+        if (container) {
+            container.querySelectorAll('.semaforo-item').forEach(item => {
+                item.classList.remove('active');
+            });
+        }
+    }
+
+    function startSemaforoAnimation(blockId, slideIndex) {
+        const container = document.getElementById(blockId);
+        const sliderData = window.semaforoSliders[blockId];
+        if (!container || !sliderData) return;
+
+        const currentSlide = container.querySelector(`[data-slide="${slideIndex}"]`);
+        if (!currentSlide) return;
+
+        const items = currentSlide.querySelectorAll('.semaforo-item');
+        let index = 0;
+
+        function resetItems() {
+            items.forEach((item, i) => {
+                item.classList.remove('active');
+            });
+        }
+
+        function activateNext() {
+            if (index < items.length) {
+                items[index].classList.add('active');
+                index++;
+                const timeoutId = setTimeout(activateNext, 1500);
+                sliderData.semaforoIntervals.push(timeoutId);
+            } else {
+                const timeoutId = setTimeout(() => {
+                    resetItems();
+                    const timeoutId2 = setTimeout(() => {
+                        index = 0;
+                        activateNext();
+                    }, 1500);
+                    sliderData.semaforoIntervals.push(timeoutId2);
+                }, 1500);
+                sliderData.semaforoIntervals.push(timeoutId);
+            }
+        }
+
+        if (items.length > 0) {
+            activateNext();
+        }
+    }
+</script>

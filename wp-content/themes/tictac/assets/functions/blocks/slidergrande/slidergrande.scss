@@ -65,12 +65,20 @@
             transform: scale(1.2);
         }
 
+        @media (max-width: 800px) {
+    .slidergrande-slide {
+        flex: 0 0 100%;
+    }
+
+    .slidergrande-slide img {
+        height: 300px;
+    }
+}
+
+
         /* Responsive */
         @media (max-width: 768px) {
-            .slidergrande-slide {
-                flex: 0 0 50%;
-                padding: 0 5px;
-            }
+
             
             .slidergrande-slide img {
                 height: 300px;

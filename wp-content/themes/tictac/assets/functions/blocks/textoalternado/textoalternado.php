@@ -138,7 +138,7 @@ function textoalternado_render($block)
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
-                                <br><br>
+                                
         <?php if ($boton && $boton_url): ?>
             <div class="horarios-boton-container">
                 <a href="<?= esc_url($boton_url) ?>" class="horarios-boton"><?= esc_html($boton) ?></a>
@@ -151,7 +151,7 @@ function textoalternado_render($block)
             box-shadow: 0px 0px 15px 0px #2E2D2C33;
     backdrop-filter: blur(3px);
     border-radius: 20px;
-    padding: 50px !important;
+    padding: 50px;
     margin-top: 50px;
         }
 

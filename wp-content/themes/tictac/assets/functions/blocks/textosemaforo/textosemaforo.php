@@ -120,7 +120,25 @@ add_action('acf/include_fields', function () {
                 'name' => 'imagen_textosemaforo',
                 'aria-label' => '',
                 'type' => 'image',
-                'instructions' => '',
+                'instructions' => 'Imagen para desktop (mayor a 800px)',
+                'required' => 0,
+                'conditional_logic' => 0,
+                'wrapper' => array(
+                    'width' => '',
+                    'class' => '',
+                    'id' => '',
+                ),
+                'return_format' => 'array',
+                'library' => 'all',
+                'preview_size' => 'medium',
+            ),
+            array(
+                'key' => 'field_textosemaforo_imagen_mobile',
+                'label' => 'imagen_mobile_textosemaforo',
+                'name' => 'imagen_mobile_textosemaforo',
+                'aria-label' => '',
+                'type' => 'image',
+                'instructions' => 'Imagen para mobile (800px o menos)',
                 'required' => 0,
                 'conditional_logic' => 0,
                 'wrapper' => array(
@@ -159,7 +177,7 @@ function textosemaforo_acf()
     acf_register_block_type([
         'name'        => 'textosemaforo',
         'title'        => __('textosemaforo', 'tictac'),
-        'description'    => __('Bloque con título, párrafo, semáforo de pasos e imagen', 'tictac'),
+        'description'    => __('Bloque con título, párrafo, semáforo de pasos e imagen responsive', 'tictac'),
         'render_callback'  => 'textosemaforo',
         'mode'        => 'preview',
         'icon'        => 'lightbulb',
@@ -183,6 +201,7 @@ function textosemaforo($block)
     $parrafo = get_field("parrafo_textosemaforo");
     $pasos = get_field("repetidor_semaforo");
     $imagen = get_field("imagen_textosemaforo");
+    $imagen_mobile = get_field("imagen_mobile_textosemaforo");
     $upload_dir = wp_upload_dir();
 ?>
     <div class="container textosemaforo">
@@ -226,17 +245,47 @@ function textosemaforo($block)
                 </div>
             <?php endif; ?>
 
-            <?php if ($imagen): ?>
+            <?php if ($imagen || $imagen_mobile): ?>
                 <div class="textosemaforo-imagen">
-                    <img src="<?php echo esc_url($imagen['url']); ?>" 
-                         alt="<?php echo esc_attr($imagen['alt']); ?>">
+                    <?php if ($imagen): ?>
+                        <img class="imagen-desktop" 
+                             src="<?php echo esc_url($imagen['url']); ?>" 
+                             alt="<?php echo esc_attr($imagen['alt']); ?>">
+                    <?php endif; ?>
+                    
+                    <?php if ($imagen_mobile): ?>
+                        <img class="imagen-mobile" 
+                             src="<?php echo esc_url($imagen_mobile['url']); ?>" 
+                             alt="<?php echo esc_attr($imagen_mobile['alt']); ?>">
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
         </div>
     </div>
 
     <style>
-
+        .textosemaforo-imagen .imagen-desktop,
+        .textosemaforo-imagen .imagen-mobile {
+            width: 100%;
+            height: auto;
+        }
+        
+        /* Por defecto mostrar imagen desktop */
+        .textosemaforo-imagen .imagen-mobile {
+            display: none;
+        }
+        
+        /* En móviles (800px o menos) mostrar imagen mobile y ocultar desktop */
+        @media (max-width: 800px) {
+            .textosemaforo-imagen .imagen-desktop {
+                display: none;
+            }
+            
+            .textosemaforo-imagen .imagen-mobile {
+                display: block;
+                object-fit: contain;
+            }
+        }
     </style>
 
     <script>

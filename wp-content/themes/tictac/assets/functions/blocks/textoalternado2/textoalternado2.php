@@ -170,6 +170,7 @@ function textoalternado2_render($block)
 {
     $titulo = get_field('titulo_textoalternado2');
     $bloques = get_field('bloques_alternados2');
+    $unique_id = 'slider_' . uniqid();
 ?>
     <div class="container textoalternado">
         <?php if ($titulo): ?>
@@ -183,7 +184,7 @@ function textoalternado2_render($block)
                     if ($tipo === 'slider') {
                         $imagenes = $item['slider_imagenes'];
                         if (!empty($imagenes)) : ?>
-                            <div class="textoslider-slider-container">
+                            <div class="textoslider-slider-container" id="<?= $unique_id ?>">
                                 <div class="textoslider-slider">
                                     <div class="textoslider-track">
                                         <?php foreach ($imagenes as $img): ?>
@@ -197,32 +198,73 @@ function textoalternado2_render($block)
                             </div>
                             <script>
                                 jQuery(document).ready(function($) {
-                                    const track = $('.textoslider-track');
-                                    const slides = $('.textoslider-slide');
-                                    const dots = $('.textoslider-pagination');
+                                    const container = $('#<?= $unique_id ?>');
+                                    const track = container.find('.textoslider-track');
+                                    const slides = container.find('.textoslider-slide');
+                                    const pagination = container.find('.textoslider-pagination');
                                     const total = slides.length;
-                                    const perView = 3;
-                                    const maxIdx = Math.max(0, total - perView);
-                                    let idx = 0;
-                                    for (let i = 0; i <= maxIdx; i++) {
-                                        dots.append(`<span class=\"textoslider-dot\" data-slide=\"${i}\"></span>`);
-                                    }
-                                    const dotEls = $('.textoslider-dot');
+                                    let currentIndex = 0;
+                                    let autoplayInterval;
 
-                                    function show(i) {
-                                        const translate = -(i * (100 / perView));
-                                        track.css('transform', `translateX(${translate}%)`);
-                                        dotEls.removeClass('active').eq(i).addClass('active');
+                                    function getItemsPerView() {
+                                        return window.innerWidth <= 800 ? 1 : 3;
                                     }
-                                    dotEls.on('click', function() {
-                                        idx = parseInt($(this).data('slide'));
-                                        show(idx);
+
+                                    function updateSlider() {
+                                        const itemsPerView = getItemsPerView();
+                                        const maxIndex = Math.max(0, total - itemsPerView);
+                                        
+                                        // Ajustar el índice actual si es mayor que el máximo permitido
+                                        if (currentIndex > maxIndex) {
+                                            currentIndex = maxIndex;
+                                        }
+
+                                        // Actualizar el ancho de cada slide según el viewport
+                                        const slideWidth = 100 / itemsPerView;
+                                        slides.css('flex', `0 0 ${slideWidth}%`);
+
+                                        // Calcular y aplicar la transformación
+                                        const translateX = -(currentIndex * slideWidth);
+                                        track.css('transform', `translateX(${translateX}%)`);
+
+                                        // Recrear paginación
+                                        pagination.empty();
+                                        for (let i = 0; i <= maxIndex; i++) {
+                                            pagination.append(`<span class="textoslider-dot" data-slide="${i}"></span>`);
+                                        }
+
+                                        // Actualizar estado activo de los dots
+                                        const dots = container.find('.textoslider-dot');
+                                        dots.removeClass('active').eq(currentIndex).addClass('active');
+
+                                        // Reattach click events
+                                        dots.off('click').on('click', function() {
+                                            currentIndex = parseInt($(this).data('slide'));
+                                            updateSlider();
+                                            resetAutoplay();
+                                        });
+                                    }
+
+                                    function nextSlide() {
+                                        const itemsPerView = getItemsPerView();
+                                        const maxIndex = Math.max(0, total - itemsPerView);
+                                        currentIndex = currentIndex < maxIndex ? currentIndex + 1 : 0;
+                                        updateSlider();
+                                    }
+
+                                    function resetAutoplay() {
+                                        clearInterval(autoplayInterval);
+                                        autoplayInterval = setInterval(nextSlide, 5000);
+                                    }
+
+                                    // Inicializar
+                                    updateSlider();
+                                    resetAutoplay();
+
+                                    // Actualizar en resize
+                                    $(window).on('resize', function() {
+                                        updateSlider();
                                     });
-                                    setInterval(() => {
-                                        idx = idx < maxIdx ? idx + 1 : 0;
-                                        show(idx);
-                                    }, 5000);
-                                    show(0);
                                 });
                             </script>
                         <?php endif;
@@ -279,7 +321,7 @@ function textoalternado2_render($block)
             box-shadow: 0px 0px 15px 0px #2E2D2C33;
             backdrop-filter: blur(3px);
             border-radius: 20px;
-            padding: 50px !important;
+            padding: 50px;
             margin-top: 50px;
         }
 
@@ -296,8 +338,6 @@ function textoalternado2_render($block)
             flex-direction: column;
             gap: 60px;
         }
-
-
 
         .bloque-titulo2 {
             font-size: 20px;
@@ -337,7 +377,7 @@ function textoalternado2_render($block)
             width: 100%;
             border-radius: 10px;
             height: 100%;
-  object-fit: cover;
+            object-fit: cover;
         }
 
         .doble img {
@@ -349,10 +389,9 @@ function textoalternado2_render($block)
 
         .bloque-texto {
             flex: 1 1 50%;
-            display: flex
-;
-    flex-direction: column;
-    justify-content: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .bloque-texto.ancho-completo {
@@ -375,7 +414,6 @@ function textoalternado2_render($block)
         }
 
         .textoslider-slide {
-            flex: 0 0 33.333%;
             padding: 0 10px;
             box-sizing: border-box;
         }
@@ -420,6 +458,7 @@ function textoalternado2_render($block)
             align-items: flex-start;
             justify-content: space-between;
             gap: 50px;
+            flex-wrap: nowrap;
         }
 
         .doble .bloque-texto {
@@ -436,6 +475,12 @@ function textoalternado2_render($block)
             transform: scale(1.1);
         }
 
+        @media (max-width: 800px) {
+            .textoslider-slide img {
+                height: 300px;
+            }
+        }
+
         @media (max-width: 768px) {
             .bloque {
                 flex-direction: column !important;
@@ -447,25 +492,26 @@ function textoalternado2_render($block)
                 flex: 1 1 100%;
             }
 
-            .textoslider-slide {
-                flex: 0 0 50%;
-                padding: 0 5px;
+            .doble {
+                flex-direction: column;
+                gap: 30px;
             }
 
-            .textoslider-slide img {
-                height: 300px;
+            .doble .bloque-texto {
+                width: 100%;
             }
         }
 
         @media (max-width: 480px) {
-            .textoslider-slide {
-                flex: 0 0 100%;
-            }
-
             .textoslider-slide img {
                 height: 250px;
+            }
+
+            .textoalternado {
+                padding: 30px;
             }
         }
     </style>
 <?php
 }
+?>
