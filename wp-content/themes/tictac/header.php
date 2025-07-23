@@ -12,6 +12,15 @@
   <link rel="pingback" href="<?php bloginfo('pingback_url'); ?>" />
   <link rel="icon" type="image/x-icon" href="<?= site_url('/favicon.ico'); ?>">
 
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-ZP27ZGNFQ5"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-ZP27ZGNFQ5');
+</script>
 
   <script type="text/javascript" src="https://cache.consentframework.com/js/pa/48113/c/zLPp2/stub"></script>
 <script type="text/javascript" src="https://choices.consentframework.com/js/pa/48113/c/zLPp2/cmp" async></script>

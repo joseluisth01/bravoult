@@ -432,71 +432,68 @@ public function process_agency_reserva_rapida()
     }
 }
 
-    /**
-     * ✅ NUEVO: Método común para procesar reservas rápidas
-     */
-    private function process_common_reserva_rapida($user, $user_type)
-    {
-        // Validar datos del formulario
-        $validation_result = $this->validate_reserva_rapida_data();
-        if (!$validation_result['valid']) {
-            wp_send_json_error($validation_result['error']);
-            return;
-        }
-
-        $datos = $validation_result['data'];
-
-        // Verificar disponibilidad
-        $availability_check = $this->check_service_availability($datos['service_id'], $datos['total_personas']);
-        if (!$availability_check['available']) {
-            wp_send_json_error($availability_check['error']);
-            return;
-        }
-
-        // Recalcular precio final
-        $price_calculation = $this->calculate_final_price($datos);
-        if (!$price_calculation['valid']) {
-            wp_send_json_error($price_calculation['error']);
-            return;
-        }
-
-        // Crear reserva (incluye agency_id si es agencia)
-        $reservation_result = $this->create_reservation($datos, $price_calculation['price_data'], $user, $user_type);
-        if (!$reservation_result['success']) {
-            wp_send_json_error($reservation_result['error']);
-            return;
-        }
-
-        // Actualizar plazas disponibles
-        $update_result = $this->update_available_seats($datos['service_id'], $datos['total_personas']);
-        if (!$update_result['success']) {
-            // Rollback: eliminar reserva creada
-            $this->delete_reservation($reservation_result['reservation_id']);
-            wp_send_json_error('Error actualizando disponibilidad. Reserva cancelada.');
-            return;
-        }
-
-        // Enviar emails de confirmación
-        $this->send_confirmation_emails($reservation_result['reservation_id'], $user, $user_type);
-
-        // Respuesta exitosa
-        $response_data = array(
-            'mensaje' => 'Reserva rápida procesada correctamente',
-            'localizador' => $reservation_result['localizador'],
-            'reserva_id' => $reservation_result['reservation_id'],
-            'admin_user' => $user['username'],
-            'user_type' => $user_type,
-            'detalles' => array(
-                'fecha' => $datos['fecha'],
-                'hora' => $datos['hora'],
-                'personas' => $datos['total_personas'],
-                'precio_final' => $price_calculation['price_data']['precio_final']
-            )
-        );
-
-        error_log('✅ RESERVA RAPIDA COMPLETADA EXITOSAMENTE');
-        wp_send_json_success($response_data);
+ private function process_common_reserva_rapida($datos, $user, $user_type)
+{
+    // Validar datos del formulario
+    $validation_result = $this->validate_reserva_rapida_data();
+    if (!$validation_result['valid']) {
+        wp_send_json_error($validation_result['error']);
+        return;
     }
+
+    $datos = $validation_result['data'];
+
+    // Verificar disponibilidad
+    $availability_check = $this->check_service_availability($datos['service_id'], $datos['total_personas']);
+    if (!$availability_check['available']) {
+        wp_send_json_error($availability_check['error']);
+        return;
+    }
+
+    // Recalcular precio final
+    $price_calculation = $this->calculate_final_price($datos);
+    if (!$price_calculation['valid']) {
+        wp_send_json_error($price_calculation['error']);
+        return;
+    }
+
+    // Crear reserva (incluye agency_id si es agencia)
+    $reservation_result = $this->create_reservation($datos, $price_calculation['price_data'], $user, $user_type);
+    if (!$reservation_result['success']) {
+        wp_send_json_error($reservation_result['error']);
+        return;
+    }
+
+    // Actualizar plazas disponibles
+    $update_result = $this->update_available_seats($datos['service_id'], $datos['total_personas']);
+    if (!$update_result['success']) {
+        // Rollback: eliminar reserva creada
+        $this->delete_reservation($reservation_result['reservation_id']);
+        wp_send_json_error('Error actualizando disponibilidad. Reserva cancelada.');
+        return;
+    }
+
+    // Enviar emails de confirmación
+    $this->send_confirmation_emails($reservation_result['reservation_id'], $user, $user_type);
+
+    // Respuesta exitosa
+    $response_data = array(
+        'mensaje' => 'Reserva rápida procesada correctamente',
+        'localizador' => $reservation_result['localizador'],
+        'reserva_id' => $reservation_result['reservation_id'],
+        'admin_user' => $user['username'],
+        'user_type' => $user_type,
+        'detalles' => array(
+            'fecha' => $datos['fecha'],
+            'hora' => $datos['hora'],
+            'personas' => $datos['total_personas'],
+            'precio_final' => $price_calculation['price_data']['precio_final']
+        )
+    );
+
+    error_log('✅ RESERVA RAPIDA COMPLETADA EXITOSAMENTE');
+    wp_send_json_success($response_data);
+}
 
     private function validate_reserva_rapida_data()
 {

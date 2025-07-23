@@ -7512,7 +7512,7 @@ if (!document.getElementById('agency-profile-styles')) {
 function initAgencyReservaRapida() {
     console.log('=== INICIALIZANDO RESERVA RÁPIDA AGENCIA (NUEVO FLUJO) ===');
 
-    // Mostrar interfaz de reserva rápida (igual que admin pero con email opcional)
+    // Mostrar interfaz de reserva rápida CON ESTILOS CSS INCLUIDOS
     document.body.innerHTML = `
         <div class="admin-reserva-rapida">
             <div class="admin-header">
@@ -7542,7 +7542,7 @@ function initAgencyReservaRapida() {
                     </div>
                 </div>
                 
-                <!-- Paso 1: Seleccionar fecha y horario (igual que admin) -->
+                <!-- Paso 1: Seleccionar fecha y horario -->
                 <div class="admin-step-content" id="agency-step-1">
                     <h2>1. Selecciona fecha y horario</h2>
                     
@@ -7568,51 +7568,40 @@ function initAgencyReservaRapida() {
                     </div>
                 </div>
                 
-                <!-- Paso 2: Seleccionar personas (igual que admin) -->
-                <div class="admin-step-content" id="agency-step-2" style="display: none;">
-                    <h2>2. Selecciona el número de personas</h2>
-                    
-                    <div class="admin-persons-grid">
-                        <div class="admin-person-selector">
-                            <label for="agency-adultos">Adultos:</label>
-                            <input type="number" id="agency-adultos" min="0" max="50" value="0">
-                            <span id="agency-price-adultos" class="admin-price">10€</span>
-                        </div>
-                        
-                        <div class="admin-person-selector">
-                            <label for="agency-residentes">Residentes:</label>
-                            <input type="number" id="agency-residentes" min="0" max="50" value="0">
-                            <span class="admin-price">5€</span>
-                        </div>
-                        
-                        <div class="admin-person-selector">
-                            <label for="agency-ninos-5-12">Niños (5-12 años):</label>
-                            <input type="number" id="agency-ninos-5-12" min="0" max="50" value="0">
-                            <span id="agency-price-ninos" class="admin-price">5€</span>
-                        </div>
-                        
-                        <div class="admin-person-selector">
-                            <label for="agency-ninos-menores">Niños (-5 años):</label>
-                            <input type="number" id="agency-ninos-menores" min="0" max="50" value="0">
-                            <span class="admin-price">GRATIS</span>
-                        </div>
-                    </div>
-                    
-                    <div class="admin-pricing-summary">
-                        <div class="admin-discount-row" id="agency-discount-row" style="display: none;">
-                            <span>Descuento:</span>
-                            <span id="agency-total-discount">-0€</span>
-                        </div>
-                        <div class="admin-total-row">
-                            <span>Total:</span>
-                            <span id="agency-total-price">0€</span>
-                        </div>
-                    </div>
-                    
-                    <div class="admin-discount-message" id="agency-discount-message">
-                        <span id="agency-discount-text"></span>
-                    </div>
-                </div>
+                <!-- Paso 2: Seleccionar personas (SIN PRECIOS MOSTRADOS) -->
+<div class="admin-step-content" id="agency-step-2" style="display: none;">
+    <h2>2. Selecciona el número de personas</h2>
+    
+    <div class="admin-persons-grid">
+        <div class="admin-person-selector">
+            <label for="agency-adultos">Adultos:</label>
+            <input type="number" id="agency-adultos" min="0" max="50" value="0">
+        </div>
+        
+        <div class="admin-person-selector">
+            <label for="agency-residentes">Residentes:</label>
+            <input type="number" id="agency-residentes" min="0" max="50" value="0">
+        </div>
+        
+        <div class="admin-person-selector">
+            <label for="agency-ninos-5-12">Niños (5-12 años):</label>
+            <input type="number" id="agency-ninos-5-12" min="0" max="50" value="0">
+        </div>
+        
+        <div class="admin-person-selector">
+            <label for="agency-ninos-menores">Niños (-5 años):</label>
+            <input type="number" id="agency-ninos-menores" min="0" max="50" value="0">
+            <span class="admin-price">GRATIS</span>
+        </div>
+    </div>
+    
+    <div class="admin-pricing-summary">
+        <div class="admin-total-row">
+            <span>Total:</span>
+            <span id="agency-total-price">0€</span>
+        </div>
+    </div>
+</div>
                 
                 <!-- Paso 3: Datos del cliente (CON EMAIL OPCIONAL) -->
                 <div class="admin-step-content" id="agency-step-3" style="display: none;">
@@ -7644,7 +7633,7 @@ function initAgencyReservaRapida() {
                     </form>
                 </div>
                 
-                <!-- Paso 4: Confirmación (igual que admin) -->
+                <!-- Paso 4: Confirmación -->
                 <div class="admin-step-content" id="agency-step-4" style="display: none;">
                     <h2>4. Confirmar reserva</h2>
                     
@@ -7681,16 +7670,409 @@ function initAgencyReservaRapida() {
                 </div>
             </div>
         </div>
+        
+        <style>
+        .admin-reserva-rapida {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #0073aa;
+        }
+        
+        .admin-header h1 {
+            color: #23282d;
+            margin: 0;
+        }
+        
+        .admin-steps-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .admin-step-indicator {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .admin-step {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            border-right: 1px solid #eee;
+            transition: all 0.3s;
+        }
+        
+        .admin-step:last-child {
+            border-right: none;
+        }
+        
+        .admin-step.active {
+            background: #0073aa;
+            color: white;
+        }
+        
+        .admin-step-number {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-weight: bold;
+        }
+        
+        .admin-step.active .admin-step-number {
+            background: white;
+            color: #0073aa;
+        }
+        
+        .admin-step-title {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .admin-step-content {
+            padding: 30px;
+        }
+        
+        .admin-step-content h2 {
+            color: #23282d;
+            margin-bottom: 20px;
+        }
+        
+        .admin-calendar-section {
+            margin-bottom: 30px;
+        }
+        
+        .admin-calendar-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .admin-calendar-controls button {
+            padding: 10px 20px;
+            background: #0073aa;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .admin-calendar-controls h3 {
+            margin: 0;
+            color: #23282d;
+        }
+        
+        .admin-calendar-container {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        #agency-calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+        }
+        
+        .calendar-day-header {
+            background: #0073aa;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .calendar-day {
+            background: white;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            min-height: 40px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .calendar-day:hover {
+            background: #f0f0f0;
+        }
+        
+        .calendar-day.disponible {
+            background: #e8f5e8;
+            color: #155724;
+            cursor: pointer;
+        }
+        
+        .calendar-day.disponible:hover {
+            background: #d4edda;
+        }
+        
+        .calendar-day.selected {
+            background: #0073aa !important;
+            color: white !important;
+            border-color: #005177;
+        }
+        
+        .calendar-day.no-disponible {
+            background: #f8f8f8;
+            color: #999;
+            cursor: not-allowed;
+        }
+        
+        .calendar-day.blocked-day {
+            background: #ffeaa7;
+            color: #856404;
+            cursor: not-allowed;
+        }
+        
+        .calendar-day.oferta {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .calendar-day.other-month {
+            background: #f8f9fa;
+            color: #999;
+        }
+        
+        .admin-schedule-section {
+            margin-bottom: 30px;
+        }
+        
+        .admin-schedule-section label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .admin-schedule-section select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .admin-persons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .admin-person-selector {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .admin-person-selector label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .admin-person-selector input {
+            width: 80px;
+            padding: 8px;
+            text-align: center;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .admin-price {
+            display: block;
+            font-weight: bold;
+            color: #0073aa;
+        }
+        
+        .admin-pricing-summary {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .admin-discount-row, .admin-total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .admin-total-row {
+            font-size: 20px;
+            font-weight: bold;
+            color: #0073aa;
+            border-top: 2px solid #ddd;
+            padding-top: 10px;
+        }
+        
+        .admin-discount-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .admin-discount-message.show {
+            display: block;
+        }
+        
+        .admin-client-form {
+            max-width: 600px;
+        }
+        
+        .admin-form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .admin-form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .admin-form-group label {
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .admin-form-group input {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .admin-form-group input:focus {
+            outline: none;
+            border-color: #0073aa;
+        }
+        
+        .admin-confirmation-details {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .admin-confirm-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .admin-confirm-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .admin-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+        }
+        
+        .admin-step-info {
+            font-weight: 600;
+            color: #23282d;
+        }
+        
+        .btn-primary, .btn-secondary, .btn-success {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #0073aa;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #005177;
+        }
+        
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        @media (max-width: 768px) {
+            .admin-form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .admin-persons-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .admin-navigation {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+        </style>
     `;
 
-    // Inicializar calendario y eventos (reutilizar funciones de admin con prefijo agency-)
+    // Inicializar calendario y eventos
     loadAgencySystemConfiguration().then(() => {
         loadAgencyCalendar();
         setupAgencyEventListeners();
     });
 }
 
-// Variables para agencia (igual que admin pero con prefijo agency-)
 let agencyCurrentDate = new Date();
 let agencySelectedDate = null;
 let agencySelectedServiceId = null;
@@ -7698,7 +8080,7 @@ let agencyServicesData = {};
 let agencyCurrentStep = 1;
 let agencyDiasAnticiapcionMinima = 1;
 
-// Funciones para agencia (copiar las de admin y cambiar prefijos)
+// Funciones para agencia
 function loadAgencySystemConfiguration() {
     return loadAdminSystemConfiguration(); // Reutilizar la misma función
 }
@@ -7741,10 +8123,9 @@ function setupAgencyEventListeners() {
     });
 }
 
-// Resto de funciones copiadas de admin pero con prefijo agency- y adaptadas para agencias
 function loadAgencyCalendar() {
     updateAgencyCalendarHeader();
-    
+
     const formData = new FormData();
     formData.append('action', 'get_available_services');
     formData.append('month', agencyCurrentDate.getMonth() + 1);
@@ -7780,8 +8161,58 @@ function updateAgencyCalendarHeader() {
 }
 
 function renderAgencyCalendar() {
-    // Copiar exactamente la función renderAdminCalendar pero cambiar IDs por agency-
-    // ... (implementar igual que renderAdminCalendar)
+    const year = agencyCurrentDate.getFullYear();
+    const month = agencyCurrentDate.getMonth();
+
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    let firstDayOfWeek = firstDay.getDay();
+    firstDayOfWeek = (firstDayOfWeek + 6) % 7; // Lunes = 0
+
+    const daysInMonth = lastDay.getDate();
+    const dayNames = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+    let calendarHTML = '';
+
+    // Encabezados de días
+    dayNames.forEach(day => {
+        calendarHTML += `<div class="calendar-day-header">${day}</div>`;
+    });
+
+    // Días del mes anterior
+    for (let i = 0; i < firstDayOfWeek; i++) {
+        const dayNum = new Date(year, month, -firstDayOfWeek + i + 1).getDate();
+        calendarHTML += `<div class="calendar-day other-month">${dayNum}</div>`;
+    }
+
+    // ✅ PARA AGENCIAS: SIN RESTRICCIONES DE DÍAS DE ANTICIPACIÓN
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalizar hora para comparación
+
+    // Días del mes actual
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayDate = new Date(year, month, day);
+
+        let dayClass = 'calendar-day';
+        let clickHandler = '';
+
+        // ✅ SOLO VERIFICAR SI HAY SERVICIOS DISPONIBLES (sin restricción de fecha)
+        if (agencyServicesData[dateStr] && agencyServicesData[dateStr].length > 0) {
+            dayClass += ' disponible';
+            clickHandler = `onclick="selectAgencyDate('${dateStr}')"`;
+        } else {
+            dayClass += ' no-disponible';
+        }
+
+        if (agencySelectedDate === dateStr) {
+            dayClass += ' selected';
+        }
+
+        calendarHTML += `<div class="${dayClass}" ${clickHandler}>${day}</div>`;
+    }
+
+    document.getElementById('agency-calendar-grid').innerHTML = calendarHTML;
 }
 
 function agencyNextStep() {
@@ -7795,10 +8226,10 @@ function agencyNextStep() {
 
         document.getElementById('agency-step-1').style.display = 'none';
         document.getElementById('agency-step-2').style.display = 'block';
-        
+
         document.getElementById('agency-step-1-indicator').classList.remove('active');
         document.getElementById('agency-step-2-indicator').classList.add('active');
-        
+
         document.getElementById('agency-btn-anterior').style.display = 'block';
         document.getElementById('agency-btn-siguiente').disabled = true;
         document.getElementById('agency-step-text').textContent = 'Paso 2 de 4: Seleccionar personas';
@@ -7825,10 +8256,10 @@ function agencyNextStep() {
 
         document.getElementById('agency-step-2').style.display = 'none';
         document.getElementById('agency-step-3').style.display = 'block';
-        
+
         document.getElementById('agency-step-2-indicator').classList.remove('active');
         document.getElementById('agency-step-3-indicator').classList.add('active');
-        
+
         document.getElementById('agency-btn-siguiente').disabled = true;
         document.getElementById('agency-step-text').textContent = 'Paso 3 de 4: Datos del cliente';
 
@@ -7861,10 +8292,10 @@ function agencyNextStep() {
 
         document.getElementById('agency-step-3').style.display = 'none';
         document.getElementById('agency-step-4').style.display = 'block';
-        
+
         document.getElementById('agency-step-3-indicator').classList.remove('active');
         document.getElementById('agency-step-4-indicator').classList.add('active');
-        
+
         document.getElementById('agency-btn-siguiente').style.display = 'none';
         document.getElementById('agency-btn-confirmar').style.display = 'block';
         document.getElementById('agency-step-text').textContent = 'Paso 4 de 4: Confirmar reserva';
@@ -7878,450 +8309,448 @@ function agencyNextStep() {
 }
 
 function agencyConfirmReservation() {
-   console.log('=== CONFIRMANDO RESERVA RÁPIDA AGENCIA ===');
+    console.log('=== CONFIRMANDO RESERVA RÁPIDA AGENCIA ===');
 
-   if (!confirm('¿Estás seguro de que quieres procesar esta reserva?\n\nSe enviará confirmación por email según corresponda.')) {
-       return;
-   }
+    if (!confirm('¿Estás seguro de que quieres procesar esta reserva?\n\nSe enviará confirmación por email según corresponda.')) {
+        return;
+    }
 
-   const confirmBtn = document.getElementById('agency-btn-confirmar');
-   const originalText = confirmBtn.textContent;
-   confirmBtn.disabled = true;
-   confirmBtn.textContent = '⏳ Procesando...';
+    const confirmBtn = document.getElementById('agency-btn-confirmar');
+    const originalText = confirmBtn.textContent;
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = '⏳ Procesando...';
 
-   // Preparar datos de la reserva
-   const service = findAgencyServiceById(agencySelectedServiceId);
-   const form = document.getElementById('agency-client-form');
-   const formData = new FormData(form);
+    // Preparar datos de la reserva
+    const service = findAgencyServiceById(agencySelectedServiceId);
+    const form = document.getElementById('agency-client-form');
+    const formData = new FormData(form);
 
-   const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
-   const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
-   const ninos_5_12 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
-   const ninos_menores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
+    const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
+    const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
+    const ninos_5_12 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
+    const ninos_menores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
 
-   const totalPrice = document.getElementById('agency-total-price').textContent.replace('€', '').trim();
+    // Enviar solicitud AJAX usando la nueva acción para agencias
+    const ajaxData = {
+        action: 'process_agency_reserva_rapida',
+        nonce: reservasAjax.nonce,
+        nombre: formData.get('nombre'),
+        apellidos: formData.get('apellidos'),
+        email: formData.get('email') || '', // ✅ PUEDE SER VACÍO
+        telefono: formData.get('telefono'),
+        service_id: agencySelectedServiceId,
+        adultos: adultos,
+        residentes: residentes,
+        ninos_5_12: ninos_5_12,
+        ninos_menores: ninos_menores
+    };
 
-   // Enviar solicitud AJAX usando la nueva acción para agencias
-   const ajaxData = {
-       action: 'process_agency_reserva_rapida',
-       nonce: reservasAjax.nonce,
-       nombre: formData.get('nombre'),
-       apellidos: formData.get('apellidos'),
-       email: formData.get('email') || '', // ✅ PUEDE SER VACÍO
-       telefono: formData.get('telefono'),
-       service_id: agencySelectedServiceId,
-       adultos: adultos,
-       residentes: residentes,
-       ninos_5_12: ninos_5_12,
-       ninos_menores: ninos_menores
-   };
+    fetch(reservasAjax.ajax_url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(ajaxData)
+    })
+        .then(response => response.json())
+        .then(data => {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = originalText;
 
-   fetch(reservasAjax.ajax_url, {
-       method: 'POST',
-       headers: {
-           'Content-Type': 'application/x-www-form-urlencoded',
-       },
-       body: new URLSearchParams(ajaxData)
-   })
-       .then(response => response.json())
-       .then(data => {
-           confirmBtn.disabled = false;
-           confirmBtn.textContent = originalText;
+            if (data && data.success) {
+                console.log('Reserva de agencia procesada exitosamente:', data.data);
 
-           if (data && data.success) {
-               console.log('Reserva de agencia procesada exitosamente:', data.data);
+                const detalles = data.data.detalles;
+                const emailInfo = formData.get('email') ?
+                    "\n📧 El cliente recibirá la confirmación por email." :
+                    "\nℹ️ No se envió email al cliente (email no proporcionado).";
 
-               const detalles = data.data.detalles;
-               const emailInfo = formData.get('email') ? 
-                   "\n📧 El cliente recibirá la confirmación por email." : 
-                   "\nℹ️ No se envió email al cliente (email no proporcionado).";
-               
-               const mensaje = "🎉 ¡RESERVA CREADA EXITOSAMENTE! 🎉\n\n" +
-                   "📋 LOCALIZADOR: " + data.data.localizador + "\n\n" +
-                   "📅 DETALLES:\n" +
-                   "• Fecha: " + detalles.fecha + "\n" +
-                   "• Hora: " + detalles.hora + "\n" +
-                   "• Personas: " + detalles.personas + "\n" +
-                   "• Precio: " + detalles.precio_final + "€\n\n" +
-                   "✅ La reserva ha sido procesada correctamente." + emailInfo + "\n" +
-                   "📧 Tu agencia y el administrador han sido notificados.\n\n" +
-                   "¡Reserva de agencia completada!";
+                const mensaje = "🎉 ¡RESERVA CREADA EXITOSAMENTE! 🎉\n\n" +
+                    "📋 LOCALIZADOR: " + data.data.localizador + "\n\n" +
+                    "📅 DETALLES:\n" +
+                    "• Fecha: " + detalles.fecha + "\n" +
+                    "• Hora: " + detalles.hora + "\n" +
+                    "• Personas: " + detalles.personas + "\n" +
+                    "• Precio: " + detalles.precio_final + "€\n\n" +
+                    "✅ La reserva ha sido procesada correctamente." + emailInfo + "\n" +
+                    "📧 Tu agencia y el administrador han sido notificados.\n\n" +
+                    "¡Reserva de agencia completada!";
 
-               alert(mensaje);
+                alert(mensaje);
 
-               setTimeout(() => {
-                   goBackToDashboard();
-               }, 2000);
+                setTimeout(() => {
+                    goBackToDashboard();
+                }, 2000);
 
-           } else {
-               console.error('Error procesando reserva de agencia:', data);
-               const errorMsg = data && data.data ? data.data : 'Error desconocido';
-               alert('❌ Error procesando la reserva: ' + errorMsg);
-           }
-       })
-       .catch(error => {
-           console.error('Error de conexión:', error);
-           confirmBtn.disabled = false;
-           confirmBtn.textContent = originalText;
-           alert('❌ Error de conexión al procesar la reserva.\n\nPor favor, inténtalo de nuevo.');
-       });
+            } else {
+                console.error('Error procesando reserva de agencia:', data);
+                const errorMsg = data && data.data ? data.data : 'Error desconocido';
+                alert('❌ Error procesando la reserva: ' + errorMsg);
+            }
+        })
+        .catch(error => {
+            console.error('Error de conexión:', error);
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = originalText;
+            alert('❌ Error de conexión al procesar la reserva.\n\nPor favor, inténtalo de nuevo.');
+        });
 }
 
-// Funciones auxiliares para agencias (copiar de admin y adaptar)
 function agencyPreviousStep() {
-   // Implementar igual que adminPreviousStep pero con IDs de agencia
+    console.log('Agency: Retrocediendo desde paso', agencyCurrentStep);
+
+    if (agencyCurrentStep === 2) {
+        document.getElementById('agency-step-2').style.display = 'none';
+        document.getElementById('agency-step-1').style.display = 'block';
+
+        document.getElementById('agency-step-2-indicator').classList.remove('active');
+        document.getElementById('agency-step-1-indicator').classList.add('active');
+
+        document.getElementById('agency-btn-anterior').style.display = 'none';
+        document.getElementById('agency-btn-siguiente').disabled = agencySelectedServiceId ? false : true;
+        document.getElementById('agency-step-text').textContent = 'Paso 1 de 4: Seleccionar fecha y horario';
+
+        agencyCurrentStep = 1;
+
+    } else if (agencyCurrentStep === 3) {
+        document.getElementById('agency-step-3').style.display = 'none';
+        document.getElementById('agency-step-2').style.display = 'block';
+
+        document.getElementById('agency-step-3-indicator').classList.remove('active');
+        document.getElementById('agency-step-2-indicator').classList.add('active');
+
+        document.getElementById('agency-btn-siguiente').disabled = false;
+        document.getElementById('agency-step-text').textContent = 'Paso 2 de 4: Seleccionar personas';
+
+        agencyCurrentStep = 2;
+
+    } else if (agencyCurrentStep === 4) {
+        document.getElementById('agency-step-4').style.display = 'none';
+        document.getElementById('agency-step-3').style.display = 'block';
+
+        document.getElementById('agency-step-4-indicator').classList.remove('active');
+        document.getElementById('agency-step-3-indicator').classList.add('active');
+
+        document.getElementById('agency-btn-siguiente').style.display = 'block';
+        document.getElementById('agency-btn-confirmar').style.display = 'none';
+        document.getElementById('agency-btn-siguiente').disabled = false;
+        document.getElementById('agency-step-text').textContent = 'Paso 3 de 4: Datos del cliente';
+
+        agencyCurrentStep = 3;
+    }
 }
 
 function validateAgencyPersonSelection() {
-   const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
-   const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
-   const ninos512 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
-   const ninosMenores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
+    const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
+    const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
+    const ninos512 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
+    const ninosMenores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
 
-   const totalAdults = adultos + residentes;
-   const totalChildren = ninos512 + ninosMenores;
+    const totalAdults = adultos + residentes;
+    const totalChildren = ninos512 + ninosMenores;
 
-   if (totalChildren > 0 && totalAdults === 0) {
-       alert('Debe haber al menos un adulto si hay niños en la reserva.');
-       document.getElementById('agency-ninos-5-12').value = 0;
-       document.getElementById('agency-ninos-menores').value = 0;
-       calculateAgencyTotalPrice();
-       return false;
-   }
+    if (totalChildren > 0 && totalAdults === 0) {
+        alert('Debe haber al menos un adulto si hay niños en la reserva.');
+        document.getElementById('agency-ninos-5-12').value = 0;
+        document.getElementById('agency-ninos-menores').value = 0;
+        calculateAgencyTotalPrice();
+        return false;
+    }
 
-   return true;
+    return true;
 }
 
 function validateAgencyPersonSelectionForNext() {
-   const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
-   const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
-   const ninos512 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
-   const ninosMenores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
+    const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
+    const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
+    const ninos512 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
+    const ninosMenores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
 
-   const totalAdults = adultos + residentes;
-   const totalChildren = ninos512 + ninosMenores;
-   const totalPersonas = totalAdults + totalChildren;
+    const totalAdults = adultos + residentes;
+    const totalChildren = ninos512 + ninosMenores;
+    const totalPersonas = totalAdults + totalChildren;
 
-   if (totalPersonas === 0) {
-       document.getElementById('agency-btn-siguiente').disabled = true;
-       return false;
-   }
+    if (totalPersonas === 0) {
+        document.getElementById('agency-btn-siguiente').disabled = true;
+        return false;
+    }
 
-   if (totalChildren > 0 && totalAdults === 0) {
-       alert('Debe haber al menos un adulto si hay niños en la reserva.');
-       document.getElementById('agency-ninos-5-12').value = 0;
-       document.getElementById('agency-ninos-menores').value = 0;
-       calculateAgencyTotalPrice();
-       document.getElementById('agency-btn-siguiente').disabled = true;
-       return false;
-   }
+    if (totalChildren > 0 && totalAdults === 0) {
+        alert('Debe haber al menos un adulto si hay niños en la reserva.');
+        document.getElementById('agency-ninos-5-12').value = 0;
+        document.getElementById('agency-ninos-menores').value = 0;
+        calculateAgencyTotalPrice();
+        document.getElementById('agency-btn-siguiente').disabled = true;
+        return false;
+    }
 
-   document.getElementById('agency-btn-siguiente').disabled = false;
-   return true;
+    document.getElementById('agency-btn-siguiente').disabled = false;
+    return true;
 }
 
 function loadAgencyPrices() {
-   if (!agencySelectedServiceId) return;
+    if (!agencySelectedServiceId) return;
 
-   const service = findAgencyServiceById(agencySelectedServiceId);
-   if (service) {
-       document.getElementById('agency-price-adultos').textContent = service.precio_adulto + '€';
-       document.getElementById('agency-price-ninos').textContent = service.precio_nino + '€';
-       calculateAgencyTotalPrice();
-   }
+    const service = findAgencyServiceById(agencySelectedServiceId);
+    if (service) {
+        // ✅ NO MOSTRAR PRECIOS INDIVIDUALES EN LA INTERFAZ
+        // Solo calcular el precio total
+        calculateAgencyTotalPrice();
+    }
 }
 
 function findAgencyServiceById(serviceId) {
-   for (let date in agencyServicesData) {
-       for (let service of agencyServicesData[date]) {
-           if (service.id == serviceId) {
-               return service;
-           }
-       }
-   }
-   return null;
+    for (let date in agencyServicesData) {
+        for (let service of agencyServicesData[date]) {
+            if (service.id == serviceId) {
+                return service;
+            }
+        }
+    }
+    return null;
 }
-
 function calculateAgencyTotalPrice() {
-   if (!agencySelectedServiceId) {
-       clearAgencyPricing();
-       return;
-   }
+    if (!agencySelectedServiceId) {
+        clearAgencyPricing();
+        return;
+    }
 
-   const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
-   const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
-   const ninos512 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
-   const ninosMenores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
+    const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
+    const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
+    const ninos512 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
+    const ninosMenores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
 
-   const totalPersonas = adultos + residentes + ninos512 + ninosMenores;
+    const totalPersonas = adultos + residentes + ninos512 + ninosMenores;
 
-   if (totalPersonas === 0) {
-       document.getElementById('agency-total-discount').text('');
-       document.getElementById('agency-total-price').textContent = '0€';
-       document.getElementById('agency-discount-row').style.display = 'none';
-       document.getElementById('agency-discount-message').classList.remove('show');
-       return;
-   }
+    if (totalPersonas === 0) {
+        document.getElementById('agency-total-discount').textContent = '';
+        document.getElementById('agency-total-price').textContent = '0€';
+        document.getElementById('agency-discount-row').style.display = 'none';
+        document.getElementById('agency-discount-message').classList.remove('show');
+        return;
+    }
 
-   const formData = new FormData();
-   formData.append('action', 'calculate_price');
-   formData.append('service_id', agencySelectedServiceId);
-   formData.append('adultos', adultos);
-   formData.append('residentes', residentes);
-   formData.append('ninos_5_12', ninos512);
-   formData.append('ninos_menores', ninosMenores);
-   formData.append('nonce', reservasAjax.nonce);
+    const formData = new FormData();
+    formData.append('action', 'calculate_price');
+    formData.append('service_id', agencySelectedServiceId);
+    formData.append('adultos', adultos);
+    formData.append('residentes', residentes);
+    formData.append('ninos_5_12', ninos512);
+    formData.append('ninos_menores', ninosMenores);
+    formData.append('nonce', reservasAjax.nonce);
 
-   fetch(reservasAjax.ajax_url, {
-       method: 'POST',
-       body: formData
-   })
-       .then(response => response.json())
-       .then(data => {
-           if (data.success) {
-               const result = data.data;
-               updateAgencyPricingDisplay(result);
-           } else {
-               console.error('Error calculando precio agency:', data);
-               document.getElementById('agency-total-price').textContent = '0€';
-               document.getElementById('agency-total-discount').textContent = '';
-               document.getElementById('agency-discount-row').style.display = 'none';
-               document.getElementById('agency-discount-message').classList.remove('show');
-           }
-       })
-       .catch(error => {
-           console.error('Error calculando precio agency:', error);
-           document.getElementById('agency-total-price').textContent = '0€';
-           document.getElementById('agency-total-discount').textContent = '';
-           document.getElementById('agency-discount-row').style.display = 'none';
-           document.getElementById('agency-discount-message').classList.remove('show');
-       });
+    fetch(reservasAjax.ajax_url, {
+        method: 'POST',
+        body: formData
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const result = data.data;
+                updateAgencyPricingDisplay(result);
+            } else {
+                console.error('Error calculando precio agency:', data);
+                document.getElementById('agency-total-price').textContent = '0€';
+                document.getElementById('agency-total-discount').textContent = '';
+                document.getElementById('agency-discount-row').style.display = 'none';
+                document.getElementById('agency-discount-message').classList.remove('show');
+            }
+        })
+        .catch(error => {
+            console.error('Error calculando precio agency:', error);
+            document.getElementById('agency-total-price').textContent = '0€';
+            document.getElementById('agency-total-discount').textContent = '';
+            document.getElementById('agency-discount-row').style.display = 'none';
+            document.getElementById('agency-discount-message').classList.remove('show');
+        });
 }
 
 function updateAgencyPricingDisplay(result) {
-   // Calcular descuento total
-   const descuentoTotal = (result.descuento_grupo || 0) + (result.descuento_servicio || 0);
-
-   // Manejar descuentos
-   if (descuentoTotal > 0) {
-       document.getElementById('agency-total-discount').textContent = '-' + descuentoTotal.toFixed(2) + '€';
-       document.getElementById('agency-discount-row').style.display = 'block';
-   } else {
-       document.getElementById('agency-discount-row').style.display = 'none';
-   }
-
-   // Mensaje de descuento (igual que admin)
-   let mensajeDescuento = '';
-
-   if (result.regla_descuento_aplicada && result.regla_descuento_aplicada.rule_name && result.descuento_grupo > 0) {
-       const regla = result.regla_descuento_aplicada;
-       mensajeDescuento = `Descuento del ${regla.discount_percentage}% por ${regla.rule_name.toLowerCase()}`;
-   }
-
-   if (result.servicio_con_descuento && result.servicio_con_descuento.descuento_aplicado && result.descuento_servicio > 0) {
-       const servicio = result.servicio_con_descuento;
-       let mensajeServicio = '';
-
-       if (servicio.descuento_tipo === 'fijo') {
-           mensajeServicio = `Descuento del ${servicio.porcentaje_descuento}% aplicado a este servicio`;
-       } else if (servicio.descuento_tipo === 'por_grupo') {
-           mensajeServicio = `Descuento del ${servicio.porcentaje_descuento}% por alcanzar ${servicio.descuento_minimo_personas} personas`;
-       }
-
-       if (mensajeDescuento && mensajeServicio) {
-           if (servicio.descuento_acumulable == '1') {
-               mensajeDescuento += ` + ${mensajeServicio}`;
-           } else {
-               const prioridad = servicio.descuento_prioridad || 'servicio';
-               if (prioridad === 'servicio') {
-                   mensajeDescuento = mensajeServicio;
-               }
-           }
-       } else if (mensajeServicio) {
-           mensajeDescuento = mensajeServicio;
-       }
-   }
-
-   if (mensajeDescuento) {
-       document.getElementById('agency-discount-text').textContent = mensajeDescuento;
-       document.getElementById('agency-discount-message').classList.add('show');
-   } else {
-       document.getElementById('agency-discount-message').classList.remove('show');
-   }
-
-   window.agencyLastDiscountRule = result.regla_descuento_aplicada;
-
-   const totalPrice = parseFloat(result.total) || 0;
-   document.getElementById('agency-total-price').textContent = totalPrice.toFixed(2) + '€';
+    // ✅ NO MOSTRAR INFORMACIÓN DE DESCUENTOS
+    // Solo mostrar el precio total final
+    const totalPrice = parseFloat(result.total) || 0;
+    document.getElementById('agency-total-price').textContent = totalPrice.toFixed(2) + '€';
 }
 
 function clearAgencyPricing() {
-   document.getElementById('agency-total-discount').textContent = '';
-   document.getElementById('agency-total-price').textContent = '0€';
-   document.getElementById('agency-discount-row').style.display = 'none';
-   document.getElementById('agency-discount-message').classList.remove('show');
+    document.getElementById('agency-total-price').textContent = '0€';
 }
-
 function setupAgencyFormValidation() {
-   const inputs = document.querySelectorAll('#agency-client-form input[required]'); // Solo campos requeridos
+    const inputs = document.querySelectorAll('#agency-client-form input[required]'); // Solo campos requeridos
 
-   function validateForm() {
-       let allValid = true;
-       inputs.forEach(input => {
-           if (!input.value.trim()) {
-               allValid = false;
-           }
-       });
+    function validateForm() {
+        let allValid = true;
+        inputs.forEach(input => {
+            if (!input.value.trim()) {
+                allValid = false;
+            }
+        });
 
-       // Validar email específicamente SOLO SI NO ESTÁ VACÍO
-       const emailInput = document.querySelector('#agency-client-form input[name="email"]');
-       if (emailInput.value.trim()) {
-           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-           if (!emailRegex.test(emailInput.value.trim())) {
-               allValid = false;
-           }
-       }
+        // Validar email específicamente SOLO SI NO ESTÁ VACÍO
+        const emailInput = document.querySelector('#agency-client-form input[name="email"]');
+        if (emailInput.value.trim()) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(emailInput.value.trim())) {
+                allValid = false;
+            }
+        }
 
-       document.getElementById('agency-btn-siguiente').disabled = !allValid;
-   }
+        document.getElementById('agency-btn-siguiente').disabled = !allValid;
+    }
 
-   inputs.forEach(input => {
-       input.addEventListener('input', validateForm);
-       input.addEventListener('blur', validateForm);
-   });
+    inputs.forEach(input => {
+        input.addEventListener('input', validateForm);
+        input.addEventListener('blur', validateForm);
+    });
 
-   // También validar email opcional
-   const emailInput = document.querySelector('#agency-client-form input[name="email"]');
-   if (emailInput) {
-       emailInput.addEventListener('input', validateForm);
-       emailInput.addEventListener('blur', validateForm);
-   }
+    // También validar email opcional
+    const emailInput = document.querySelector('#agency-client-form input[name="email"]');
+    if (emailInput) {
+        emailInput.addEventListener('input', validateForm);
+        emailInput.addEventListener('blur', validateForm);
+    }
 
-   validateForm();
+    validateForm();
 }
 
 function fillAgencyConfirmationData() {
-   console.log('=== LLENANDO DATOS DE CONFIRMACIÓN AGENCIA ===');
+    console.log('=== LLENANDO DATOS DE CONFIRMACIÓN AGENCIA ===');
 
-   if (!agencySelectedServiceId || !agencySelectedDate) {
-       console.error('❌ Faltan datos básicos:', {
-           serviceId: agencySelectedServiceId,
-           selectedDate: agencySelectedDate
-       });
-       return;
-   }
+    if (!agencySelectedServiceId || !agencySelectedDate) {
+        console.error('❌ Faltan datos básicos:', {
+            serviceId: agencySelectedServiceId,
+            selectedDate: agencySelectedDate
+        });
+        return;
+    }
 
-   const service = findAgencyServiceById(agencySelectedServiceId);
-   if (!service) {
-       console.error('❌ No se encontró el servicio');
-       return;
-   }
+    const service = findAgencyServiceById(agencySelectedServiceId);
+    if (!service) {
+        console.error('❌ No se encontró el servicio');
+        return;
+    }
 
-   const nombreInput = document.getElementById('agency-nombre');
-   const apellidosInput = document.getElementById('agency-apellidos');
-   const emailInput = document.getElementById('agency-email');
-   const telefonoInput = document.getElementById('agency-telefono');
+    const nombreInput = document.getElementById('agency-nombre');
+    const apellidosInput = document.getElementById('agency-apellidos');
+    const emailInput = document.getElementById('agency-email');
+    const telefonoInput = document.getElementById('agency-telefono');
 
-   if (!nombreInput || !apellidosInput || !telefonoInput) {
-       console.error('❌ No se encontraron los campos del formulario');
-       return;
-   }
+    if (!nombreInput || !apellidosInput || !telefonoInput) {
+        console.error('❌ No se encontraron los campos del formulario');
+        return;
+    }
 
-   const nombre = nombreInput.value.trim();
-   const apellidos = apellidosInput.value.trim();
-   const email = emailInput.value.trim() || 'No proporcionado'; // ✅ MANEJAR EMAIL VACÍO
-   const telefono = telefonoInput.value.trim();
+    const nombre = nombreInput.value.trim();
+    const apellidos = apellidosInput.value.trim();
+    const email = emailInput.value.trim() || 'No proporcionado'; // ✅ MANEJAR EMAIL VACÍO
+    const telefono = telefonoInput.value.trim();
 
-   const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
-   const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
-   const ninos512 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
-   const ninosMenores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
-   const totalPersonas = adultos + residentes + ninos512 + ninosMenores;
+    const adultos = parseInt(document.getElementById('agency-adultos').value) || 0;
+    const residentes = parseInt(document.getElementById('agency-residentes').value) || 0;
+    const ninos512 = parseInt(document.getElementById('agency-ninos-5-12').value) || 0;
+    const ninosMenores = parseInt(document.getElementById('agency-ninos-menores').value) || 0;
+    const totalPersonas = adultos + residentes + ninos512 + ninosMenores;
 
-   // Formatear fecha
-   let fechaFormateada = agencySelectedDate;
-   try {
-       const fechaObj = new Date(agencySelectedDate + 'T00:00:00');
-       fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
-           weekday: 'long',
-           year: 'numeric',
-           month: 'long',
-           day: 'numeric'
-       });
-       fechaFormateada = fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1);
-   } catch (e) {
-       console.warn('No se pudo formatear la fecha, usando formato original');
-   }
+    // Formatear fecha
+    let fechaFormateada = agencySelectedDate;
+    try {
+        const fechaObj = new Date(agencySelectedDate + 'T00:00:00');
+        fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        fechaFormateada = fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1);
+    } catch (e) {
+        console.warn('No se pudo formatear la fecha, usando formato original');
+    }
 
-   // Crear detalle de personas
-   let personasDetalle = [];
-   if (adultos > 0) personasDetalle.push(`${adultos} adulto${adultos > 1 ? 's' : ''}`);
-   if (residentes > 0) personasDetalle.push(`${residentes} residente${residentes > 1 ? 's' : ''}`);
-   if (ninos512 > 0) personasDetalle.push(`${ninos512} niño${ninos512 > 1 ? 's' : ''} (5-12)`);
-   if (ninosMenores > 0) personasDetalle.push(`${ninosMenores} bebé${ninosMenores > 1 ? 's' : ''} (gratis)`);
+    // Crear detalle de personas
+    let personasDetalle = [];
+    if (adultos > 0) personasDetalle.push(`${adultos} adulto${adultos > 1 ? 's' : ''}`);
+    if (residentes > 0) personasDetalle.push(`${residentes} residente${residentes > 1 ? 's' : ''}`);
+    if (ninos512 > 0) personasDetalle.push(`${ninos512} niño${ninos512 > 1 ? 's' : ''} (5-12)`);
+    if (ninosMenores > 0) personasDetalle.push(`${ninosMenores} bebé${ninosMenores > 1 ? 's' : ''} (gratis)`);
 
-   const personasTexto = personasDetalle.length > 0 ?
-       `${totalPersonas} personas (${personasDetalle.join(', ')})` :
-       `${totalPersonas} personas`;
+    const personasTexto = personasDetalle.length > 0 ?
+        `${totalPersonas} personas (${personasDetalle.join(', ')})` :
+        `${totalPersonas} personas`;
 
-   const totalPriceElement = document.getElementById('agency-total-price');
-   const precioTotal = totalPriceElement ? totalPriceElement.textContent : '0€';
+    const totalPriceElement = document.getElementById('agency-total-price');
+    const precioTotal = totalPriceElement ? totalPriceElement.textContent : '0€';
 
-   // Actualizar elementos de confirmación
-   const confirmElements = {
-       'agency-confirm-fecha': fechaFormateada,
-       'agency-confirm-hora': service.hora,
-       'agency-confirm-personas': personasTexto,
-       'agency-confirm-cliente': `${nombre} ${apellidos}`,
-       'agency-confirm-email': email,
-       'agency-confirm-total': precioTotal
-   };
+    // Actualizar elementos de confirmación
+    const confirmElements = {
+        'agency-confirm-fecha': fechaFormateada,
+        'agency-confirm-hora': service.hora,
+        'agency-confirm-personas': personasTexto,
+        'agency-confirm-cliente': `${nombre} ${apellidos}`,
+        'agency-confirm-email': email,
+        'agency-confirm-total': precioTotal
+    };
 
-   Object.keys(confirmElements).forEach(elementId => {
-       const element = document.getElementById(elementId);
-       if (element) {
-           element.textContent = confirmElements[elementId];
-       }
-   });
+    Object.keys(confirmElements).forEach(elementId => {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = confirmElements[elementId];
+        }
+    });
 }
 
-// Funciones auxiliares adicionales que faltan (selectAgencyDate, renderAgencyCalendar, etc.)
 function selectAgencyDate(dateStr) {
-   agencySelectedDate = dateStr;
-   agencySelectedServiceId = null;
+    agencySelectedDate = dateStr;
+    agencySelectedServiceId = null;
 
-   // Actualizar visual del calendario
-   document.querySelectorAll('#agency-calendar-grid .calendar-day').forEach(day => {
-       day.classList.remove('selected');
-   });
-   event.target.classList.add('selected');
+    // Actualizar visual del calendario
+    document.querySelectorAll('#agency-calendar-grid .calendar-day').forEach(day => {
+        day.classList.remove('selected');
+    });
+    event.target.classList.add('selected');
 
-   loadAgencyAvailableSchedules(dateStr);
+    loadAgencyAvailableSchedules(dateStr);
 }
 
 function loadAgencyAvailableSchedules(dateStr) {
-   const services = agencyServicesData[dateStr] || [];
+    const services = agencyServicesData[dateStr] || [];
 
-   let optionsHTML = '<option value="">Selecciona un horario</option>';
+    let optionsHTML = '<option value="">Selecciona un horario</option>';
 
-   services.forEach(service => {
-       let descuentoInfo = '';
-       if (service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0) {
-           descuentoInfo = ` (${service.porcentaje_descuento}% descuento)`;
-       }
+    // ✅ OBTENER FECHA Y HORA ACTUAL
+    const now = new Date();
+    const selectedDate = new Date(dateStr + 'T00:00:00');
+    const isToday = selectedDate.toDateString() === now.toDateString();
 
-       optionsHTML += `<option value="${service.id}" 
-                          data-plazas="${service.plazas_disponibles}">
-                       ${service.hora} - ${service.plazas_disponibles} plazas disponibles${descuentoInfo}
-                   </option>`;
-   });
+    services.forEach(service => {
+        let shouldShow = true;
 
-   document.getElementById('agency-horarios-select').innerHTML = optionsHTML;
-   document.getElementById('agency-horarios-select').disabled = false;
-   document.getElementById('agency-btn-siguiente').disabled = true;
+        // ✅ SI ES HOY, VERIFICAR QUE LA HORA NO HAYA PASADO
+        if (isToday) {
+            // Crear objeto Date con la fecha de hoy y la hora del servicio
+            const serviceDateTime = new Date();
+            const [hours, minutes] = service.hora.split(':');
+            serviceDateTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+
+            // Si la hora del servicio ya pasó, no mostrar
+            if (serviceDateTime <= now) {
+                shouldShow = false;
+            }
+        }
+
+        // Solo añadir si debe mostrarse
+        if (shouldShow) {
+            optionsHTML += `<option value="${service.id}" 
+                               data-plazas="${service.plazas_disponibles}">
+                            ${service.hora} - ${service.plazas_disponibles} plazas disponibles
+                        </option>`;
+        }
+    });
+
+    document.getElementById('agency-horarios-select').innerHTML = optionsHTML;
+    document.getElementById('agency-horarios-select').disabled = false;
+    document.getElementById('agency-btn-siguiente').disabled = true;
 }
 
-// Exponer funciones globalmente
 window.selectAgencyDate = selectAgencyDate;
 window.agencyNextStep = agencyNextStep;
 window.agencyPreviousStep = agencyPreviousStep;
@@ -8330,6 +8759,6 @@ window.initAgencyReservaRapida = initAgencyReservaRapida;
 
 // Función auxiliar para email validation
 function isValidEmail(email) {
-   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-   return emailRegex.test(email);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
 }
