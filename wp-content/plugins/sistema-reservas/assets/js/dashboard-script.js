@@ -1980,9 +1980,7 @@ function loadReportsSection() {
                                 <div class="filter-group">
                                     <label for="agency-filtro">Filtrar por Agencia:</label>
                                     <select id="agency-filtro">
-                                        <option value="todas">Todas las fuentes</option>
-                                        <option value="sin_agencia">Reservas directas (sin agencia)</option>
-                                        <!-- Las agencias se cargarán dinámicamente -->
+                                        <option value="todas">🔄 Cargando agencias...</option>
                                     </select>
                                 </div>
                                 <div class="filter-group">
@@ -2198,16 +2196,18 @@ function loadReportsSection() {
         </style>
     `;
 
+    console.log('🔧 Configurando eventos de reports...');
     initReportsEvents();
 
-    // ✅ CARGAR AGENCIAS INMEDIATAMENTE DESPUÉS DE CREAR EL HTML
     console.log('🔄 Iniciando carga de agencias...');
-    setTimeout(() => {
-        loadAgenciesForFilter();
-    }, 100); // Pequeño delay para asegurar que el DOM está listo
-
-    // Cargar datos iniciales con filtros
-    loadReservationsByDateWithFilters();
+    loadAgenciesForFilter().then(() => {
+        console.log('✅ Agencias cargadas, iniciando carga de datos...');
+        loadReservationsByDateWithFilters();
+    }).catch(error => {
+        console.error('❌ Error cargando agencias:', error);
+        // Continuar con la carga de datos aunque fallen las agencias
+        loadReservationsByDateWithFilters();
+    });
 }
 
 function loadReservationsByDateWithFilters(page = 1) {
@@ -2624,106 +2624,97 @@ function renderPaginationWithFilters(pagination) {
 }
 
 function loadAgenciesForFilter() {
-    console.log('=== CARGANDO AGENCIAS PARA FILTRO ===');
-    
-    const formData = new FormData();
-    formData.append('action', 'get_agencies_for_filter');
-    formData.append('nonce', reservasAjax.nonce);
+    return new Promise((resolve, reject) => {
+        console.log('=== CARGANDO AGENCIAS PARA FILTRO ===');
+        
+        const agencySelect = document.getElementById('agency-filtro');
+        if (!agencySelect) {
+            console.error('❌ No se encontró el select agency-filtro');
+            reject('Select no encontrado');
+            return;
+        }
 
-    fetch(reservasAjax.ajax_url, {
-        method: 'POST',
-        body: formData
-    })
-        .then(response => response.json())
-        .then(data => {
-            console.log('✅ Respuesta del servidor para agencias:', data);
-            
-            if (data.success && data.data && data.data.length > 0) {
-                const agencySelect = document.getElementById('agency-filtro');
-                
-                if (!agencySelect) {
-                    console.error('❌ No se encontró el select agency-filtro');
-                    return;
-                }
-                
-                console.log(`📋 Procesando ${data.data.length} agencias encontradas`);
-                
-                // Limpiar opciones existentes excepto las dos primeras (Todas las fuentes y Reservas directas)
-                const optionsToKeep = 2;
-                while (agencySelect.children.length > optionsToKeep) {
-                    agencySelect.removeChild(agencySelect.lastChild);
-                }
-                
-                // Añadir cada agencia como opción
-                data.data.forEach((agency, index) => {
-                    console.log(`📝 Procesando agencia ${index + 1}:`, agency);
-                    
-                    const option = document.createElement('option');
-                    option.value = agency.id;
-                    
-                    // Construir nombre para mostrar
-                    let displayName = agency.agency_name;
-                    
-                    // Añadir inicial si existe y es diferente de 'A'
-                    if (agency.inicial_localizador && agency.inicial_localizador !== 'A') {
-                        displayName += ` (${agency.inicial_localizador})`;
-                    }
-                    
-                    // Añadir número de reservas si las tiene
-                    if (agency.reservas_count && agency.reservas_count > 0) {
-                        displayName += ` - ${agency.reservas_count} reservas`;
-                    }
-                    
-                    // Marcar como inactiva si no está activa
-                    if (agency.status !== 'active') {
-                        displayName += ` [INACTIVA]`;
-                        option.style.color = '#dc3545';
-                        option.style.fontStyle = 'italic';
-                    }
-                    
-                    option.textContent = displayName;
-                    agencySelect.appendChild(option);
-                    
-                    console.log(`✅ Agencia añadida: ID=${agency.id}, Nombre="${displayName}"`);
-                });
-                
-                console.log(`🎉 Total de ${data.data.length} agencias cargadas en el selector`);
-                
-                // Verificar que las opciones se añadieron correctamente
-                console.log(`📊 Opciones totales en el select: ${agencySelect.children.length}`);
-                for (let i = 0; i < agencySelect.children.length; i++) {
-                    console.log(`   ${i}: value="${agencySelect.children[i].value}" text="${agencySelect.children[i].textContent}"`);
-                }
-                
-            } else {
-                console.warn('⚠️ No se encontraron agencias o respuesta vacía');
-                console.log('Datos recibidos:', data);
-                
-                // Añadir opción indicando que no hay agencias
-                const agencySelect = document.getElementById('agency-filtro');
-                if (agencySelect) {
-                    const noAgenciesOption = document.createElement('option');
-                    noAgenciesOption.value = '';
-                    noAgenciesOption.textContent = 'No hay agencias disponibles';
-                    noAgenciesOption.disabled = true;
-                    noAgenciesOption.style.color = '#666';
-                    agencySelect.appendChild(noAgenciesOption);
-                }
-            }
+        const formData = new FormData();
+        formData.append('action', 'get_agencies_for_filter');
+        formData.append('nonce', reservasAjax.nonce);
+
+        fetch(reservasAjax.ajax_url, {
+            method: 'POST',
+            body: formData
         })
-        .catch(error => {
-            console.error('❌ Error de conexión cargando agencias:', error);
-            
-            const agencySelect = document.getElementById('agency-filtro');
-            if (agencySelect) {
-                const errorOption = document.createElement('option');
-                errorOption.value = '';
-                errorOption.textContent = 'Error cargando agencias';
-                errorOption.disabled = true;
-                errorOption.style.color = '#dc3545';
-                agencySelect.appendChild(errorOption);
-            }
-        });
+            .then(response => response.json())
+            .then(data => {
+                console.log('✅ Respuesta del servidor para agencias:', data);
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    console.log(`📋 Procesando ${data.data.length} agencias encontradas`);
+                    
+                    // Limpiar y llenar el select
+                    agencySelect.innerHTML = `
+                        <option value="todas">Todas las fuentes</option>
+                        <option value="sin_agencia">Reservas directas (sin agencia)</option>
+                    `;
+                    
+                    // Añadir cada agencia como opción
+                    data.data.forEach((agency, index) => {
+                        console.log(`📝 Procesando agencia ${index + 1}:`, agency);
+                        
+                        const option = document.createElement('option');
+                        option.value = agency.id;
+                        
+                        // Construir nombre para mostrar
+                        let displayName = agency.agency_name;
+                        
+                        // Añadir inicial si existe y es diferente de 'A'
+                        if (agency.inicial_localizador && agency.inicial_localizador !== 'A') {
+                            displayName += ` (${agency.inicial_localizador})`;
+                        }
+                        
+                        // Añadir número de reservas si las tiene
+                        if (agency.reservas_count && agency.reservas_count > 0) {
+                            displayName += ` - ${agency.reservas_count} reservas`;
+                        }
+                        
+                        // Marcar como inactiva si no está activa
+                        if (agency.status !== 'active') {
+                            displayName += ` [INACTIVA]`;
+                            option.style.color = '#dc3545';
+                            option.style.fontStyle = 'italic';
+                        }
+                        
+                        option.textContent = displayName;
+                        agencySelect.appendChild(option);
+                        
+                        console.log(`✅ Agencia añadida: ID=${agency.id}, Nombre="${displayName}"`);
+                    });
+                    
+                    console.log(`🎉 Total de ${data.data.length} agencias cargadas en el selector`);
+                    resolve();
+                    
+                } else {
+                    console.warn('⚠️ No se encontraron agencias o respuesta vacía');
+                    
+                    // Opción por defecto si no hay agencias
+                    agencySelect.innerHTML = `
+                        <option value="todas">Todas las fuentes</option>
+                        <option value="sin_agencia">Reservas directas (sin agencia)</option>
+                        <option value="" disabled style="color: #666;">No hay agencias disponibles</option>
+                    `;
+                    resolve();
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error de conexión cargando agencias:', error);
+                
+                // Opción de error
+                agencySelect.innerHTML = `
+                    <option value="todas">Todas las fuentes</option>
+                    <option value="sin_agencia">Reservas directas (sin agencia)</option>
+                    <option value="" disabled style="color: #dc3545;">Error cargando agencias</option>
+                `;
+                reject(error);
+            });
+    });
 }
 
 function initReportsEvents() {
@@ -2747,11 +2738,18 @@ function initReportsEvents() {
         }
     });
 
-    document.getElementById('agency-filtro').addEventListener('change', function () {
-        if (document.getElementById('fecha-inicio').value && document.getElementById('fecha-fin').value) {
-            loadReservationsByDateWithFilters();
-        }
-    });
+    // ✅ VERIFICAR QUE EL ELEMENTO EXISTE ANTES DE AÑADIR EVENT LISTENER
+    const agencySelect = document.getElementById('agency-filtro');
+    if (agencySelect) {
+        agencySelect.addEventListener('change', function () {
+            if (document.getElementById('fecha-inicio').value && document.getElementById('fecha-fin').value) {
+                loadReservationsByDateWithFilters();
+            }
+        });
+        console.log('✅ Evento de cambio de agencia configurado');
+    } else {
+        console.warn('⚠️ Elemento agency-filtro no encontrado al configurar eventos');
+    }
 
     // Permitir búsqueda con Enter
     document.getElementById('search-value').addEventListener('keypress', function (e) {
@@ -2760,14 +2758,13 @@ function initReportsEvents() {
         }
     });
 
-    // ✅ NUEVOS EVENTOS PARA FILTROS
-    // Evento para cambio de tipo de fecha
+    // ✅ EVENTOS PARA FILTROS
     document.getElementById('tipo-fecha').addEventListener('change', function () {
         const label = this.value === 'compra' ? 'Fecha de Compra' : 'Fecha de Servicio';
         console.log(`Filtro cambiado a: ${label}`);
     });
 
-    // Evento para enter en campos de fecha
+    // Eventos para enter en campos de fecha
     document.getElementById('fecha-inicio').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
             loadReservationsByDateWithFilters();
@@ -2780,7 +2777,7 @@ function initReportsEvents() {
         }
     });
 
-    // Evento para cambio automático al seleccionar fechas
+    // Eventos para cambio automático al seleccionar fechas
     document.getElementById('fecha-inicio').addEventListener('change', function () {
         if (this.value && document.getElementById('fecha-fin').value) {
             loadReservationsByDateWithFilters();
@@ -2793,40 +2790,12 @@ function initReportsEvents() {
         }
     });
 
-    // Evento para cambio de filtro de canceladas
-    document.getElementById('incluir-canceladas').addEventListener('change', function () {
-        if (document.getElementById('fecha-inicio').value && document.getElementById('fecha-fin').value) {
-            loadReservationsByDateWithFilters();
-        }
-    });
-
+    // Evento para cambio de filtro de estado
     document.getElementById('estado-filtro').addEventListener('change', function () {
         if (document.getElementById('fecha-inicio').value && document.getElementById('fecha-fin').value) {
             loadReservationsByDateWithFilters();
         }
     });
-
-    const agencySelect = document.getElementById('agency-filtro');
-    if (agencySelect) {
-        agencySelect.addEventListener('change', function() {
-            console.log('🔄 Filtro de agencia cambiado a:', this.value);
-            console.log('📝 Texto seleccionado:', this.options[this.selectedIndex].text);
-            
-            const fechaInicio = document.getElementById('fecha-inicio').value;
-            const fechaFin = document.getElementById('fecha-fin').value;
-            
-            if (fechaInicio && fechaFin) {
-                console.log('✅ Aplicando filtros con nueva agencia...');
-                loadReservationsByDateWithFilters();
-            } else {
-                console.log('⚠️ Fechas no seleccionadas, esperando...');
-            }
-        });
-        
-        console.log('✅ Evento de cambio de agencia configurado');
-    } else {
-        console.error('❌ No se encontró el select de agencias para configurar eventos');
-    }
 }
 
 // ✅ FUNCIÓN PARA CAMBIAR PESTAÑAS

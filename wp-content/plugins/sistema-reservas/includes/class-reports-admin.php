@@ -387,7 +387,7 @@ public function get_agencies_for_filter()
         return;
     }
 
-    // Obtener agencias con información adicional
+    // ✅ CONSULTA ACTUALIZADA CON INICIAL_LOCALIZADOR
     $agencies = $wpdb->get_results(
         "SELECT id, agency_name, status, inicial_localizador, email, contact_person 
          FROM $table_agencies 
@@ -396,7 +396,7 @@ public function get_agencies_for_filter()
 
     if ($wpdb->last_error) {
         error_log("❌ Error SQL en agencias: " . $wpdb->last_error);
-        wp_send_json_error('Error de base de datos');
+        wp_send_json_error('Error de base de datos: ' . $wpdb->last_error);
         return;
     }
 
