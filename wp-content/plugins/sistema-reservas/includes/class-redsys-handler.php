@@ -9,19 +9,54 @@ function generar_formulario_redsys($reserva_data) {
     $codigo_comercio = '014591697'; // Tu código FUC
     $terminal = '001'; // Tu terminal
     
-    // Generar número de pedido único (debe ser único por transacción)
-    $timestamp = time();
-    $random = rand(100, 999);
-    $pedido = str_pad(($timestamp % 999999), 6, '0', STR_PAD_LEFT);
+    // ✅ CORRECCIÓN: Mejorar el manejo del importe
+    error_log("=== DATOS RECIBIDOS PARA REDSYS ===");
+    error_log("Reserva data completa: " . print_r($reserva_data, true));
     
-    // Asegurar que el pedido sea único
-    $pedido = substr($pedido . $random, 0, 12);
+    // Obtener el precio de diferentes formas posibles
+    $total_price = null;
+    if (isset($reserva_data['total_price'])) {
+        $total_price = $reserva_data['total_price'];
+    } elseif (isset($reserva_data['precio_final'])) {
+        $total_price = $reserva_data['precio_final'];
+    }
+    
+    // Limpiar el precio (quitar €, espacios, etc.)
+    if ($total_price) {
+        $total_price = str_replace(['€', ' ', ','], ['', '', '.'], $total_price);
+        $total_price = floatval($total_price);
+    }
+    
+    error_log("Total price procesado: " . $total_price);
+    
+    if (!$total_price || $total_price <= 0) {
+        error_log("❌ ERROR: Importe inválido - " . $total_price);
+        throw new Exception('El importe debe ser mayor que 0. Recibido: ' . $total_price);
+    }
     
     // Convertir importe a céntimos (Redsys trabaja en céntimos)
-    $importe = intval(floatval($reserva_data['total_price']) * 100);
+    $importe = intval($total_price * 100);
+    error_log("Importe en céntimos para Redsys: " . $importe);
     
-    if ($importe <= 0) {
-        throw new Exception('El importe debe ser mayor que 0');
+    // ✅ CORRECCIÓN: Mejorar generación del número de pedido
+    $timestamp = time();
+    $random = rand(1000, 9999);
+    
+    // Generar pedido con formato más robusto
+    $pedido = date('ymd') . sprintf('%06d', $timestamp % 1000000);
+    
+    // Asegurar que tenga exactamente 12 caracteres
+    if (strlen($pedido) > 12) {
+        $pedido = substr($pedido, 0, 12);
+    } elseif (strlen($pedido) < 12) {
+        $pedido = str_pad($pedido, 12, '0', STR_PAD_LEFT);
+    }
+    
+    error_log("Número de pedido generado: " . $pedido);
+    
+    // Verificar que todos los datos son correctos antes de continuar
+    if (empty($codigo_comercio) || empty($terminal) || empty($clave)) {
+        throw new Exception('Faltan datos de configuración de Redsys');
     }
     
     // Configurar parámetros del pedido
@@ -39,7 +74,7 @@ function generar_formulario_redsys($reserva_data) {
     $miObj->setParameter("DS_MERCHANT_URLKO", $base_url . '/error-pago/?status=ko&order=' . $pedido);
     
     // Información adicional
-    $descripcion = "Reserva Medina Azahara - " . $reserva_data['fecha'];
+    $descripcion = "Reserva Medina Azahara - " . ($reserva_data['fecha'] ?? date('Y-m-d'));
     $miObj->setParameter("DS_MERCHANT_PRODUCTDESCRIPTION", $descripcion);
     
     // Datos del titular (opcional pero recomendado)
@@ -47,15 +82,27 @@ function generar_formulario_redsys($reserva_data) {
         $miObj->setParameter("DS_MERCHANT_TITULAR", $reserva_data['nombre'] . ' ' . $reserva_data['apellidos']);
     }
 
+    // ✅ LOGGING DETALLADO DE PARÁMETROS
+    error_log("=== PARÁMETROS ENVIADOS A REDSYS ===");
+    error_log("DS_MERCHANT_AMOUNT: " . $importe);
+    error_log("DS_MERCHANT_ORDER: " . $pedido);
+    error_log("DS_MERCHANT_MERCHANTCODE: " . $codigo_comercio);
+    error_log("DS_MERCHANT_TERMINAL: " . $terminal);
+
     // Generar parámetros y firma
     $params = $miObj->createMerchantParameters();
     $signature = $miObj->createMerchantSignature($clave);
     $version = "HMAC_SHA256_V1";
 
+    error_log("Parámetros codificados: " . $params);
+    error_log("Firma generada: " . $signature);
+
     // URL del entorno (importante: cambiar según sea producción o pruebas)
     $redsys_url = is_production_environment() ? 
         'https://sis.redsys.es/sis/realizarPago' : 
         'https://sis-t.redsys.es:25443/sis/realizarPago';
+    
+    error_log("URL de Redsys: " . $redsys_url);
 
     // Generar formulario HTML que se auto-envía
     $html = '<form id="formulario_redsys" action="' . $redsys_url . '" method="POST">';
@@ -67,6 +114,8 @@ function generar_formulario_redsys($reserva_data) {
     // JavaScript para auto-enviar el formulario inmediatamente
     $html .= '<script>';
     $html .= 'console.log("Enviando formulario a Redsys...");';
+    $html .= 'console.log("Importe: ' . $importe . ' céntimos (' . $total_price . ' euros)");';
+    $html .= 'console.log("Pedido: ' . $pedido . '");';
     $html .= 'document.getElementById("formulario_redsys").submit();';
     $html .= '</script>';
 
@@ -80,11 +129,16 @@ function is_production_environment() {
     // Detectar si estamos en producción
     $site_url = site_url();
     
-    // Ajusta esta lógica según tu entorno
-    return !strpos($site_url, 'localhost') && 
-           !strpos($site_url, '.local') && 
-           !strpos($site_url, 'dev.') &&
-           !strpos($site_url, 'staging.');
+    error_log("Site URL: " . $site_url);
+    
+    $is_prod = !strpos($site_url, 'localhost') && 
+               !strpos($site_url, '.local') && 
+               !strpos($site_url, 'dev.') &&
+               !strpos($site_url, 'staging.');
+    
+    error_log("Es producción: " . ($is_prod ? 'SÍ' : 'NO'));
+    
+    return $is_prod;
 }
 
 function process_successful_payment($order_id, $params) {
@@ -178,4 +232,3 @@ function guardar_datos_pedido($order_id, $reserva_data) {
     
     error_log("✅ Datos del pedido $order_id guardados para verificación posterior");
 }
-

@@ -847,8 +847,28 @@ function processReservation() {
             if (data && data.success) {
                 console.log("✅ Formulario Redsys generado correctamente");
                 
-                // Insertar y ejecutar el formulario de Redsys
-                document.body.insertAdjacentHTML('beforeend', data.data);
+                // ✅ AQUÍ ESTÁ LA CORRECCIÓN: Insertar y ejecutar el formulario
+                console.log("🚀 Insertando formulario de Redsys en el DOM...");
+                
+                // Crear un div temporal para el formulario
+                const formContainer = document.createElement('div');
+                formContainer.innerHTML = data.data;
+                
+                // Añadir al body
+                document.body.appendChild(formContainer);
+                
+                // Buscar el formulario y enviarlo
+                const form = document.getElementById('formulario_redsys');
+                if (form) {
+                    console.log("🎯 Formulario encontrado, enviando a Redsys...");
+                    console.log("🌐 URL destino:", form.action);
+                    
+                    // Enviar el formulario automáticamente
+                    form.submit();
+                } else {
+                    console.error("❌ No se encontró el formulario en el HTML generado");
+                    alert("Error: No se pudo generar el formulario de pago");
+                }
                 
             } else {
                 console.error("❌ Error generando formulario Redsys:", data);

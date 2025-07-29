@@ -707,6 +707,9 @@ public function get_available_services()
                 console.log("- Descuento niños:", formatPrice(-descuentoNinos));
                 console.log("- Descuento grupo:", descuentoGrupo > 0 ? formatPrice(-descuentoGrupo) : "No aplica");
                 console.log("- Total final:", formatPrice(data.total_price || "0"));
+                console.log("=== VERIFICACIÓN FINAL DE PRECIO ===");
+console.log("Precio total en datos:", data.total_price);
+console.log("Tipo de dato:", typeof data.total_price);
             }
 
             function formatPrice(price) {
