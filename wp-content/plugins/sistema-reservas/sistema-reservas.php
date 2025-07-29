@@ -146,16 +146,16 @@ private function load_dependencies()
         'includes/class-email-service.php',
         'includes/class-frontend.php',
         'includes/class-reserva-rapida-admin.php',
-        'includes/class-redsys-handler.php', // ✅ SOLO ESTE
-        // 'includes/redsys-helper.php',     // ✅ QUITAR ESTA LÍNEA
+        'includes/class-redsys-handler.php', // ✅ CARGAR ESTE ARCHIVO
     );
 
     foreach ($files as $file) {
         $path = RESERVAS_PLUGIN_PATH . $file;
         if (file_exists($path)) {
             require_once $path;
+            error_log("✅ Cargado: $file");
         } else {
-            error_log("RESERVAS ERROR: No se pudo cargar $file");
+            error_log("❌ RESERVAS ERROR: No se pudo cargar $file");
         }
     }
 }
@@ -1586,16 +1586,7 @@ function ajax_generar_formulario_pago_redsys()
             return;
         }
         
-        // Verificar que el archivo existe
-        $redsys_helper_path = RESERVAS_PLUGIN_PATH . 'includes/redsys-helper.php';
-        if (!file_exists($redsys_helper_path)) {
-            error_log('❌ No se encontró redsys-helper.php');
-            wp_send_json_error('Archivo de Redsys no encontrado');
-            return;
-        }
-        
-        require_once $redsys_helper_path;
-        
+        // ✅ CAMBIO: Usar directamente la función desde class-redsys-handler.php
         error_log('✅ Generando formulario Redsys...');
         $formulario = generar_formulario_redsys($reserva);
         
@@ -1611,5 +1602,65 @@ function ajax_generar_formulario_pago_redsys()
 // ✅ REGISTRAR LA FUNCIÓN AJAX
 add_action('wp_ajax_generar_formulario_pago_redsys', 'ajax_generar_formulario_pago_redsys');
 add_action('wp_ajax_nopriv_generar_formulario_pago_redsys', 'ajax_generar_formulario_pago_redsys');
+
+
+
+add_action('wp_ajax_redsys_notification', 'handle_redsys_notification');
+add_action('wp_ajax_nopriv_redsys_notification', 'handle_redsys_notification');
+
+function handle_redsys_notification() {
+    error_log('🔁 Recibida notificación de Redsys (MerchantURL)');
+
+    $params = $_POST['Ds_MerchantParameters'] ?? '';
+    $signature = $_POST['Ds_Signature'] ?? '';
+    $version = $_POST['Ds_SignatureVersion'] ?? '';
+
+    if (!$params || !$signature) {
+        error_log('❌ Faltan parámetros en notificación');
+        status_header(400);
+        exit;
+    }
+
+    $redsys = new RedsysAPI();
+    $decoded = $redsys->getParametersFromResponse($params);
+
+    $order_id = $decoded['Ds_Order'] ?? null;
+
+    if (!$order_id) {
+        error_log('❌ No se pudo obtener el ID del pedido');
+        status_header(400);
+        exit;
+    }
+
+    // Selecciona la clave según el entorno
+    $clave = is_production_environment()
+        ? 'TU_CLAVE_PRODUCCION'
+        : 'sq7HjrUOBfKmC576ILgskD5srU870gJ7';
+
+    if (!$redsys->verifySignature($signature, $params, $clave)) {
+        error_log('❌ Firma inválida en notificación');
+        status_header(403);
+        exit;
+    }
+
+    error_log('✅ Firma verificada, procesando reserva...');
+    $ok = process_successful_payment($order_id, $decoded);
+
+    if ($ok) {
+        error_log("✅ Reserva procesada correctamente desde notificación");
+        status_header(200);
+        echo 'OK';
+    } else {
+        error_log("❌ Fallo procesando reserva desde notificación");
+        status_header(500);
+        echo 'ERROR';
+    }
+
+    exit;
+}
+
+
+
+
 // Inicializar el plugin
 new SistemaReservas();

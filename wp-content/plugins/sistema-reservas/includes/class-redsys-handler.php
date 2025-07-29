@@ -126,19 +126,7 @@ function generar_formulario_redsys($reserva_data) {
 }
 
 function is_production_environment() {
-    // Detectar si estamos en producción
-    $site_url = site_url();
-    
-    error_log("Site URL: " . $site_url);
-    
-    $is_prod = !strpos($site_url, 'localhost') && 
-               !strpos($site_url, '.local') && 
-               !strpos($site_url, 'dev.') &&
-               !strpos($site_url, 'staging.');
-    
-    error_log("Es producción: " . ($is_prod ? 'SÍ' : 'NO'));
-    
-    return $is_prod;
+    return false; // ← FORZADO a entorno de pruebas
 }
 
 function process_successful_payment($order_id, $params) {

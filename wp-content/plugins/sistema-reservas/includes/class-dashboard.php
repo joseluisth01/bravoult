@@ -85,8 +85,8 @@ class ReservasDashboard
 
                 <div class="info-box">
                     <h4>Acceso para Administradores</h4>
-                    <p><strong>Usuario inicial:</strong> superadmin</p>
-                    <p><strong>Contraseña inicial:</strong> admin123</p>
+                    <p><strong>Usuario inicial:</strong> administrador</p>
+                    <p><strong>Contraseña inicial:</strong> busmedina</p>
                     <p><em>Cambia estas credenciales después del primer acceso</em></p>
                 </div>
 

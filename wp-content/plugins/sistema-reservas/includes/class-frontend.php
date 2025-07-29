@@ -189,51 +189,51 @@ class ReservasFrontend
         return ob_get_clean();
     }
 
-public function get_available_services()
-{
-    if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
-        wp_die('Error de seguridad');
-    }
+    public function get_available_services()
+    {
+        if (!wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+            wp_die('Error de seguridad');
+        }
 
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'reservas_servicios';
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'reservas_servicios';
 
-    $month = intval($_POST['month']);
-    $year = intval($_POST['year']);
+        $month = intval($_POST['month']);
+        $year = intval($_POST['year']);
 
-    // Calcular primer y último día del mes
-    $first_day = sprintf('%04d-%02d-01', $year, $month);
-    $last_day = date('Y-m-t', strtotime($first_day));
+        // Calcular primer y último día del mes
+        $first_day = sprintf('%04d-%02d-01', $year, $month);
+        $last_day = date('Y-m-t', strtotime($first_day));
 
-    // ✅ OBTENER CONFIGURACIÓN DE DÍAS DE ANTICIPACIÓN
-    if (!class_exists('ReservasConfigurationAdmin')) {
-        require_once RESERVAS_PLUGIN_PATH . 'includes/class-configuration-admin.php';
-    }
+        // ✅ OBTENER CONFIGURACIÓN DE DÍAS DE ANTICIPACIÓN
+        if (!class_exists('ReservasConfigurationAdmin')) {
+            require_once RESERVAS_PLUGIN_PATH . 'includes/class-configuration-admin.php';
+        }
 
-    $dias_anticipacion = ReservasConfigurationAdmin::get_dias_anticipacion_minima();
+        $dias_anticipacion = ReservasConfigurationAdmin::get_dias_anticipacion_minima();
 
-    // ✅ CORRECCIÓN: Calcular fecha mínima correctamente
-    $fecha_minima = date('Y-m-d'); // Hoy por defecto
-    if ($dias_anticipacion > 0) {
-        $fecha_minima = date('Y-m-d', strtotime("+$dias_anticipacion days"));
-    }
+        // ✅ CORRECCIÓN: Calcular fecha mínima correctamente
+        $fecha_minima = date('Y-m-d'); // Hoy por defecto
+        if ($dias_anticipacion > 0) {
+            $fecha_minima = date('Y-m-d', strtotime("+$dias_anticipacion days"));
+        }
 
-    // ✅ OBTENER FECHA Y HORA ACTUAL EXACTA
-    $fecha_hoy = date('Y-m-d');
-    $hora_actual = date('H:i:s');
-    
-    // ✅ CREAR DATETIME COMPLETO PARA COMPARACIÓN MÁS PRECISA
-    $datetime_actual = date('Y-m-d H:i:s');
+        // ✅ OBTENER FECHA Y HORA ACTUAL EXACTA
+        $fecha_hoy = date('Y-m-d');
+        $hora_actual = date('H:i:s');
 
-    error_log("FRONTEND: Días anticipación: $dias_anticipacion");
-    error_log("FRONTEND: Fecha mínima: $fecha_minima");
-    error_log("FRONTEND: Fecha hoy: $fecha_hoy");
-    error_log("FRONTEND: Hora actual: $hora_actual");
-    error_log("FRONTEND: DateTime actual: $datetime_actual");
+        // ✅ CREAR DATETIME COMPLETO PARA COMPARACIÓN MÁS PRECISA
+        $datetime_actual = date('Y-m-d H:i:s');
 
-    // ✅ CONSULTA CORREGIDA CON MEJOR FILTRO DE HORAS
-    $servicios = $wpdb->get_results($wpdb->prepare(
-        "SELECT id, fecha, hora, hora_vuelta, plazas_disponibles, precio_adulto, precio_nino, precio_residente, 
+        error_log("FRONTEND: Días anticipación: $dias_anticipacion");
+        error_log("FRONTEND: Fecha mínima: $fecha_minima");
+        error_log("FRONTEND: Fecha hoy: $fecha_hoy");
+        error_log("FRONTEND: Hora actual: $hora_actual");
+        error_log("FRONTEND: DateTime actual: $datetime_actual");
+
+        // ✅ CONSULTA CORREGIDA CON MEJOR FILTRO DE HORAS
+        $servicios = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, fecha, hora, hora_vuelta, plazas_disponibles, precio_adulto, precio_nino, precio_residente, 
         tiene_descuento, porcentaje_descuento, descuento_tipo, descuento_minimo_personas
         FROM $table_name 
         WHERE fecha BETWEEN %s AND %s 
@@ -246,40 +246,40 @@ public function get_available_services()
             OR (fecha = %s AND CONCAT(fecha, ' ', hora) > %s)
         )
         ORDER BY fecha, hora",
-        $first_day,           // Rango del mes
-        $last_day,            // Rango del mes  
-        $fecha_minima,        // Fecha mínima por configuración
-        $fecha_hoy,           // Para fechas futuras
-        $fecha_hoy,           // Para el día de hoy
-        $datetime_actual      // Comparar con datetime completo para hoy
-    ));
+            $first_day,           // Rango del mes
+            $last_day,            // Rango del mes  
+            $fecha_minima,        // Fecha mínima por configuración
+            $fecha_hoy,           // Para fechas futuras
+            $fecha_hoy,           // Para el día de hoy
+            $datetime_actual      // Comparar con datetime completo para hoy
+        ));
 
-    error_log("FRONTEND: Servicios encontrados: " . count($servicios));
+        error_log("FRONTEND: Servicios encontrados: " . count($servicios));
 
-    // Organizar por fecha
-    $calendar_data = array();
-    foreach ($servicios as $servicio) {
-        if (!isset($calendar_data[$servicio->fecha])) {
-            $calendar_data[$servicio->fecha] = array();
+        // Organizar por fecha
+        $calendar_data = array();
+        foreach ($servicios as $servicio) {
+            if (!isset($calendar_data[$servicio->fecha])) {
+                $calendar_data[$servicio->fecha] = array();
+            }
+
+            $calendar_data[$servicio->fecha][] = array(
+                'id' => $servicio->id,
+                'hora' => substr($servicio->hora, 0, 5),
+                'hora_vuelta' => $servicio->hora_vuelta ? substr($servicio->hora_vuelta, 0, 5) : '',
+                'plazas_disponibles' => $servicio->plazas_disponibles,
+                'precio_adulto' => $servicio->precio_adulto,
+                'precio_nino' => $servicio->precio_nino,
+                'precio_residente' => $servicio->precio_residente,
+                'tiene_descuento' => $servicio->tiene_descuento,
+                'porcentaje_descuento' => $servicio->porcentaje_descuento,
+                'descuento_tipo' => $servicio->descuento_tipo ?? 'fijo',
+                'descuento_minimo_personas' => $servicio->descuento_minimo_personas ?? 1
+            );
         }
 
-        $calendar_data[$servicio->fecha][] = array(
-            'id' => $servicio->id,
-            'hora' => substr($servicio->hora, 0, 5),
-            'hora_vuelta' => $servicio->hora_vuelta ? substr($servicio->hora_vuelta, 0, 5) : '',
-            'plazas_disponibles' => $servicio->plazas_disponibles,
-            'precio_adulto' => $servicio->precio_adulto,
-            'precio_nino' => $servicio->precio_nino,
-            'precio_residente' => $servicio->precio_residente,
-            'tiene_descuento' => $servicio->tiene_descuento,
-            'porcentaje_descuento' => $servicio->porcentaje_descuento,
-            'descuento_tipo' => $servicio->descuento_tipo ?? 'fijo',
-            'descuento_minimo_personas' => $servicio->descuento_minimo_personas ?? 1
-        );
+        wp_send_json_success($calendar_data);
     }
-
-    wp_send_json_success($calendar_data);
-}
 
     public function calculate_price()
     {
@@ -708,8 +708,8 @@ public function get_available_services()
                 console.log("- Descuento grupo:", descuentoGrupo > 0 ? formatPrice(-descuentoGrupo) : "No aplica");
                 console.log("- Total final:", formatPrice(data.total_price || "0"));
                 console.log("=== VERIFICACIÓN FINAL DE PRECIO ===");
-console.log("Precio total en datos:", data.total_price);
-console.log("Tipo de dato:", typeof data.total_price);
+                console.log("Precio total en datos:", data.total_price);
+                console.log("Tipo de dato:", typeof data.total_price);
             }
 
             function formatPrice(price) {
