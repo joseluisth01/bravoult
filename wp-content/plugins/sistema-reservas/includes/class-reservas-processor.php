@@ -262,42 +262,50 @@ class ReservasProcessor
      * Verificar disponibilidad del servicio
      */
     private function verificar_disponibilidad($service_id, $personas_necesarias)
-    {
-        error_log('=== VERIFICANDO DISPONIBILIDAD ===');
-        error_log("Service ID: $service_id, Personas necesarias: $personas_necesarias");
+{
+    error_log('=== VERIFICANDO DISPONIBILIDAD ===');
+    error_log("Service ID: $service_id, Personas necesarias: $personas_necesarias");
 
-        global $wpdb;
+    global $wpdb;
 
-        $table_servicios = $wpdb->prefix . 'reservas_servicios';
+    $table_servicios = $wpdb->prefix . 'reservas_servicios';
 
-        $servicio = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $table_servicios WHERE id = %d AND status = 'active'",
-            $service_id
-        ));
+    $servicio = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM $table_servicios WHERE id = %d AND status = 'active'",
+        $service_id
+    ));
 
-        if (!$servicio) {
-            return array('disponible' => false, 'error' => 'Servicio no encontrado');
-        }
-
-        error_log('Servicio encontrado: ' . print_r($servicio, true));
-
-        if ($servicio->plazas_disponibles < $personas_necesarias) {
-            return array(
-                'disponible' => false,
-                'error' => "Solo quedan {$servicio->plazas_disponibles} plazas disponibles, necesitas {$personas_necesarias}"
-            );
-        }
-
-        // Verificar que la fecha no sea pasada
-        $fecha_servicio = strtotime($servicio->fecha);
-        $hoy = strtotime(date('Y-m-d'));
-
-        if ($fecha_servicio <= $hoy) {
-            return array('disponible' => false, 'error' => 'No se puede reservar para fechas pasadas o de hoy');
-        }
-
-        return array('disponible' => true, 'servicio' => $servicio);
+    if (!$servicio) {
+        return array('disponible' => false, 'error' => 'Servicio no encontrado');
     }
+
+    error_log('Servicio encontrado: ' . print_r($servicio, true));
+
+    if ($servicio->plazas_disponibles < $personas_necesarias) {
+        return array(
+            'disponible' => false,
+            'error' => "Solo quedan {$servicio->plazas_disponibles} plazas disponibles, necesitas {$personas_necesarias}"
+        );
+    }
+
+    // ✅ NUEVO: VALIDACIÓN MEJORADA QUE PERMITE RESERVAR EL MISMO DÍA SI NO HA PASADO LA HORA
+    $fecha_servicio = $servicio->fecha;
+    $hora_servicio = $servicio->hora;
+    $fecha_hoy = date('Y-m-d');
+    $hora_actual = date('H:i:s');
+
+    // No permitir fechas pasadas
+    if ($fecha_servicio < $fecha_hoy) {
+        return array('disponible' => false, 'error' => 'No se puede reservar para fechas pasadas');
+    }
+
+    // Si es hoy, verificar que la hora no haya pasado
+    if ($fecha_servicio === $fecha_hoy && $hora_servicio <= $hora_actual) {
+        return array('disponible' => false, 'error' => 'No se puede reservar para horarios que ya han pasado');
+    }
+
+    return array('disponible' => true, 'servicio' => $servicio);
+}
 
     /**
      * Recalcular precio para verificar

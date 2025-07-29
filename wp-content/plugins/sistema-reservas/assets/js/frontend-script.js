@@ -166,33 +166,33 @@ jQuery(document).ready(function ($) {
         calendarHTML += `<div class="calendar-day other-month">${dayNum}</div>`;
     }
 
-    // ✅ CORRECCIÓN: Usar solo la fecha, no la fecha mínima
+    // ✅ CORRECCIÓN: Calcular fecha mínima correctamente
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Resetear hora para comparación de solo fecha
 
     console.log(`Configuración frontend: ${diasAnticiapcionMinima} días de anticipación`);
     console.log(`Fecha actual: ${today.toDateString()}`);
 
+    // ✅ CORRECCIÓN: Calcular fecha mínima basada en la configuración
+    let fechaMinima = new Date(today);
+    if (diasAnticiapcionMinima > 0) {
+        fechaMinima.setDate(today.getDate() + diasAnticiapcionMinima);
+    }
+    // Si diasAnticiapcionMinima = 0, fechaMinima = today
+
+    console.log(`Fecha mínima permitida: ${fechaMinima.toDateString()}`);
+
     // Días del mes actual
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const dayDate = new Date(year, month, day);
+        dayDate.setHours(0, 0, 0, 0); // Normalizar horas
 
         let dayClass = 'calendar-day';
         let clickHandler = '';
 
-        // ✅ NUEVA LÓGICA: Verificar si el día está bloqueado por días de anticipación
-        let isBlockedByAnticipacion = false;
-        
-        if (diasAnticiapcionMinima > 0) {
-            // Si hay días de anticipación, bloquear días anteriores a hoy + días de anticipación
-            const fechaMinima = new Date(today);
-            fechaMinima.setDate(today.getDate() + diasAnticiapcionMinima);
-            isBlockedByAnticipacion = dayDate < fechaMinima;
-        } else {
-            // Si días de anticipación = 0, solo bloquear días anteriores a hoy
-            isBlockedByAnticipacion = dayDate < today;
-        }
+        // ✅ NUEVA LÓGICA: Solo bloquear días anteriores a la fecha mínima
+        const isBlockedByAnticipacion = dayDate < fechaMinima;
 
         if (isBlockedByAnticipacion) {
             dayClass += ' no-disponible';
@@ -206,20 +206,34 @@ jQuery(document).ready(function ($) {
             const isToday = dateStr === today.toISOString().split('T')[0];
 
             if (isToday) {
-                const currentHour = new Date().getHours(); // Hora actual real
-                const currentMinute = new Date().getMinutes();
+                // Solo para el día de hoy, verificar las horas
+                const now = new Date();
+                const currentHour = now.getHours();
+                const currentMinute = now.getMinutes();
                 const currentTimeInMinutes = currentHour * 60 + currentMinute;
 
                 hasAvailableServices = servicesAvailable.some(service => {
                     const serviceTime = service.hora.split(':');
-                    const serviceTimeInMinutes = parseInt(serviceTime[0]) * 60 + parseInt(serviceTime[1]);
-                    return serviceTimeInMinutes > currentTimeInMinutes;
+                    const serviceHour = parseInt(serviceTime[0]);
+                    const serviceMinute = parseInt(serviceTime[1]);
+                    const serviceTimeInMinutes = serviceHour * 60 + serviceMinute;
+                    
+                    const isServiceFuture = serviceTimeInMinutes > currentTimeInMinutes;
+                    
+                    if (isServiceFuture) {
+                        console.log(`Servicio ${service.hora} disponible (hora actual: ${currentHour}:${String(currentMinute).padStart(2, '0')})`);
+                    } else {
+                        console.log(`Servicio ${service.hora} pasado (hora actual: ${currentHour}:${String(currentMinute).padStart(2, '0')})`);
+                    }
+                    
+                    return isServiceFuture;
                 });
 
-                console.log(`Día ${day} (hoy) - Hora actual: ${currentHour}:${String(currentMinute).padStart(2, '0')}`);
-                console.log(`Servicios disponibles después de la hora actual:`, hasAvailableServices);
+                console.log(`Día ${day} (hoy) - Servicios disponibles después de las ${currentHour}:${String(currentMinute).padStart(2, '0')}:`, hasAvailableServices);
             } else {
+                // Para días futuros, todos los servicios están disponibles
                 hasAvailableServices = servicesAvailable.length > 0;
+                console.log(`Día ${day} (futuro) - Servicios disponibles:`, hasAvailableServices);
             }
 
             if (hasAvailableServices) {
@@ -240,6 +254,7 @@ jQuery(document).ready(function ($) {
             }
         } else {
             dayClass += ' no-disponible';
+            console.log(`Día ${day} no disponible (sin servicios en la fecha)`);
         }
 
         if (selectedDate === dateStr) {
@@ -281,39 +296,65 @@ jQuery(document).ready(function ($) {
     }
 
     function loadAvailableSchedules(dateStr) {
-        const services = servicesData[dateStr] || [];
+    const services = servicesData[dateStr] || [];
+    const today = new Date();
+    const selectedDay = new Date(dateStr + 'T00:00:00');
+    const isToday = dateStr === today.toISOString().split('T')[0];
 
-        let optionsHTML = '<option value="">Selecciona un horario</option>';
+    let optionsHTML = '<option value="">Selecciona un horario</option>';
 
-        services.forEach(service => {
-            let descuentoInfo = '';
+    services.forEach(service => {
+        let shouldShowService = true;
 
-            // ✅ LÓGICA MEJORADA PARA MOSTRAR INFORMACIÓN DEL DESCUENTO
-            if (service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0) {
-                const porcentaje = parseFloat(service.porcentaje_descuento);
-                const tipo = service.descuento_tipo || 'fijo';
-                const minimo = parseInt(service.descuento_minimo_personas) || 1;
+        // ✅ FILTRAR HORAS PASADAS SOLO PARA EL DÍA DE HOY
+        if (isToday) {
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            const currentTimeInMinutes = currentHour * 60 + currentMinute;
 
-                if (tipo === 'fijo') {
-                    // Descuento fijo para todos
-                    descuentoInfo = ` (${porcentaje}% descuento)`;
-                } else if (tipo === 'por_grupo') {
-                    // Descuento por grupo con mínimo de personas
-                    descuentoInfo = ` (${porcentaje}% descuento desde ${minimo} personas)`;
-                }
+            const serviceTime = service.hora.split(':');
+            const serviceHour = parseInt(serviceTime[0]);
+            const serviceMinute = parseInt(serviceTime[1]);
+            const serviceTimeInMinutes = serviceHour * 60 + serviceMinute;
+
+            // Solo mostrar servicios futuros
+            shouldShowService = serviceTimeInMinutes > currentTimeInMinutes;
+
+            if (!shouldShowService) {
+                console.log(`Servicio ${service.hora} omitido (hora pasada)`);
+                return; // Saltar este servicio
             }
+        }
 
-            optionsHTML += `<option value="${service.id}" 
-                               data-plazas="${service.plazas_disponibles}"
-                               data-descuento-tipo="${service.descuento_tipo || 'fijo'}"
-                               data-descuento-minimo="${service.descuento_minimo_personas || 1}">
-                            ${service.hora} - ${service.plazas_disponibles} plazas disponibles${descuentoInfo}
-                        </option>`;
-        });
+        let descuentoInfo = '';
 
-        $('#horarios-select').html(optionsHTML).prop('disabled', false);
-        $('#btn-siguiente').prop('disabled', true);
-    }
+        // ✅ LÓGICA MEJORADA PARA MOSTRAR INFORMACIÓN DEL DESCUENTO
+        if (service.tiene_descuento && parseFloat(service.porcentaje_descuento) > 0) {
+            const porcentaje = parseFloat(service.porcentaje_descuento);
+            const tipo = service.descuento_tipo || 'fijo';
+            const minimo = parseInt(service.descuento_minimo_personas) || 1;
+
+            if (tipo === 'fijo') {
+                // Descuento fijo para todos
+                descuentoInfo = ` (${porcentaje}% descuento)`;
+            } else if (tipo === 'por_grupo') {
+                // Descuento por grupo con mínimo de personas
+                descuentoInfo = ` (${porcentaje}% descuento desde ${minimo} personas)`;
+            }
+        }
+
+        optionsHTML += `<option value="${service.id}" 
+                           data-plazas="${service.plazas_disponibles}"
+                           data-descuento-tipo="${service.descuento_tipo || 'fijo'}"
+                           data-descuento-minimo="${service.descuento_minimo_personas || 1}">
+                        ${service.hora} - ${service.plazas_disponibles} plazas disponibles${descuentoInfo}
+                    </option>`;
+    });
+
+    $('#horarios-select').html(optionsHTML).prop('disabled', false);
+    $('#btn-siguiente').prop('disabled', true);
+}
 
     function loadPrices() {
         if (!selectedServiceId) return;
