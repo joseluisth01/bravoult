@@ -307,7 +307,100 @@ class ReservasProcessor
     return array('disponible' => true, 'servicio' => $servicio);
 }
 
-
+/**
+ * Procesar reserva cuando el pago viene de Redsys
+ */
+public function process_reservation_payment($data) {
+    try {
+        error_log('=== PROCESANDO RESERVA CON PAGO REDSYS ===');
+        
+        // Decodificar datos de reserva
+        $reservation_data = json_decode($data['reservation_data'], true);
+        
+        if (!$reservation_data) {
+            return array('success' => false, 'message' => 'Datos de reserva inválidos');
+        }
+        
+        // Validar datos personales
+        $datos_personales = array(
+            'nombre' => sanitize_text_field($data['nombre']),
+            'apellidos' => sanitize_text_field($data['apellidos']),
+            'email' => sanitize_email($data['email']),
+            'telefono' => sanitize_text_field($data['telefono'])
+        );
+        
+        // Validar datos de reserva
+        if (!isset($reservation_data['service_id'])) {
+            return array('success' => false, 'message' => 'Datos de servicio inválidos');
+        }
+        
+        // Calcular total de personas
+        $adultos = intval($reservation_data['adultos']);
+        $residentes = intval($reservation_data['residentes']);
+        $ninos_5_12 = intval($reservation_data['ninos_5_12']);
+        $ninos_menores = intval($reservation_data['ninos_menores']);
+        $total_personas = $adultos + $residentes + $ninos_5_12;
+        
+        $reservation_data['total_personas'] = $total_personas;
+        $reservation_data['total_viajeros'] = $total_personas + $ninos_menores;
+        
+        // Verificar disponibilidad
+        $servicio = $this->verificar_disponibilidad($reservation_data['service_id'], $total_personas);
+        if (!$servicio['disponible']) {
+            return array('success' => false, 'message' => $servicio['error']);
+        }
+        
+        // Recalcular precios
+        $calculo_precio = $this->recalcular_precio($reservation_data);
+        if (!$calculo_precio['valido']) {
+            return array('success' => false, 'message' => $calculo_precio['error']);
+        }
+        
+        // Crear la reserva
+        $resultado_reserva = $this->crear_reserva(
+            $datos_personales,
+            $reservation_data,
+            $calculo_precio['precio']
+        );
+        
+        if (!$resultado_reserva['exito']) {
+            return array('success' => false, 'message' => $resultado_reserva['error']);
+        }
+        
+        // Actualizar plazas disponibles
+        $actualizacion = $this->actualizar_plazas_disponibles(
+            $reservation_data['service_id'],
+            $total_personas
+        );
+        
+        if (!$actualizacion['exito']) {
+            $this->eliminar_reserva($resultado_reserva['reserva_id']);
+            return array('success' => false, 'message' => 'Error actualizando disponibilidad');
+        }
+        
+        // Enviar emails de confirmación
+        $this->send_confirmation_emails($resultado_reserva['reserva_id']);
+        
+        // Respuesta exitosa
+        return array(
+            'success' => true,
+            'data' => array(
+                'localizador' => $resultado_reserva['localizador'],
+                'reserva_id' => $resultado_reserva['reserva_id'],
+                'detalles' => array(
+                    'fecha' => $reservation_data['fecha'],
+                    'hora' => $reservation_data['hora_ida'],
+                    'personas' => $total_personas,
+                    'precio_final' => $calculo_precio['precio']['precio_final']
+                )
+            )
+        );
+        
+    } catch (Exception $e) {
+        error_log('ERROR en process_reservation_payment: ' . $e->getMessage());
+        return array('success' => false, 'message' => 'Error interno del servidor');
+    }
+}
 
 
     /**
