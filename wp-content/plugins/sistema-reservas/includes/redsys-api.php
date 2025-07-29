@@ -31,6 +31,9 @@ class RedsysAPI {
     }
 
     private function encrypt_3DES($message, $key) {
+        // Asegurar que el mensaje tenga longitud múltiplo de 8
+        $message = str_pad($message, ceil(strlen($message) / 8) * 8, "\0");
+        
         return openssl_encrypt(
             $message,
             'des-ede3-cbc',
@@ -38,5 +41,24 @@ class RedsysAPI {
             OPENSSL_RAW_DATA | OPENSSL_NO_PADDING,
             "\0\0\0\0\0\0\0\0"
         );
+    }
+
+    // Función para verificar respuesta de Redsys
+    public function verifySignature($signature, $parameters, $key) {
+        $decodedParams = base64_decode($parameters);
+        $paramsArray = json_decode($decodedParams, true);
+        
+        $order = $paramsArray["Ds_Order"];
+        $decodedKey = base64_decode($key, true);
+        $keyDerivada = $this->encrypt_3DES($order, $decodedKey);
+        
+        $calculatedSignature = base64_encode(hash_hmac('sha256', $parameters, $keyDerivada, true));
+        
+        return $signature === $calculatedSignature;
+    }
+
+    public function getParametersFromResponse($merchantParameters) {
+        $decodedParams = base64_decode($merchantParameters);
+        return json_decode($decodedParams, true);
     }
 }

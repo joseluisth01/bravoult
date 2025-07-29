@@ -307,6 +307,9 @@ class ReservasProcessor
     return array('disponible' => true, 'servicio' => $servicio);
 }
 
+
+
+
     /**
      * Recalcular precio para verificar
      */

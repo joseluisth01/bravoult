@@ -161,34 +161,34 @@ function ajax_generar_formulario_pago_redsys() {
         wp_send_json_success($debug_info);
     }
 
-    private function load_dependencies()
-    {
-        $files = array(
-            'includes/class-database.php',
-            'includes/class-auth.php',
-            'includes/class-admin.php',
-            'includes/class-dashboard.php',
-            'includes/class-calendar-admin.php',
-            'includes/class-discounts-admin.php',
-            'includes/class-configuration-admin.php',
-            'includes/class-reports-admin.php',
-            'includes/class-agencies-admin.php',
-            'includes/class-agency-profile-admin.php',  // ✅ AÑADIR ESTA LÍNEA
-            'includes/class-reservas-processor.php',
-            'includes/class-email-service.php',
-            'includes/class-frontend.php',
-            'includes/class-reserva-rapida-admin.php',
-        );
+    private function load_dependencies() {
+    $files = array(
+        'includes/class-database.php',
+        'includes/class-auth.php',
+        'includes/class-admin.php',
+        'includes/class-dashboard.php',
+        'includes/class-calendar-admin.php',
+        'includes/class-discounts-admin.php',
+        'includes/class-configuration-admin.php',
+        'includes/class-reports-admin.php',
+        'includes/class-agencies-admin.php',
+        'includes/class-agency-profile-admin.php',
+        'includes/class-reservas-processor.php',
+        'includes/class-email-service.php',
+        'includes/class-frontend.php',
+        'includes/class-reserva-rapida-admin.php',
+        'includes/class-redsys-handler.php', // ✅ AÑADIR ESTA LÍNEA
+    );
 
-        foreach ($files as $file) {
-            $path = RESERVAS_PLUGIN_PATH . $file;
-            if (file_exists($path)) {
-                require_once $path;
-            } else {
-                error_log("RESERVAS ERROR: No se pudo cargar $file");
-            }
+    foreach ($files as $file) {
+        $path = RESERVAS_PLUGIN_PATH . $file;
+        if (file_exists($path)) {
+            require_once $path;
+        } else {
+            error_log("RESERVAS ERROR: No se pudo cargar $file");
         }
     }
+}
 
     private function initialize_classes()
     {
@@ -209,6 +209,10 @@ function ajax_generar_formulario_pago_redsys() {
         if (class_exists('ReservasDiscountsAdmin')) {
             $this->discounts_admin = new ReservasDiscountsAdmin();
         }
+
+        if (class_exists('ReservasRedsysHandler')) {
+        new ReservasRedsysHandler();
+    }
 
         // Inicializar configuración con recordatorios
         if (class_exists('ReservasConfigurationAdmin')) {
