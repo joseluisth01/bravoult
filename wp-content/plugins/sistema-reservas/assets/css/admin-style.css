@@ -845,6 +845,58 @@ body {
     font-weight: bold;
 }
 
+/* Estilos específicos para el filtro de agencias */
+.filter-group select#agency-filtro {
+    background: linear-gradient(135deg, #f3e5f5 0%, #ffffff 100%);
+    border: 2px solid #7b1fa2;
+    color: #7b1fa2;
+    font-weight: 600;
+}
+
+.filter-group select#agency-filtro:focus {
+    border-color: #4a148c;
+    box-shadow: 0 0 0 3px rgba(123, 31, 162, 0.1);
+}
+
+.filter-group select#agency-filtro option[value="todas"] {
+    background-color: #e3f2fd;
+    color: #1976d2;
+    font-weight: 600;
+}
+
+.filter-group select#agency-filtro option[value="sin_agencia"] {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+/* Mejorar el diseño responsive para incluir la nueva columna */
+@media (max-width: 1200px) {
+    .reservations-table-data {
+        font-size: 12px;
+    }
+    
+    .reservations-table-data th,
+    .reservations-table-data td {
+        padding: 8px 4px;
+    }
+    
+    .agency-badge {
+        font-size: 10px;
+        padding: 2px 6px;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-by-agencies {
+        grid-template-columns: 1fr;
+    }
+    
+    .agency-stat-card {
+        margin-bottom: 10px;
+    }
+}
+
 /* Animación para días con descuento */
 @keyframes pulse-discount {
     0% {
