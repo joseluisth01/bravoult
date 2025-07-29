@@ -136,7 +136,9 @@ function loadDefaultConfiguration() {
         // ✅ VERIFICAR QUE TENEMOS LAS VARIABLES NECESARIAS
         if (typeof reservasAjax === 'undefined') {
             console.error('reservasAjax no está definido');
-            resolve(); // Continuar sin configuración
+            // ✅ USAR VALORES POR DEFECTO EN LUGAR DE FALLAR
+            defaultConfig = getDefaultConfigValues();
+            resolve();
             return;
         }
 
@@ -144,24 +146,22 @@ function loadDefaultConfiguration() {
         formData.append('action', 'get_configuration');
         formData.append('nonce', reservasAjax.nonce);
 
-        // ✅ MEJORAR EL FETCH CON MÁS DEBUGGING
         fetch(reservasAjax.ajax_url, {
             method: 'POST',
             body: formData,
-            credentials: 'same-origin' // ✅ IMPORTANTE PARA SESIONES
+            credentials: 'same-origin'
         })
             .then(response => {
                 console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers);
-
+                
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
-                return response.text(); // ✅ OBTENER COMO TEXTO PRIMERO
+                return response.text();
             })
             .then(text => {
-                console.log('Response text:', text);
+                console.log('Response text length:', text.length);
 
                 try {
                     const data = JSON.parse(text);
@@ -171,13 +171,12 @@ function loadDefaultConfiguration() {
                         resolve();
                     } else {
                         console.error('❌ Error del servidor:', data.data);
-                        // Usar valores por defecto
                         defaultConfig = getDefaultConfigValues();
                         resolve();
                     }
                 } catch (e) {
                     console.error('❌ Error parsing JSON:', e);
-                    console.error('Raw response:', text);
+                    console.error('Raw response:', text.substring(0, 500) + '...');
                     defaultConfig = getDefaultConfigValues();
                     resolve();
                 }

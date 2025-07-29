@@ -735,10 +735,11 @@ jQuery(document).ready(function ($) {
 function processReservation() {
     console.log("=== PROCESANDO RESERVA CON REDSYS ===");
 
+    // Verificar checkbox de privacidad
     const checkbox = document.getElementById("privacy-policy");
     if (!checkbox || !checkbox.checked) {
         alert("Debes aceptar la política de privacidad para continuar.");
-        checkbox.focus();
+        if (checkbox) checkbox.focus();
         return;
     }
 
@@ -750,10 +751,10 @@ function processReservation() {
     }
 
     // Validar formularios
-    const nombre = jQuery("[name='nombre']").val().trim();
-    const apellidos = jQuery("[name='apellidos']").val().trim();
-    const email = jQuery("[name='email']").val().trim();
-    const telefono = jQuery("[name='telefono']").val().trim();
+    const nombre = document.querySelector("[name='nombre']")?.value?.trim() || '';
+    const apellidos = document.querySelector("[name='apellidos']")?.value?.trim() || '';
+    const email = document.querySelector("[name='email']")?.value?.trim() || '';
+    const telefono = document.querySelector("[name='telefono']")?.value?.trim() || '';
 
     if (!nombre || !apellidos || !email || !telefono) {
         alert("Por favor, completa todos los campos de datos personales.");
@@ -787,9 +788,18 @@ function processReservation() {
     }
 
     // Deshabilitar botón y mostrar estado de carga
-    const processBtn = jQuery(".process-btn");
-    const originalText = processBtn.text();
-    processBtn.prop("disabled", true).text("Procesando...");
+    const processBtn = document.querySelector(".process-btn");
+    if (processBtn) {
+        const originalText = processBtn.textContent;
+        processBtn.disabled = true;
+        processBtn.textContent = "Procesando...";
+        
+        // Función para rehabilitar botón
+        window.enableProcessButton = function() {
+            processBtn.disabled = false;
+            processBtn.textContent = originalText;
+        };
+    }
 
     // Preparar datos completos para Redsys
     const redsysData = {
@@ -800,64 +810,77 @@ function processReservation() {
         telefono: telefono
     };
 
-    // Preparar datos para AJAX
-    const ajaxData = {
-        action: "generar_formulario_pago_redsys",
-        nonce: reservasAjax.nonce,
-        reservation_data: JSON.stringify(redsysData)
-    };
-
-    console.log("Enviando datos a Redsys:", ajaxData);
+    console.log("Enviando datos a Redsys:", redsysData);
 
     // Enviar solicitud AJAX
-    jQuery.ajax({
-        url: reservasAjax.ajax_url,
-        type: "POST",
-        data: ajaxData,
-        timeout: 30000,
-        dataType: 'json',
-        success: function (response) {
-            console.log("Respuesta de Redsys:", response);
+    fetch(reservasAjax.ajax_url, {
+        method: "POST",
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            action: "generar_formulario_pago_redsys",
+            nonce: reservasAjax.nonce,
+            reservation_data: JSON.stringify(redsysData)
+        })
+    })
+    .then(response => {
+        console.log("Response status:", response.status);
+        console.log("Response headers:", response.headers);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return response.text();
+    })
+    .then(text => {
+        console.log("Response text:", text.substring(0, 200) + "...");
+        
+        try {
+            const data = JSON.parse(text);
+            console.log("Respuesta parseada:", data);
 
             // Rehabilitar botón
-            processBtn.prop("disabled", false).text(originalText);
+            if (window.enableProcessButton) window.enableProcessButton();
 
-            if (response && response.success) {
+            if (data && data.success) {
                 console.log("✅ Formulario Redsys generado correctamente");
                 
                 // Insertar y ejecutar el formulario de Redsys
-                jQuery('body').append(response.data);
-                
-                // El formulario se auto-enviará automáticamente al banco
+                document.body.insertAdjacentHTML('beforeend', data.data);
                 
             } else {
-                console.error("❌ Error generando formulario Redsys:", response);
-                const errorMsg = response && response.data ? response.data : "Error generando formulario de pago";
+                console.error("❌ Error generando formulario Redsys:", data);
+                const errorMsg = data && data.data ? data.data : "Error generando formulario de pago";
                 alert("Error preparando el pago: " + errorMsg);
             }
-        },
-        error: function (xhr, status, error) {
-            console.error("❌ Error de conexión:", error);
-            console.error("XHR completo:", xhr);
-
-            // Rehabilitar botón
-            processBtn.prop("disabled", false).text(originalText);
-
-            let errorMessage = "Error de conexión al preparar el pago.";
-
-            if (xhr.status === 0) {
-                errorMessage += " (Sin conexión al servidor)";
-            } else if (xhr.status === 403) {
-                errorMessage += " (Error 403: Acceso denegado)";
-            } else if (xhr.status === 404) {
-                errorMessage += " (Error 404: URL no encontrada)";
-            } else if (xhr.status === 500) {
-                errorMessage += " (Error 500: Error interno del servidor)";
-            }
-
-            errorMessage += "\n\nPor favor, inténtalo de nuevo.";
-            alert(errorMessage);
+        } catch (parseError) {
+            console.error("❌ Error parsing JSON:", parseError);
+            console.error("Raw response:", text);
+            
+            if (window.enableProcessButton) window.enableProcessButton();
+            alert("Error en la respuesta del servidor. Por favor, inténtalo de nuevo.");
         }
+    })
+    .catch(error => {
+        console.error("❌ Error de conexión:", error);
+
+        // Rehabilitar botón
+        if (window.enableProcessButton) window.enableProcessButton();
+
+        let errorMessage = "Error de conexión al preparar el pago.";
+
+        if (error.message.includes('403')) {
+            errorMessage += " (Error 403: Acceso denegado)";
+        } else if (error.message.includes('404')) {
+            errorMessage += " (Error 404: URL no encontrada)";
+        } else if (error.message.includes('500')) {
+            errorMessage += " (Error 500: Error interno del servidor)";
+        }
+
+        errorMessage += "\n\nPor favor, inténtalo de nuevo.";
+        alert(errorMessage);
     });
 }
 

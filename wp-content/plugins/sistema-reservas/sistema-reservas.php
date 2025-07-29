@@ -30,38 +30,6 @@ class SistemaReservas
         add_action('wp_ajax_test_pdf_generation', array($this, 'test_pdf_generation'));
         add_action('wp_ajax_nopriv_test_pdf_generation', array($this, 'test_pdf_generation'));
 
-        add_action('wp_ajax_generar_formulario_pago_redsys', 'ajax_generar_formulario_pago_redsys');
-        add_action('wp_ajax_nopriv_generar_formulario_pago_redsys', 'ajax_generar_formulario_pago_redsys');
-    }
-
-    function ajax_generar_formulario_pago_redsys()
-    {
-        check_ajax_referer('reservas_nonce', 'nonce');
-
-        if (!isset($_POST['reservation_data'])) {
-            error_log("❌ No llegó reservation_data");
-            wp_send_json_error("Faltan datos de la reserva");
-        }
-
-        $reserva_raw = stripslashes($_POST['reservation_data']);
-        error_log("🟡 reservation_data recibido (raw): $reserva_raw");
-
-        $reserva = json_decode($reserva_raw, true);
-
-        if (!$reserva || !isset($reserva['total_price'])) {
-            error_log("❌ Error al decodificar datos o falta total_price");
-            wp_send_json_error("Datos de reserva inválidos");
-        }
-
-        require_once plugin_dir_path(__FILE__) . 'includes/redsys-helper.php';
-
-        try {
-            $formulario = generar_formulario_redsys($reserva);
-            wp_send_json_success($formulario);
-        } catch (Exception $e) {
-            error_log("❌ Excepción al generar formulario: " . $e->getMessage());
-            wp_send_json_error("Excepción: " . $e->getMessage());
-        }
     }
 
 
@@ -1576,6 +1544,86 @@ add_action('admin_init', function () {
         error_log('✅ Columna email_notificaciones añadida a tabla de agencias');
     }
 });
+
+
+// ✅ FUNCIÓN AJAX PARA REDSYS - FUERA DE LA CLASE
+function ajax_generar_formulario_pago_redsys()
+{
+    // Limpiar cualquier output buffer
+    if (ob_get_level()) {
+        ob_clean();
+    }
+    
+    // Headers para JSON
+    if (!headers_sent()) {
+        header('Content-Type: application/json');
+    }
+    
+    try {
+        error_log("=== INICIANDO AJAX REDSYS ===");
+        
+        // Verificar nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'reservas_nonce')) {
+            error_log("❌ Error de nonce en Redsys");
+            wp_send_json_error("Error de seguridad");
+            return;
+        }
+
+        if (!isset($_POST['reservation_data'])) {
+            error_log("❌ No llegó reservation_data");
+            wp_send_json_error("Faltan datos de la reserva");
+            return;
+        }
+
+        $reserva_raw = stripslashes($_POST['reservation_data']);
+        error_log("🟡 reservation_data recibido: " . substr($reserva_raw, 0, 200) . "...");
+
+        $reserva = json_decode($reserva_raw, true);
+
+        if (!$reserva) {
+            error_log("❌ Error al decodificar JSON: " . json_last_error_msg());
+            wp_send_json_error("Datos de reserva inválidos - JSON corrupto");
+            return;
+        }
+        
+        if (!isset($reserva['total_price']) || empty($reserva['total_price'])) {
+            error_log("❌ Falta total_price en datos: " . print_r($reserva, true));
+            wp_send_json_error("Falta el precio total de la reserva");
+            return;
+        }
+
+        // Verificar que el archivo existe
+        $redsys_helper_path = RESERVAS_PLUGIN_PATH . 'includes/redsys-helper.php';
+        if (!file_exists($redsys_helper_path)) {
+            error_log("❌ No se encontró redsys-helper.php en: " . $redsys_helper_path);
+            wp_send_json_error("Error: Archivo de Redsys no encontrado");
+            return;
+        }
+        
+        require_once $redsys_helper_path;
+
+        if (!function_exists('generar_formulario_redsys')) {
+            error_log("❌ Función generar_formulario_redsys no existe");
+            wp_send_json_error("Error: Función de Redsys no disponible");
+            return;
+        }
+
+        error_log("✅ Generando formulario Redsys...");
+        $formulario = generar_formulario_redsys($reserva);
+        
+        error_log("✅ Formulario Redsys generado correctamente");
+        wp_send_json_success($formulario);
+        
+    } catch (Exception $e) {
+        error_log("❌ Excepción en Redsys: " . $e->getMessage());
+        error_log("❌ Stack trace: " . $e->getTraceAsString());
+        wp_send_json_error("Error interno: " . $e->getMessage());
+    }
+}
+
+// ✅ REGISTRAR LA FUNCIÓN AJAX
+add_action('wp_ajax_generar_formulario_pago_redsys', 'ajax_generar_formulario_pago_redsys');
+add_action('wp_ajax_nopriv_generar_formulario_pago_redsys', 'ajax_generar_formulario_pago_redsys');
 
 // Inicializar el plugin
 new SistemaReservas();
